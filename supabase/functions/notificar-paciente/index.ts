@@ -10,8 +10,9 @@
  *   { paciente_id, tipo, dados? }
  *     -> { status: "enviado" | "simulado" | "ignorado" | "falhou", ... }
  *
- * Segredos (Supabase > Edge Functions > Secrets):
- *   RESEND_API_KEY  chave da API do Resend
+ * Segredos do backend:
+ *   RESEND_API_KEY  chave da conexão segura com o Resend
+ *   LOVABLE_API_KEY chave gerenciada pela plataforma
  *   EMAIL_FROM      remetente, ex.: "Método R.E.A.L <contato@seudominio.com.br>"
  *                   (o domínio precisa estar verificado no Resend)
  *   APP_URL         endereço público do app, ex.: https://app.seudominio.com.br
@@ -58,8 +59,9 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY") || "";
+    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY") || "";
     const emailFrom = Deno.env.get("EMAIL_FROM") || "";
-    const configurado = Boolean(resendKey && emailFrom);
+    const configurado = Boolean(resendKey && lovableApiKey && emailFrom);
 
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -174,9 +176,13 @@ Deno.serve(async (req) => {
     }
 
     // ── Envio ───────────────────────────────────────────────────────────
-    const res = await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
       method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${lovableApiKey}`,
+        "X-Connection-Api-Key": resendKey,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         from: emailFrom,
         to: [destino],
