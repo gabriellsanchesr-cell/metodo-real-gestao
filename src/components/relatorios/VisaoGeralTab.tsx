@@ -50,7 +50,10 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
       const d = new Date(c.created_at);
       return differenceInDays(new Date(), d) <= 7 && c.respondido;
     });
-    const taxaCheckin = ativos.length > 0 ? Math.round((checkinsUltimaSemana.length / ativos.length) * 100) : 0;
+    // Conta PACIENTES distintos, não registros: dois check-ins da mesma
+    // paciente são uma pessoa. Contando registros a taxa passava de 100%.
+    const pacientesComCheckin = new Set(checkinsUltimaSemana.map(c => c.paciente_id)).size;
+    const taxaCheckin = ativos.length > 0 ? Math.round((pacientesComCheckin / ativos.length) * 100) : 0;
 
     const semanasPeriodo = Math.max(1, differenceInWeeks(periodoFim, periodoInicio));
     const mediaConsultasSemana = Math.round((consultasPeriodo.length / semanasPeriodo) * 10) / 10;

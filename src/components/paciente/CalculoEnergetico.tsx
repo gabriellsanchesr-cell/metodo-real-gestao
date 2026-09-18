@@ -15,6 +15,9 @@ import {
   Save, Download, Clock, FileText, Calculator, Import, Flame, Info, Trash2,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  calcIdade, calcTMB, calcMacros, normalizarSexo, type FormulaTMB,
+} from "@/lib/antropometria";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -70,58 +73,6 @@ const DEFAULT_MEALS: Record<string, { label: string; pct: number }> = {
   ceia: { label: "Ceia", pct: 5 },
 };
 
-function calcAge(dob: string | null): number {
-  if (!dob) return 30;
-  const birth = new Date(dob);
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age;
-}
-
-function calcTMB(formula: string, peso: number, altura: number, idade: number, sexo: string, mlg: number): number | null {
-  const isMale = sexo === "M";
-  switch (formula) {
-    case "harris_benedict":
-      return isMale
-        ? 66.5 + 13.75 * peso + 5.003 * altura - 6.755 * idade
-        : 655.1 + 9.563 * peso + 1.850 * altura - 4.676 * idade;
-    case "harris_revisada":
-      return isMale
-        ? 88.362 + 13.397 * peso + 4.799 * altura - 5.677 * idade
-        : 447.593 + 9.247 * peso + 3.098 * altura - 4.330 * idade;
-    case "mifflin":
-      return isMale
-        ? 10 * peso + 6.25 * altura - 5 * idade + 5
-        : 10 * peso + 6.25 * altura - 5 * idade - 161;
-    case "fao_oms":
-      if (isMale) {
-        if (idade < 3) return 60.9 * peso - 54;
-        if (idade < 10) return 22.7 * peso + 495;
-        if (idade < 18) return 17.5 * peso + 651;
-        if (idade < 30) return 15.3 * peso + 679;
-        if (idade < 60) return 11.6 * peso + 879;
-        return 13.5 * peso + 487;
-      } else {
-        if (idade < 3) return 61.0 * peso - 51;
-        if (idade < 10) return 22.5 * peso + 499;
-        if (idade < 18) return 12.2 * peso + 746;
-        if (idade < 30) return 14.7 * peso + 496;
-        if (idade < 60) return 8.7 * peso + 829;
-        return 10.5 * peso + 596;
-      }
-    case "cunningham":
-      return mlg ? 500 + 22 * mlg : null;
-    case "owen":
-      return isMale ? 879 + 10.2 * peso : 795 + 7.18 * peso;
-    case "tinsley":
-      return isMale ? 24.8 * peso + 10 : 25.9 * peso - 284;
-    default:
-      return null;
-  }
-}
-
 // ─── Component ──────────────────────────────────────────────────────
 export function CalculoEnergetico({ paciente }: Props) {
   const { user } = useAuth();
@@ -131,8 +82,13 @@ export function CalculoEnergetico({ paciente }: Props) {
   const [peso, setPeso] = useState(String(paciente.peso_inicial || ""));
   const [altura, setAltura] = useState(String(paciente.altura ? paciente.altura * 100 : ""));
   const [mlg, setMlg] = useState("");
-  const [idade, setIdade] = useState(String(calcAge(paciente.data_nascimento)));
-  const [sexo, setSexo] = useState(paciente.sexo === "F" ? "F" : "M");
+  const [idade, setIdade] = useState(() => {
+    const i = calcIdade(paciente.data_nascimento);
+    return i === null ? "" : String(i);
+  });
+  // Sem sexo no cadastro o campo fica vazio de propósito: supor masculino
+  // muda a TMB em 166 kcal no Mifflin sem ninguém perceber.
+  const [sexo, setSexo] = useState<string>(() => normalizarSexo(paciente.sexo) ?? "");
   const [formula, setFormula] = useState("mifflin");
   const [fatorAtiv, setFatorAtiv] = useState("1.55");
   const [fatorInj, setFatorInj] = useState("1.0");
@@ -165,10 +121,14 @@ export function CalculoEnergetico({ paciente }: Props) {
   // ─── Calculate results in real time ───────────────────────────────
   const results = useMemo(() => {
     const p = Number(peso), h = Number(altura), i = Number(idade), m = Number(mlg);
-    if (!p || !h || !i) return null;
+    const sexoNorm = normalizarSexo(sexo);
+    if (!p || !h || !i || !sexoNorm) return null;
 
-    const tmb = calcTMB(formula, p, h, i, sexo, m);
-    if (!tmb) return null;
+    const tmb = calcTMB({
+      formula: formula as FormulaTMB,
+      pesoKg: p, alturaCm: h, idade: i, sexo: sexoNorm, mlgKg: m || null,
+    });
+    if (tmb === null) return null;
 
     const fa = Number(fatorAtiv);
     const fi = Number(fatorInj);
@@ -180,33 +140,23 @@ export function CalculoEnergetico({ paciente }: Props) {
     const ajustePct = pctAjuste[0] / 100;
     const meta = Math.round(get + adicional + get * ajustePct);
 
-    // Macros
-    let protKcal: number, protG: number, protPctFinal: number;
-    if (protMode === "gkg") {
-      protG = p * Number(protValue);
-      protKcal = protG * 4;
-      protPctFinal = (protKcal / meta) * 100;
-    } else {
-      protPctFinal = Number(protValue);
-      protKcal = meta * (protPctFinal / 100);
-      protG = protKcal / 4;
-    }
-
-    const carbPctVal = Number(carbPct);
-    const fatPctVal = 100 - protPctFinal - carbPctVal;
-    const carbKcal = meta * (carbPctVal / 100);
-    const carbG = carbKcal / 4;
-    const fatKcal = meta * (fatPctVal / 100);
-    const fatG = fatKcal / 9;
+    const macros = calcMacros({
+      metaKcal: meta,
+      pesoKg: p,
+      proteinaModo: protMode,
+      proteinaValor: Number(protValue),
+      carboidratoPct: Number(carbPct),
+    });
 
     return {
       tmb: Math.round(tmb),
       get: Math.round(get),
       meta,
-      protG: Math.round(protG), protPct: Math.round(protPctFinal), protKcal: Math.round(protKcal),
-      carbG: Math.round(carbG), carbPct: Math.round(carbPctVal), carbKcal: Math.round(carbKcal),
-      fatG: Math.round(fatG), fatPct: Math.round(fatPctVal), fatKcal: Math.round(fatKcal),
-      macroValid: Math.abs(protPctFinal + carbPctVal + fatPctVal - 100) < 1,
+      protG: macros.proteina.g, protPct: macros.proteina.pct, protKcal: macros.proteina.kcal,
+      carbG: macros.carboidrato.g, carbPct: macros.carboidrato.pct, carbKcal: macros.carboidrato.kcal,
+      fatG: macros.gordura.g, fatPct: macros.gordura.pct, fatKcal: macros.gordura.kcal,
+      macroValid: macros.valido,
+      macroErro: macros.erro,
     };
   }, [peso, altura, idade, sexo, formula, fatorAtiv, fatorInj, adicMet, gestante, trimestre, pctAjuste, protMode, protValue, carbPct]);
 
@@ -298,7 +248,10 @@ export function CalculoEnergetico({ paciente }: Props) {
             <Calculator className="h-5 w-5 text-primary" /> Cálculo Energético
           </h2>
           <p className="text-sm text-muted-foreground">
-            Paciente: {paciente.nome_completo}, {calcAge(paciente.data_nascimento)} anos
+            Paciente: {paciente.nome_completo}
+            {calcIdade(paciente.data_nascimento) !== null
+              ? `, ${calcIdade(paciente.data_nascimento)} anos`
+              : " (sem data de nascimento no cadastro)"}
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -337,7 +290,7 @@ export function CalculoEnergetico({ paciente }: Props) {
                   <Label className="text-xs font-medium text-muted-foreground">Sexo</Label>
                   <Select value={sexo} onValueChange={setSexo}>
                     <SelectTrigger className="h-11 rounded-lg bg-muted/50 border-border mt-1">
-                      <SelectValue />
+                      <SelectValue placeholder="Selecione" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="M">Masculino</SelectItem>
@@ -504,9 +457,11 @@ export function CalculoEnergetico({ paciente }: Props) {
                 </div>
               </div>
 
-              {results && !results.macroValid && (
-                <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-xs">
-                  ⚠ A soma dos macronutrientes não fecha 100%. Ajuste os valores.
+              {results?.macroErro && (
+                <div className={`p-2 rounded-lg border text-xs ${results.macroValid
+                  ? "bg-warning/10 border-warning/30 text-warning"
+                  : "bg-destructive/10 border-destructive/30 text-destructive"}`}>
+                  {results.macroErro}
                 </div>
               )}
 

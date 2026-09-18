@@ -11,6 +11,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Paperclip, Loader2 } from "lucide-react";
+import { conferirCoerenciaMacros } from "@/lib/antropometria";
 
 interface Props {
   open: boolean;
@@ -179,9 +180,21 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
         setProgress("Atualizando resumo...");
         const ok = await upsertResumoRefeicao(planoId, totals);
         if (ok) {
+          // Os totais vêm de leitura por IA do PDF. Antes de dar por bom,
+          // confere se a caloria declarada fecha com os macros.
+          const coerencia = conferirCoerenciaMacros({
+            kcal: totals?.kcal ?? null,
+            proteina_g: totals?.proteina_g ?? null,
+            carboidrato_g: totals?.carboidrato_g ?? null,
+            gordura_g: totals?.gordura_g ?? null,
+          });
+          const lidos = `Totais lidos: ${totals?.kcal ? Math.round(totals.kcal) + " kcal" : "—"} • P ${totals?.proteina_g ?? "—"}g • C ${totals?.carboidrato_g ?? "—"}g • G ${totals?.gordura_g ?? "—"}g`;
           toast({
-            title: isEdit ? "Plano atualizado!" : "PDF anexado!",
-            description: `Totais lidos: ${totals?.kcal ? Math.round(totals.kcal) + " kcal" : "—"} • P ${totals?.proteina_g ?? "—"}g • C ${totals?.carboidrato_g ?? "—"}g • G ${totals?.gordura_g ?? "—"}g`,
+            title: coerencia.coerente
+              ? (isEdit ? "Plano atualizado!" : "PDF anexado!")
+              : "Confira os totais deste plano",
+            description: coerencia.coerente ? lidos : `${lidos}. ${coerencia.mensagem}`,
+            variant: coerencia.coerente ? undefined : "destructive",
           });
         } else {
           toast({

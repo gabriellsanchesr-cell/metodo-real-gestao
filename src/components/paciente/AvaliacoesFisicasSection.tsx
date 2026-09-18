@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
 import { ImportarAvaliacaoModal } from "@/components/paciente/ImportarAvaliacaoModal";
+import {
+  calcIdade, calcIMC, pesoIdeal, calcRCQ, calcCMB, calcComposicao, classificarGordura,
+  normalizarSexo, type Protocolo,
+} from "@/lib/antropometria";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -96,140 +100,73 @@ const BIO_FIELDS: { key: string; label: string; unit: string }[] = [
   { key: "bio_metabolismo_basal", label: "Metabolismo basal", unit: "kcal" },
 ];
 
-function calcAge(dob: string | null): number {
-  if (!dob) return 30;
-  const b = new Date(dob), t = new Date();
-  let a = t.getFullYear() - b.getFullYear();
-  if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--;
-  return a;
+// As contas vivem em @/lib/antropometria, com teste de regressão.
+// Aqui ficam só os invólucros que acrescentam a cor da interface.
+
+function corIMC(classificacao: string | null) {
+  if (!classificacao) return "text-muted-foreground";
+  if (classificacao === "Normal") return "text-success";
+  if (classificacao === "Baixo peso" || classificacao === "Sobrepeso") return "text-warning";
+  return "text-destructive";
 }
 
-function calcIMC(peso: number | null, alturaCm: number | null) {
-  if (!peso || !alturaCm) return { imc: null, class: null, color: "text-muted-foreground" };
-  const m = alturaCm / 100;
-  const imc = peso / (m * m);
-  let cl = "Normal", color = "text-success";
-  if (imc < 18.5) { cl = "Baixo peso"; color = "text-warning"; }
-  else if (imc >= 25 && imc < 30) { cl = "Sobrepeso"; color = "text-warning"; }
-  else if (imc >= 30 && imc < 35) { cl = "Obesidade I"; color = "text-destructive"; }
-  else if (imc >= 35 && imc < 40) { cl = "Obesidade II"; color = "text-destructive"; }
-  else if (imc >= 40) { cl = "Obesidade III"; color = "text-destructive"; }
-  return { imc: Math.round(imc * 100) / 100, class: cl, color };
+function corRisco(risco: string | null) {
+  if (!risco) return "text-muted-foreground";
+  if (risco === "Normal") return "text-success";
+  if (risco === "Moderado") return "text-warning";
+  return "text-destructive";
+}
+
+function corGordura(classificacao: string | null) {
+  if (!classificacao) return "text-muted-foreground";
+  if (classificacao === "Excelente" || classificacao === "Bom") return "text-success";
+  if (classificacao === "Elevado") return "text-destructive";
+  return "text-warning";
+}
+
+function calcAge(dob: string | null): number | null {
+  return calcIdade(dob);
+}
+
+function calcIMCUI(peso: number | null, alturaCm: number | null) {
+  const r = calcIMC(peso, alturaCm);
+  return { imc: r.imc, class: r.classificacao, color: corIMC(r.classificacao) };
 }
 
 function idealWeightRange(alturaCm: number | null) {
-  if (!alturaCm) return null;
-  const m = alturaCm / 100;
-  return { min: Math.round(18.5 * m * m * 10) / 10, max: Math.round(24.9 * m * m * 10) / 10 };
+  return pesoIdeal(alturaCm);
 }
 
-function calcRCQ(cintura: number | null, quadril: number | null, sexo: string | null) {
-  if (!cintura || !quadril) return { rcq: null, risk: null, color: "text-muted-foreground" };
-  const rcq = Math.round((cintura / quadril) * 100) / 100;
-  const isMale = sexo === "M" || sexo === "masculino";
-  let risk = "Normal", color = "text-success";
-  if (isMale && rcq > 0.90) { risk = "Elevado"; color = "text-destructive"; }
-  else if (!isMale && rcq > 0.85) { risk = "Elevado"; color = "text-destructive"; }
-  else if ((isMale && rcq > 0.85) || (!isMale && rcq > 0.80)) { risk = "Moderado"; color = "text-warning"; }
-  return { rcq, risk, color };
+function calcRCQUI(cintura: number | null, quadril: number | null, sexo: string | null) {
+  const r = calcRCQ(cintura, quadril, normalizarSexo(sexo));
+  return { rcq: r.rcq, risk: r.risco, color: corRisco(r.risco) };
 }
 
-function calcCMB(circBraco: number | null, dobraTriceps: number | null) {
-  if (!circBraco || !dobraTriceps) return null;
-  return Math.round((circBraco - Math.PI * (dobraTriceps / 10)) * 100) / 100;
+/**
+ * Composição corporal. Devolve também o que faltou, para a tela poder
+ * dizer por que não calculou em vez de mostrar um traço mudo.
+ */
+function calcBodyFat(form: Record<string, any>, sexo: string | null, age: number | null) {
+  const sexoNorm = normalizarSexo(sexo);
+  const protocolo = form.protocolo_dobras as Protocolo | undefined;
+  if (!protocolo) return { pctGordura: null, density: null, faltando: [] as string[] };
+  if (!sexoNorm) return { pctGordura: null, density: null, faltando: ["sexo do paciente"] };
+  if (age === null) return { pctGordura: null, density: null, faltando: ["data de nascimento"] };
+
+  const r = calcComposicao({
+    protocolo,
+    sexo: sexoNorm,
+    idade: age,
+    dobras: form,
+    pesoKg: Number(form.peso) || null,
+    alturaCm: Number(form.altura) || null,
+  });
+  return { pctGordura: r.pctGordura, density: r.densidade, faltando: r.faltando };
 }
 
-function calcBodyFat(form: Record<string, any>, sexo: string | null, age: number) {
-  const proto = form.protocolo_dobras;
-  if (!proto || !form.peso) return { pctGordura: null, density: null };
-  const isMale = sexo === "M" || sexo === "masculino";
-  let density = 0;
-  const g = (k: string) => Number(form[k]) || 0;
-
-  switch (proto) {
-    case "pollock3": {
-      const sum = isMale
-        ? g("dobra_peitoral") + g("dobra_abdominal") + g("dobra_coxa")
-        : g("dobra_triceps") + g("dobra_suprailiaca") + g("dobra_coxa");
-      if (!sum) return { pctGordura: null, density: null };
-      density = isMale
-        ? 1.10938 - 0.0008267 * sum + 0.0000016 * sum * sum - 0.0002574 * age
-        : 1.0994921 - 0.0009929 * sum + 0.0000023 * sum * sum - 0.0001392 * age;
-      break;
-    }
-    case "pollock7": {
-      const sum = g("dobra_peitoral") + g("dobra_axilar_media") + g("dobra_triceps") + g("dobra_subescapular") + g("dobra_abdominal") + g("dobra_suprailiaca") + g("dobra_coxa");
-      if (!sum) return { pctGordura: null, density: null };
-      density = isMale
-        ? 1.112 - 0.00043499 * sum + 0.00000055 * sum * sum - 0.00028826 * age
-        : 1.097 - 0.00046971 * sum + 0.00000056 * sum * sum - 0.00012828 * age;
-      break;
-    }
-    case "petroski": {
-      const sum = g("dobra_subescapular") + g("dobra_triceps") + g("dobra_suprailiaca") + g("dobra_panturrilha");
-      if (!sum) return { pctGordura: null, density: null };
-      density = isMale
-        ? 1.10726863 - 0.00081201 * sum + 0.00000212 * sum * sum - 0.00041761 * age
-        : 1.02902361 - 0.00067159 * sum + 0.00000242 * sum * sum - 0.00026073 * age;
-      break;
-    }
-    case "guedes": {
-      const sum = g("dobra_subescapular") + g("dobra_suprailiaca") + g("dobra_abdominal");
-      if (!sum) return { pctGordura: null, density: null };
-      density = isMale
-        ? 1.17136 - 0.06706 * Math.log10(sum)
-        : 1.16650 - 0.07063 * Math.log10(sum);
-      break;
-    }
-    case "durnin": {
-      const sum = g("dobra_biceps") + g("dobra_triceps") + g("dobra_subescapular") + g("dobra_suprailiaca");
-      if (!sum) return { pctGordura: null, density: null };
-      const logSum = Math.log10(sum);
-      if (isMale) {
-        if (age < 20) density = 1.1620 - 0.0630 * logSum;
-        else if (age < 30) density = 1.1631 - 0.0632 * logSum;
-        else if (age < 40) density = 1.1422 - 0.0544 * logSum;
-        else if (age < 50) density = 1.1620 - 0.0700 * logSum;
-        else density = 1.1715 - 0.0779 * logSum;
-      } else {
-        if (age < 20) density = 1.1549 - 0.0678 * logSum;
-        else if (age < 30) density = 1.1599 - 0.0717 * logSum;
-        else if (age < 40) density = 1.1423 - 0.0632 * logSum;
-        else if (age < 50) density = 1.1333 - 0.0612 * logSum;
-        else density = 1.1339 - 0.0645 * logSum;
-      }
-      break;
-    }
-    case "faulkner": {
-      const sum = g("dobra_triceps") + g("dobra_subescapular") + g("dobra_suprailiaca") + g("dobra_abdominal");
-      if (!sum) return { pctGordura: null, density: null };
-      const pct = sum * 0.153 + 5.783;
-      return { pctGordura: Math.round(pct * 10) / 10, density: null };
-    }
-    default:
-      return { pctGordura: null, density: null };
-  }
-
-  if (density <= 0) return { pctGordura: null, density: null };
-  const pct = (4.95 / density - 4.50) * 100; // Siri
-  return { pctGordura: Math.round(pct * 10) / 10, density: Math.round(density * 10000) / 10000 };
-}
-
-function fatClassification(pct: number | null, sexo: string | null): { label: string; color: string } {
-  if (pct === null) return { label: "—", color: "text-muted-foreground" };
-  const isMale = sexo === "M" || sexo === "masculino";
-  if (isMale) {
-    if (pct < 6) return { label: "Muito baixo", color: "text-warning" };
-    if (pct < 14) return { label: "Excelente", color: "text-success" };
-    if (pct < 18) return { label: "Bom", color: "text-success" };
-    if (pct < 25) return { label: "Acima da média", color: "text-warning" };
-    return { label: "Elevado", color: "text-destructive" };
-  }
-  if (pct < 14) return { label: "Muito baixo", color: "text-warning" };
-  if (pct < 21) return { label: "Excelente", color: "text-success" };
-  if (pct < 25) return { label: "Bom", color: "text-success" };
-  if (pct < 32) return { label: "Acima da média", color: "text-warning" };
-  return { label: "Elevado", color: "text-destructive" };
+function fatClassification(pct: number | null, sexo: string | null) {
+  const label = classificarGordura(pct, normalizarSexo(sexo));
+  return { label: label || "—", color: corGordura(label) };
 }
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -284,9 +221,9 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   }, [avaliacoes, editId]);
 
   // Real-time calculations
-  const imcCalc = calcIMC(Number(form.peso) || null, Number(form.altura) || null);
+  const imcCalc = calcIMCUI(Number(form.peso) || null, Number(form.altura) || null);
   const idealW = idealWeightRange(Number(form.altura) || null);
-  const rcqCalc = calcRCQ(Number(form.circ_cintura) || null, Number(form.circ_quadril) || null, paciente.sexo);
+  const rcqCalc = calcRCQUI(Number(form.circ_cintura) || null, Number(form.circ_quadril) || null, paciente.sexo);
   const cmb = calcCMB(Number(form.circ_braco_dir) || null, Number(form.dobra_triceps) || null);
   const bodyFat = calcBodyFat(form, paciente.sexo, age);
   const fatClass = fatClassification(bodyFat.pctGordura, paciente.sexo);
