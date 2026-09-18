@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Paperclip, Loader2 } from "lucide-react";
 import { conferirCoerenciaMacros } from "@/lib/antropometria";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 interface Props {
   open: boolean;
@@ -86,6 +88,7 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
   const [nome, setNome] = useState("Plano (PDF anexado)");
   const [observacoes, setObservacoes] = useState("");
   const [status, setStatus] = useState<"ativo" | "rascunho">("ativo");
+  const [avisar, setAvisar] = useState(true);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
@@ -95,6 +98,7 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       setNome(planoExistente?.nome || "Plano (PDF anexado)");
       setObservacoes(planoExistente?.observacoes || "");
       setStatus((planoExistente?.status as any) || "ativo");
+      setAvisar(true);
       setSaving(false);
       setProgress("");
     }
@@ -206,6 +210,14 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
         toast({ title: isEdit ? "Plano atualizado!" : "PDF anexado!" });
       }
 
+      // A paciente só vê plano ativo. Editar só o nome ou a observação de um
+      // plano que já estava ativo não é novidade para ela; trocar o PDF é.
+      if (avisar && status === "ativo") {
+        const jaEraAtivo = isEdit && planoExistente?.status === "ativo";
+        if (!jaEraAtivo) avisarPaciente(pacienteId, "plano_novo", { titulo: nome.trim() });
+        else if (file) avisarPaciente(pacienteId, "plano_atualizado", { titulo: nome.trim() });
+      }
+
       onSaved();
       onOpenChange(false);
     } catch (e: any) {
@@ -261,6 +273,10 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
             </p>
           )}
         </div>
+
+        {status === "ativo" && (
+          <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>

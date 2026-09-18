@@ -18,6 +18,12 @@ import {
   addWeeks, subWeeks, differenceInDays,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusColors: Record<string, string> = {
   agendado: "bg-primary/10 text-primary",
@@ -61,6 +67,9 @@ export default function Agenda() {
   const [bloqueioDialogOpen, setBloqueioDialogOpen] = useState(false);
   const [view, setView] = useState<ViewType>("month");
   const [form, setForm] = useState<ConsultaForm>(defaultForm);
+  const [avisar, setAvisar] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [cancelando, setCancelando] = useState<any | null>(null);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [retornosPendentes, setRetornosPendentes] = useState<any[]>([]);
 
@@ -128,7 +137,9 @@ export default function Agenda() {
 
   const createConsulta = async () => {
     if (!user || !form.paciente_id || !form.data || !form.hora) return;
-    const data_hora = `${form.data}T${form.hora}:00`;
+    // O horário digitado é de Brasília. Sem converter, o banco (timestamptz,
+    // sessão em UTC) guardava 14h como 14h UTC, e a consulta aparecia às 11h.
+    const data_hora = new Date(`${form.data}T${form.hora}:00`).toISOString();
     const { error } = await supabase.from("consultas").insert({
       user_id: user.id,
       paciente_id: form.paciente_id,
@@ -142,8 +153,10 @@ export default function Agenda() {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Consulta agendada!" });
+      if (avisar) avisarPaciente(form.paciente_id, "consulta_agendada", { data: data_hora });
       setDialogOpen(false);
       setForm(defaultForm);
+      setAvisar(true);
       loadConsultas();
       loadRetornosPendentes();
     }
@@ -153,7 +166,7 @@ export default function Agenda() {
     if (!user || !form.data || !form.hora) return;
     // Usar o primeiro paciente como placeholder (bloqueio é do nutri, não do paciente)
     // Na verdade, para bloqueios precisamos tratar diferente
-    const data_hora = `${form.data}T${form.hora}:00`;
+    const data_hora = new Date(`${form.data}T${form.hora}:00`).toISOString();
     const { error } = await supabase.from("consultas").insert({
       user_id: user.id,
       paciente_id: pacientes[0]?.id, // placeholder
@@ -176,6 +189,15 @@ export default function Agenda() {
     await supabase.from("consultas").update({ status: status as any }).eq("id", id);
     loadConsultas();
     loadRetornosPendentes();
+  };
+
+  const confirmarCancelamento = async (avisarPaciente_: boolean) => {
+    const c = cancelando;
+    setCancelando(null);
+    if (!c) return;
+    await updateStatus(c.id, "cancelado");
+    toast({ title: "Consulta cancelada" });
+    if (avisarPaciente_) avisarPaciente(c.paciente_id, "consulta_cancelada", { data: c.data_hora });
   };
 
   // Calendar calculations
@@ -308,6 +330,7 @@ export default function Agenda() {
                   <Label>Anotações</Label>
                   <Textarea value={form.anotacoes} onChange={e => setForm(f => ({ ...f, anotacoes: e.target.value }))} />
                 </div>
+                <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
                 <Button onClick={createConsulta} className="w-full">Agendar</Button>
               </div>
             </DialogContent>
@@ -434,8 +457,8 @@ export default function Agenda() {
                                 </div>
                                 {!isBloqueio && c.status === "agendado" && (
                                   <div className="flex gap-1">
-                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "realizado")}>✓</Button>
-                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "cancelado")}>✗</Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "realizado")} aria-label="Marcar como realizada">✓</Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCancelando(c)} aria-label="Cancelar consulta">✗</Button>
                                   </div>
                                 )}
                               </div>
@@ -520,6 +543,23 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+      <AlertDialog open={!!cancelando} onOpenChange={(o) => !o && setCancelando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar esta consulta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelando?.pacientes?.nome_completo ? `${cancelando.pacientes.nome_completo}, ` : ""}
+              {cancelando ? format(new Date(cancelando.data_hora), "dd/MM 'às' HH:mm") : ""}.
+              Quer avisar a paciente por e-mail?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <Button variant="outline" onClick={() => confirmarCancelamento(false)}>Cancelar sem avisar</Button>
+            <AlertDialogAction onClick={() => confirmarCancelamento(true)}>Cancelar e avisar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

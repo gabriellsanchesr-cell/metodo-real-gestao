@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Save, Building, Palette, Mail, Info, Settings } from "lucide-react";
+import { Save, Building, Palette, Mail, Info, Settings, CheckCircle2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageHeader } from "@/components/PageHeader";
+import { statusEmail } from "@/lib/notificacoes";
 
 interface ConfigClinica {
   id?: string;
@@ -29,11 +30,6 @@ interface ConfigClinica {
   logo_url: string;
   incluir_capa: boolean;
   marca_dagua: boolean;
-  smtp_host: string;
-  smtp_port: number;
-  smtp_user: string;
-  smtp_password: string;
-  smtp_ativo: boolean;
 }
 
 const defaultConfig: ConfigClinica = {
@@ -51,14 +47,13 @@ const defaultConfig: ConfigClinica = {
   logo_url: "",
   incluir_capa: true,
   marca_dagua: false,
-  smtp_host: "",
-  smtp_port: 587,
-  smtp_user: "",
-  smtp_password: "",
-  smtp_ativo: false,
 };
 
 export default function ConfiguracaoClinica() {
+  // Campos da migration 20260918120000. Ficam null se ela ainda nao foi
+  // aplicada; nesse caso a tela funciona igual e so esconde estes campos.
+  const [emailExtra, setEmailExtra] = useState<{ email_resposta: string; dias_alerta_vencimento: number } | null>(null);
+  const [provedorOk, setProvedorOk] = useState<boolean | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
   const [config, setConfig] = useState<ConfigClinica>(defaultConfig);
@@ -70,10 +65,26 @@ export default function ConfiguracaoClinica() {
   }, [user]);
 
   const loadConfig = async () => {
+    // Leitura separada e tolerante: sem a migration, estas colunas nao existem.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("configuracoes_clinica")
+      .select("email_resposta, dias_alerta_vencimento")
+      .eq("user_id", user!.id)
+      .maybeSingle()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data, error }: any) => {
+        if (error) { setEmailExtra(null); return; }
+        setEmailExtra({
+          email_resposta: data?.email_resposta || "",
+          dias_alerta_vencimento: data?.dias_alerta_vencimento || 7,
+        });
+      });
+    statusEmail().then((st) => setProvedorOk(st ? st.configurado : null));
     try {
       const { data } = await supabase
         .from("configuracoes_clinica")
-        .select("id,nome_clinica,endereco,telefone,crn,site,instagram,facebook,whatsapp,mensagem_boas_vindas,cor_primaria,cor_secundaria,logo_url,incluir_capa,marca_dagua,smtp_host,smtp_port,smtp_user,smtp_ativo")
+        .select("id,nome_clinica,endereco,telefone,crn,site,instagram,facebook,whatsapp,mensagem_boas_vindas,cor_primaria,cor_secundaria,logo_url,incluir_capa,marca_dagua")
         .eq("user_id", user!.id)
         .maybeSingle();
 
@@ -94,11 +105,6 @@ export default function ConfiguracaoClinica() {
           logo_url: data.logo_url || "",
           incluir_capa: data.incluir_capa ?? true,
           marca_dagua: data.marca_dagua ?? false,
-          smtp_host: data.smtp_host || "",
-          smtp_port: data.smtp_port || 587,
-          smtp_user: data.smtp_user || "",
-          smtp_password: "",
-          smtp_ativo: data.smtp_ativo ?? false,
         });
       }
     } catch (error: any) {
@@ -129,11 +135,6 @@ export default function ConfiguracaoClinica() {
         logo_url: config.logo_url || null,
         incluir_capa: config.incluir_capa,
         marca_dagua: config.marca_dagua,
-        smtp_host: config.smtp_host || null,
-        smtp_port: config.smtp_port,
-        smtp_user: config.smtp_user || null,
-        ...(config.smtp_password ? { smtp_password: config.smtp_password } : {}),
-        smtp_ativo: config.smtp_ativo,
       };
 
       if (config.id) {
@@ -150,6 +151,16 @@ export default function ConfiguracaoClinica() {
           .single();
         if (error) throw error;
         setConfig(prev => ({ ...prev, id: data.id }));
+      }
+
+      if (emailExtra) {
+        const dias = Math.min(60, Math.max(1, Math.round(emailExtra.dias_alerta_vencimento || 7)));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: extraErr } = await (supabase as any)
+          .from("configuracoes_clinica")
+          .update({ email_resposta: emailExtra.email_resposta.trim() || null, dias_alerta_vencimento: dias })
+          .eq("user_id", user!.id);
+        if (extraErr) throw extraErr;
       }
 
       toast({ title: "Configurações salvas com sucesso!" });
@@ -378,78 +389,86 @@ export default function ConfiguracaoClinica() {
         </TabsContent>
 
         <TabsContent value="email">
-          <Card>
-            <CardHeader>
-              <CardTitle>Configurações de E-mail</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  Configure seu servidor SMTP para enviar notificações personalizadas por e-mail.
-                  Se não configurado, o sistema utilizará o e-mail padrão.
-                </AlertDescription>
-              </Alert>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Avisos por e-mail para as pacientes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {provedorOk === true && (
+                  <Alert className="border-success/30 bg-success/10">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <AlertDescription>
+                      O envio está configurado. Quando você salva algo com a caixa "Avisar a paciente"
+                      marcada, ela recebe o e-mail.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {provedorOk === false && (
+                  <Alert className="border-warning/30 bg-warning/10">
+                    <Info className="h-4 w-4 text-warning" />
+                    <AlertDescription>
+                      O serviço de e-mail ainda não está configurado. Os avisos ficam registrados no histórico de
+                      cada paciente, mas não chegam até ela. A configuração é feita uma vez, no Supabase, com a
+                      chave do Resend e o remetente.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {provedorOk === null && (
+                  <Alert>
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      Não consegui verificar o serviço de e-mail. A função de envio pode ainda não ter sido publicada.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label>SMTP Personalizado</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Ativar envio de e-mails através do seu servidor
-                  </p>
-                </div>
-                <Switch
-                  checked={config.smtp_ativo}
-                  onCheckedChange={(checked) => updateConfig("smtp_ativo", checked)}
-                />
-              </div>
-
-              {config.smtp_ativo && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-host">Servidor SMTP</Label>
-                      <Input
-                        id="smtp-host"
-                        value={config.smtp_host}
-                        onChange={(e) => updateConfig("smtp_host", e.target.value)}
-                        placeholder="smtp.gmail.com"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-port">Porta</Label>
-                      <Input
-                        id="smtp-port"
-                        type="number"
-                        value={config.smtp_port}
-                        onChange={(e) => updateConfig("smtp_port", parseInt(e.target.value) || 587)}
-                        placeholder="587"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-user">Usuário</Label>
-                      <Input
-                        id="smtp-user"
-                        value={config.smtp_user}
-                        onChange={(e) => updateConfig("smtp_user", e.target.value)}
-                        placeholder="contato@gabrielnutri.com.br"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="smtp-password">Senha</Label>
-                      <Input
-                        id="smtp-password"
-                        type="password"
-                        value={config.smtp_password}
-                        onChange={(e) => updateConfig("smtp_password", e.target.value)}
-                        placeholder="••••••••"
-                      />
-                    </div>
+                {emailExtra ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="email-resposta">E-mail para respostas</Label>
+                    <Input
+                      id="email-resposta"
+                      type="email"
+                      value={emailExtra.email_resposta}
+                      onChange={(e) => setEmailExtra((x) => x && { ...x, email_resposta: e.target.value })}
+                      placeholder="O e-mail da sua conta, se ficar vazio"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Quando a paciente responder um aviso, a resposta chega aqui.
+                    </p>
                   </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Os campos de e-mail aparecem aqui depois que a atualização do banco for aplicada.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {emailExtra && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vencimento dos planos</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Label htmlFor="dias-alerta">Destacar a partir de quantos dias antes</Label>
+                  <Input
+                    id="dias-alerta"
+                    type="number"
+                    min={1}
+                    max={60}
+                    className="max-w-[140px]"
+                    value={emailExtra.dias_alerta_vencimento}
+                    onChange={(e) => setEmailExtra((x) => x && { ...x, dias_alerta_vencimento: Number(e.target.value) })}
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    O plano aparece em "Vencendo" no Dashboard, no sino e na página de Vencimentos. Os lembretes
+                    ficam só no sistema: nenhum e-mail é enviado por causa do vencimento.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="portal">

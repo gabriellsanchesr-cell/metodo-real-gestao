@@ -16,6 +16,8 @@ import {
   Save, ArrowLeft, Plus, Trash2, Search, Clock, ChevronDown, ChevronUp, FileDown, ArrowRightLeft, X, AlertTriangle,
 } from "lucide-react";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const REFEICAO_TIPOS = [
   { value: "cafe_da_manha", label: "Café da Manhã", ordem: 1 },
@@ -179,6 +181,10 @@ export function PlanoAlimentarEditor({ pacienteId, planoId, onBack, paciente, in
   const { user } = useAuth();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
+  // Status que está gravado no banco, para saber se salvar ativou o plano
+  // agora (aviso de plano novo) ou se ele já estava ativo (aviso de ajuste).
+  const [statusSalvo, setStatusSalvo] = useState<string | null>(null);
+  const [avisar, setAvisar] = useState(true);
   const [showExport, setShowExport] = useState(false);
   const [importedBanner, setImportedBanner] = useState(!!initialData);
   const [plano, setPlano] = useState<PlanoData>({
@@ -262,6 +268,7 @@ export function PlanoAlimentarEditor({ pacienteId, planoId, onBack, paciente, in
         data_fim: (p as any).data_fim || "",
         objetivo_template: p.objetivo_template || "",
       });
+      setStatusSalvo((p as { status?: string | null }).status || "rascunho");
     }
     const { data: refs } = await (supabase as any)
       .from("refeicoes")
@@ -415,6 +422,16 @@ export function PlanoAlimentarEditor({ pacienteId, planoId, onBack, paciente, in
         }
       }
 
+      // A paciente só vê plano ativo, então só plano ativo gera aviso.
+      if (!isTemplate && pacienteId && avisar && finalStatus === "ativo") {
+        avisarPaciente(
+          pacienteId,
+          statusSalvo === "ativo" ? "plano_atualizado" : "plano_novo",
+          { titulo: plano.nome },
+        );
+      }
+      setStatusSalvo(finalStatus);
+
       if (overrideStatus === "ativo") {
         setPlano(p => ({ ...p, status: "ativo" }));
         setImportedBanner(false);
@@ -501,8 +518,11 @@ export function PlanoAlimentarEditor({ pacienteId, planoId, onBack, paciente, in
                 <Save className="h-4 w-4 mr-1" /> Ativar plano importado
               </Button>
             )}
+            {!isTemplate && pacienteId && (plano.status === "ativo" || importedBanner) && (
+              <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="py-1.5" />
+            )}
             <Button onClick={() => handleSave()} disabled={saving} size="sm" variant={importedBanner ? "outline" : "default"}>
-              <Save className="h-4 w-4 mr-1" /> {saving ? "Salvando..." : "Salvar Rascunho"}
+              <Save className="h-4 w-4 mr-1" /> {saving ? "Salvando..." : plano.status === "ativo" ? "Salvar" : "Salvar rascunho"}
             </Button>
             {planoId && (
               <Button variant="outline" size="sm" onClick={() => setShowExport(true)}>

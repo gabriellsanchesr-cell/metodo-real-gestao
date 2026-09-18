@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Plus, CalendarDays } from "lucide-react";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const tipoLabels: Record<string, string> = {
   primeira_consulta: "Primeira Consulta", retorno: "Retorno", online: "Online", presencial: "Presencial",
@@ -31,6 +33,7 @@ export function ConsultasSection({ paciente }: Props) {
   const { toast } = useToast();
   const { session } = useAuth();
 
+  const [avisar, setAvisar] = useState(true);
   const [form, setForm] = useState({
     data_hora: "",
     tipo: "retorno" as string,
@@ -51,12 +54,15 @@ export function ConsultasSection({ paciente }: Props) {
     setLoading(false);
   };
 
+  const podeAvisar = form.status === "agendado" && !!form.data_hora && new Date(form.data_hora) > new Date();
+
   const handleSave = async () => {
     if (!session?.user?.id || !form.data_hora) return;
+    const dataHoraISO = new Date(form.data_hora).toISOString();
     const { error } = await supabase.from("consultas").insert({
       paciente_id: paciente.id,
       user_id: session.user.id,
-      data_hora: new Date(form.data_hora).toISOString(),
+      data_hora: dataHoraISO,
       tipo: form.tipo as any,
       status: form.status as any,
       anotacoes: form.anotacoes || null,
@@ -65,7 +71,10 @@ export function ConsultasSection({ paciente }: Props) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Consulta registrada" });
+      // Registro de consulta que já aconteceu não é aviso para a paciente.
+      if (podeAvisar && avisar) avisarPaciente(paciente.id, "consulta_agendada", { data: dataHoraISO });
       setModalOpen(false);
+      setAvisar(true);
       setForm({ data_hora: "", tipo: "retorno", status: "agendado", anotacoes: "" });
       load();
     }
@@ -149,6 +158,7 @@ export function ConsultasSection({ paciente }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
+            {podeAvisar && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={!form.data_hora}>Salvar</Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Users, Utensils, Activity, Calendar, BookOpen, FileText,
-  MessageSquare, Settings, Sparkles, Pill, BarChart3, UserPlus, DollarSign, BookMarked,
+  MessageSquare, Settings, Sparkles, Pill, BarChart3, UserPlus, DollarSign, BookMarked, CalendarClock,
   type LucideIcon,
 } from "lucide-react";
 
@@ -19,6 +19,7 @@ export const MAIN_NAV: NavItem[] = [
   { title: "Acompanhamento", url: "/acompanhamento", icon: Activity },
   { title: "Diários Alimentares", url: "/diarios", icon: BookMarked },
   { title: "Agenda", url: "/agenda", icon: Calendar },
+  { title: "Vencimentos", url: "/vencimentos", icon: CalendarClock },
   { title: "Biblioteca", url: "/biblioteca", icon: BookOpen },
   { title: "Conteúdo R.E.A.L.", url: "/conteudo-real", icon: Sparkles },
   { title: "Suplementos", url: "/suplementos", icon: Pill },

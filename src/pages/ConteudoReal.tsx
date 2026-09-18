@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 import {
   Plus, Calendar, Target, Key, Heart, Edit, Trash2, Copy, Eye, EyeOff, Sparkles,
   Video, FileText, Type, Headphones, ExternalLink, Users, BarChart3,
@@ -68,6 +70,9 @@ export default function ConteudoReal() {
   const { toast } = useToast();
   const [mainTab, setMainTab] = useState("gerenciar");
   const [faseAtiva, setFaseAtiva] = useState("rotina");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [promovendo, setPromovendo] = useState<{ paciente: any; faseIdx: number } | null>(null);
+  const [avisarPromocao, setAvisarPromocao] = useState(true);
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -163,11 +168,16 @@ export default function ConteudoReal() {
     loadAll();
   };
 
-  const promoverPaciente = async (pacienteId: string, faseAtualIdx: number) => {
+  const promoverPaciente = async (pacienteId: string, faseAtualIdx: number, avisar = false) => {
     if (faseAtualIdx >= FASES.length - 1) return;
-    const novaFase = FASES[faseAtualIdx + 1].id;
-    await supabase.from("pacientes").update({ fase_real: novaFase as any }).eq("id", pacienteId);
-    toast({ title: "Paciente promovido!", description: `Nova fase: ${FASES[faseAtualIdx + 1].label}` });
+    const nova = FASES[faseAtualIdx + 1];
+    const { error } = await supabase.from("pacientes").update({ fase_real: nova.id as any }).eq("id", pacienteId);
+    if (error) {
+      toast({ title: "Não consegui promover", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Fase atualizada", description: `Nova fase: ${nova.label}` });
+    if (avisar) avisarPaciente(pacienteId, "conteudo_liberado", { titulo: nova.label });
     loadAll();
   };
 
@@ -359,7 +369,7 @@ export default function ConteudoReal() {
                         <TableCell>
                           {faseIdx < FASES.length - 1 && (
                             <Button size="sm" variant="outline" className="text-xs h-7"
-                              onClick={() => promoverPaciente(p.id, faseIdx)}>
+                              onClick={() => { setAvisarPromocao(true); setPromovendo({ paciente: p, faseIdx }); }}>
                               Promover → {FASES[faseIdx + 1]?.label}
                             </Button>
                           )}
@@ -482,6 +492,33 @@ export default function ConteudoReal() {
 
             <Button onClick={save} className="w-full">{editingId ? "Salvar alterações" : "Criar conteúdo"}</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!promovendo} onOpenChange={(o) => !o && setPromovendo(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Avançar de fase?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-foreground">{promovendo?.paciente?.nome_completo}</strong> passa de{" "}
+            {promovendo ? FASES[promovendo.faseIdx]?.label : ""} para{" "}
+            <strong className="text-foreground">{promovendo ? FASES[promovendo.faseIdx + 1]?.label : ""}</strong>,
+            e os conteúdos dessa fase são liberados no portal.
+          </p>
+          <AvisarPacienteToggle checked={avisarPromocao} onCheckedChange={setAvisarPromocao} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromovendo(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const alvo = promovendo;
+                setPromovendo(null);
+                if (alvo) promoverPaciente(alvo.paciente.id, alvo.faseIdx, avisarPromocao);
+              }}
+            >
+              Avançar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2, FolderOpen, FileText, Link as LinkIcon, ExternalLink, Download, Eye, Upload } from "lucide-react";
 import { format } from "date-fns";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const CATEGORIAS = [
   { value: "ebook", label: "E-book" },
@@ -45,6 +47,7 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avisar, setAvisar] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<"all" | "arquivo" | "link">("all");
@@ -64,7 +67,7 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
     setLoading(false);
   };
 
-  const openNew = () => { setEditingId(null); setForm(empty); setDialogOpen(true); };
+  const openNew = () => { setEditingId(null); setForm(empty); setAvisar(true); setDialogOpen(true); };
 
   const openEdit = (m: any) => {
     setEditingId(m.id);
@@ -131,6 +134,7 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
         });
         if (error) throw error;
         toast({ title: "Material adicionado" });
+        if (avisar) avisarPaciente(paciente.id, "material_novo", { titulo: form.titulo.trim() });
       }
       setDialogOpen(false);
       load();
@@ -301,6 +305,7 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>

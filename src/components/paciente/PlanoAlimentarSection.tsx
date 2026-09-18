@@ -14,6 +14,9 @@ import { ImportarPlanoPdfModal } from "./ImportarPlanoPdfModal";
 import { AnexarPlanoPdfModal } from "./AnexarPlanoPdfModal";
 import { PdfViewer } from "./PdfViewer";
 import { FileUp } from "lucide-react";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -43,6 +46,9 @@ export function PlanoAlimentarSection({ paciente }: Props) {
   const [refeicoes, setRefeicoes] = useState<Record<string, any[]>>({});
   const [editingPlanoId, setEditingPlanoId] = useState<string | null | "new">(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [ativando, setAtivando] = useState<any | null>(null);
+  const [avisarAtivacao, setAvisarAtivacao] = useState(true);
   const [exportPlano, setExportPlano] = useState<any>(null);
   const [exportType, setExportType] = useState<"plano_alimentar" | "plano_simplificado">("plano_alimentar");
   const [importOpen, setImportOpen] = useState(false);
@@ -186,11 +192,24 @@ export function PlanoAlimentarSection({ paciente }: Props) {
     }
   };
 
-  const toggleStatus = async (plano: any) => {
+  const toggleStatus = async (plano: any, avisar = false) => {
     const newStatus = plano.status === "ativo" ? "inativo" : "ativo";
-    await supabase.from("planos_alimentares").update({ status: newStatus } as any).eq("id", plano.id);
+    const { error } = await supabase.from("planos_alimentares").update({ status: newStatus } as any).eq("id", plano.id);
+    if (error) {
+      toast({ title: "Não consegui alterar o plano", description: error.message, variant: "destructive" });
+      return;
+    }
     toast({ title: `Plano ${newStatus === "ativo" ? "ativado" : "desativado"}!` });
+    if (newStatus === "ativo" && avisar) avisarPaciente(paciente.id, "plano_novo", { titulo: plano.nome });
     loadPlanos();
+  };
+
+  // Desativar é imediato. Ativar pergunta antes, porque é o momento em que o
+  // plano aparece para a paciente e em que faz sentido avisá-la.
+  const pedirToggle = (plano: Parameters<typeof toggleStatus>[0]) => {
+    if (plano.status === "ativo") { toggleStatus(plano); return; }
+    setAvisarAtivacao(true);
+    setAtivando(plano);
   };
 
   const deletePlano = async () => {
@@ -295,7 +314,7 @@ export function PlanoAlimentarSection({ paciente }: Props) {
                         <FileDown className="h-3.5 w-3.5" />
                       </Button>
                     )}
-                    <Button variant="ghost" size="icon" className="h-8 w-8" title={plano.status === "ativo" ? "Desativar" : "Ativar"} onClick={() => toggleStatus(plano)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" title={plano.status === "ativo" ? "Desativar" : "Ativar"} onClick={() => pedirToggle(plano)}>
                       <Power className="h-3.5 w-3.5" />
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" title="Excluir" onClick={() => setDeleteId(plano.id)}>
@@ -413,6 +432,24 @@ export function PlanoAlimentarSection({ paciente }: Props) {
           loadPlanos();
         }}
       />
+      <Dialog open={!!ativando} onOpenChange={(o) => !o && setAtivando(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Ativar este plano?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            <strong className="text-foreground">{ativando?.nome}</strong> passa a aparecer no portal de{" "}
+            {paciente.nome_completo}.
+          </p>
+          <AvisarPacienteToggle checked={avisarAtivacao} onCheckedChange={setAvisarAtivacao} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAtivando(null)}>Cancelar</Button>
+            <Button onClick={() => { const p = ativando; setAtivando(null); if (p) toggleStatus(p, avisarAtivacao); }}>
+              Ativar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

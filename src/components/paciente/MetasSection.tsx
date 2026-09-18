@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2, Target, CheckCircle2, Pause, Play, Circle } from "lucide-react";
 import { format } from "date-fns";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const PRIORIDADES = [
   { value: "baixa", label: "Baixa", color: "bg-muted text-muted-foreground" },
@@ -44,6 +46,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [avisar, setAvisar] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(empty);
@@ -61,7 +64,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
     setLoading(false);
   };
 
-  const openNew = () => { setEditingId(null); setForm(empty); setDialogOpen(true); };
+  const openNew = () => { setEditingId(null); setForm(empty); setAvisar(true); setDialogOpen(true); };
 
   const openEdit = (m: any) => {
     setEditingId(m.id);
@@ -112,6 +115,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
         });
         if (error) throw error;
         toast({ title: "Meta criada" });
+        if (avisar) avisarPaciente(paciente.id, "meta_nova", { titulo: form.titulo.trim() });
       }
       setDialogOpen(false);
       load();
@@ -310,6 +314,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>

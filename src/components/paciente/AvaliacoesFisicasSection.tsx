@@ -25,6 +25,8 @@ import {
 } from "@/lib/antropometria";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 // Parse YYYY-MM-DD as local date to avoid timezone shifting by -1 day
 const parseLocalDate = (s: string | null | undefined): Date => {
@@ -175,6 +177,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   const { toast } = useToast();
   const [avaliacoes, setAvaliacoes] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "form">("list");
+  const [avisar, setAvisar] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -271,6 +274,8 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
         if (error) throw error;
       }
       toast({ title: "Avaliação salva!" });
+      if (!editId && avisar) avisarPaciente(paciente.id, "avaliacao_registrada");
+      setAvisar(true);
       loadAvaliacoes();
       setView("list");
     } catch (e: any) {
@@ -591,6 +596,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
           </Accordion>
 
           {/* Full-width save */}
+          {!editId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mt-4" />}
           <Button onClick={saveAvaliacao} disabled={saving}
             className="w-full h-[52px] rounded-xl bg-primary text-primary-foreground text-base font-semibold mt-4">
             <Save className="h-5 w-5 mr-2" /> Salvar Avaliação

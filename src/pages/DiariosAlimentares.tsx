@@ -13,6 +13,8 @@ import { BookMarked, Search, MessageSquare, Clock, Eye, Send, Image as ImageIcon
 import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Link } from "react-router-dom";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const tipoLabels: Record<string, string> = {
   cafe_da_manha: "Café da Manhã",
@@ -53,6 +55,7 @@ export default function DiariosAlimentares() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackTarget, setFeedbackTarget] = useState<Registro | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
+  const [avisar, setAvisar] = useState(true);
   const [savingFb, setSavingFb] = useState(false);
 
   useEffect(() => {
@@ -166,6 +169,9 @@ export default function DiariosAlimentares() {
         .eq("id", feedbackTarget.id);
       if (error) throw error;
       toast({ title: "Feedback enviado" });
+      if (avisar && feedbackText.trim()) {
+        avisarPaciente(feedbackTarget.paciente_id, "feedback_diario", {}, { silencioso: true });
+      }
       setRegistros(prev => prev.map(x => x.id === feedbackTarget.id
         ? { ...x, feedback_nutri: feedbackText.trim() || null, feedback_data: new Date().toISOString(), visto_nutri: true }
         : x));
@@ -341,6 +347,7 @@ export default function DiariosAlimentares() {
               />
             </div>
           )}
+          <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setFeedbackOpen(false)}>Cancelar</Button>
             <Button onClick={salvarFeedback} disabled={savingFb}>

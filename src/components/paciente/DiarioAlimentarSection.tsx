@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const tipoLabels: Record<string, string> = {
   cafe_da_manha: "Café da Manhã",
@@ -64,6 +66,7 @@ export function DiarioAlimentarSection({ paciente }: { paciente: any }) {
   const [dateFilter, setDateFilter] = useState<string>("");
   const [refeicaoFilter, setRefeicaoFilter] = useState<string>("todas");
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
+  const [avisar, setAvisar] = useState(true);
   const [sendingFeedback, setSendingFeedback] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [paciente.id]);
@@ -115,6 +118,8 @@ export function DiarioAlimentarSection({ paciente }: { paciente: any }) {
       } as any).eq("id", registro.id);
       if (error) throw error;
       toast({ title: "Feedback enviado!" });
+      // Várias respostas seguidas viram um aviso só (janela de 60 min na função).
+      if (avisar) avisarPaciente(paciente.id, "feedback_diario", {}, { silencioso: true });
       setFeedbackText(prev => ({ ...prev, [registro.id]: "" }));
       await loadData();
     } catch (err: any) {
@@ -185,6 +190,12 @@ export function DiarioAlimentarSection({ paciente }: { paciente: any }) {
             <Badge className="bg-primary text-primary-foreground text-xs">{newCount} novo{newCount > 1 ? "s" : ""}</Badge>
           )}
         </div>
+        <AvisarPacienteToggle
+          checked={avisar}
+          onCheckedChange={setAvisar}
+          label="Avisar por e-mail quando eu responder"
+          className="py-1.5"
+        />
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>

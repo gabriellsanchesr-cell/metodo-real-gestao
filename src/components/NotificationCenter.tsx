@@ -4,11 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Bell, X, CheckCheck, MessageSquare, ClipboardCheck, TrendingUp, AlertTriangle, Calendar, FileText, Eye } from "lucide-react";
+import { Bell, X, CheckCheck, MessageSquare, ClipboardCheck, TrendingUp, AlertTriangle, Calendar, FileText, Eye, CalendarClock } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useNavigate } from "react-router-dom";
+import { useVencimentos } from "@/hooks/useVencimentos";
+import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
 
 interface Notificacao {
   id: string;
@@ -55,6 +57,9 @@ export function NotificationCenter() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<FilterType>("todas");
   const [open, setOpen] = useState(false);
+  const venc = useVencimentos();
+  const vencimentosUrgentes = venc.urgentes;
+  const totalBadge = unreadCount + vencimentosUrgentes.length;
 
   const loadNotificacoes = async () => {
     if (!user) return;
@@ -110,18 +115,18 @@ export function NotificationCenter() {
   });
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) venc.recarregar(); }}>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-1 animate-pulse">
-              {unreadCount > 99 ? "99+" : unreadCount}
+          {totalBadge > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-1">
+              {totalBadge > 99 ? "99+" : totalBadge}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[360px] p-0">
+      <SheetContent side="right" className="w-full p-0 sm:w-[380px] sm:max-w-[380px]">
         <SheetHeader className="px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-sm">Notificações</SheetTitle>
@@ -145,12 +150,43 @@ export function NotificationCenter() {
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-120px)]">
-          {filtered.length === 0 ? (
+          {(filter === "todas" || filter === "alertas") && vencimentosUrgentes.length > 0 && (
+            <div className="border-b border-border bg-amber-50/40 dark:bg-amber-500/5">
+              <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                  Planos vencendo
+                </p>
+                <button
+                  className="text-[11px] font-medium text-primary hover:underline"
+                  onClick={() => { navigate("/vencimentos"); setOpen(false); }}
+                >
+                  Ver todos
+                </button>
+              </div>
+              {vencimentosUrgentes.slice(0, 8).map((v) => (
+                <button
+                  key={v.contrato.id}
+                  onClick={() => { navigate(`/pacientes/${v.pacienteId}?secao=contrato`); setOpen(false); }}
+                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted/30"
+                >
+                  <CalendarClock className={`h-4 w-4 mt-0.5 shrink-0 ${v.dias < 0 ? "text-red-500" : "text-amber-500"}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-semibold text-foreground">{v.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {rotuloPrazo(v.dias)} · {formatarDataVenc(v.contrato.data_vencimento)}
+                    </p>
+                  </div>
+                </button>
+              ))}
+              <p className="px-4 pb-2.5 text-[10px] text-muted-foreground">Saem daqui quando o plano é renovado ou encerrado.</p>
+            </div>
+          )}
+          {filtered.length === 0 && vencimentosUrgentes.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
               <p>Nenhuma notificação</p>
             </div>
-          ) : (
+          ) : filtered.length === 0 ? null : (
             filtered.map(notif => {
               const Icon = ICON_MAP[notif.tipo] || Bell;
               return (

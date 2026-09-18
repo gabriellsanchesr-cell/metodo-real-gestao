@@ -28,6 +28,7 @@ import TrocarSenha from "./pages/TrocarSenha";
 import ConfiguracaoClinica from "./pages/ConfiguracaoClinica";
 import ConteudoReal from "./pages/ConteudoReal";
 import Suplementos from "./pages/Suplementos";
+import Vencimentos from "./pages/Vencimentos";
 import Relatorios from "./pages/Relatorios";
 import Leads from "./pages/Leads";
 import Financeiro from "./pages/Financeiro";
@@ -103,6 +104,8 @@ const App = () => (
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="leads" element={<Leads />} />
               <Route path="financeiro" element={<Financeiro />} />
+
+              <Route path="vencimentos" element={<Vencimentos />} />
               <Route path="configuracoes/geral" element={<ConfiguracaoClinica />} />
               <Route path="configuracoes/usuarios" element={<GestaoUsuarios />} />
             </Route>

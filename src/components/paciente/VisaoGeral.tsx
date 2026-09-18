@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
+import { ContratoSection } from "@/components/paciente/ContratoSection";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, CalendarDays, Utensils, Activity, AlertTriangle, Minus } from "lucide-react";
 import type { SectionId } from "./PacienteSidebar";
@@ -81,6 +82,8 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
 
   return (
     <div className="space-y-6">
+      <ContratoSection paciente={paciente} compacto onAbrir={() => onNavigate("contrato")} />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card className="border-border rounded-xl">
           <CardContent className="p-5">

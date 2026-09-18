@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 import {
   Plus, Trash2, Edit, Send, ArrowLeft, Clock, Users, Search,
   UtensilsCrossed, X, ChevronDown, ChevronUp, Eye,
@@ -63,6 +65,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
   const [search, setSearch] = useState("");
   const [selectedDetail, setSelectedDetail] = useState<Receita | null>(null);
   const [sendModal, setSendModal] = useState(false);
+  const [avisar, setAvisar] = useState(true);
   const [sendReceitaId, setSendReceitaId] = useState<string | null>(null);
 
   useEffect(() => { loadReceitas(); }, []);
@@ -131,6 +134,10 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Receita enviada!" });
+      if (avisar) {
+        const titulo = receitas.find((x) => x.id === sendReceitaId)?.titulo;
+        avisarPaciente(paciente.id, "receita_nova", { titulo });
+      }
       loadReceitas();
     }
     setSendModal(false);
@@ -452,7 +459,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
                         <Button
                           variant="outline" size="sm"
                           className="h-8 text-xs rounded-lg"
-                          onClick={() => { setSendReceitaId(r.id); setSendModal(true); }}
+                          onClick={() => { setSendReceitaId(r.id); setAvisar(true); setSendModal(true); }}
                         >
                           <Send className="h-3 w-3 mr-1" /> Enviar
                         </Button>
@@ -481,6 +488,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
           <p className="text-sm text-muted-foreground">
             Enviar esta receita para <strong>{paciente.nome_completo}</strong>?
           </p>
+          <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setSendModal(false)}>Cancelar</Button>
             <Button onClick={handleSend} style={{ backgroundColor: "#2B3990" }}>Enviar</Button>

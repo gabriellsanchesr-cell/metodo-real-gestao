@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Send, Eye, ClipboardCopy, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
+import { avisarPaciente } from "@/lib/notificacoes";
 
 const TIPOS = [
   { value: "anamnese", label: "Anamnese" },
@@ -37,6 +39,7 @@ export function QuestionariosSection({ paciente }: Props) {
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
   const [sendTipo, setSendTipo] = useState("checkin_semanal");
+  const [avisar, setAvisar] = useState(true);
   const [sending, setSending] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);
@@ -67,8 +70,15 @@ export function QuestionariosSection({ paciente }: Props) {
       }).select("token").single();
       if (error) throw error;
       const url = `${window.location.origin}/questionario/${data.token}`;
-      await navigator.clipboard.writeText(url);
-      toast({ title: "Link copiado!", description: "Envie o link ao paciente." });
+      // A área de transferência pode falhar (permissão do navegador); isso não
+      // pode impedir o aviso nem parecer que o questionário não foi criado.
+      await navigator.clipboard.writeText(url).catch(() => undefined);
+      if (avisar) {
+        const titulo = TIPOS.find((t) => t.value === sendTipo)?.label;
+        avisarPaciente(paciente.id, "questionario_enviado", { titulo, token: data.token });
+      } else {
+        toast({ title: "Link copiado!", description: "Envie o link ao paciente." });
+      }
       setSendOpen(false);
       loadQuestionarios();
     } catch (err: any) {
@@ -164,11 +174,16 @@ export function QuestionariosSection({ paciente }: Props) {
               <SelectContent>{TIPOS.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <AvisarPacienteToggle
+            checked={avisar}
+            onCheckedChange={setAvisar}
+            label="Enviar o link para a paciente por e-mail"
+          />
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>Cancelar</Button>
             <Button onClick={handleSend} disabled={sending} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
               {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Criar e copiar link
+              {avisar ? "Criar e enviar" : "Criar e copiar link"}
             </Button>
           </DialogFooter>
         </DialogContent>

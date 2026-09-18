@@ -3,6 +3,7 @@ import {
   LayoutDashboard, User, ClipboardList, TrendingUp, Camera, Utensils,
   Calculator, CalendarDays, FileQuestion, TestTube, BookOpen, FileText, KeyRound,
   ChevronDown, Ruler, BookMarked, Target, FolderOpen, UtensilsCrossed, Pill, DollarSign,
+  CalendarClock, Mail,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -12,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 export const sections = [
   { id: "visao-geral", label: "Visão Geral", icon: LayoutDashboard, group: "geral" },
   { id: "dados", label: "Dados do Paciente", icon: User, group: "geral" },
+  { id: "contrato", label: "Plano contratado", icon: CalendarClock, group: "geral" },
   { id: "anamnese", label: "Anamnese", icon: ClipboardList, group: "clinico" },
   { id: "avaliacoes", label: "Avaliações Físicas", icon: Ruler, group: "clinico" },
   { id: "acompanhamento", label: "Acompanhamento Semanal", icon: TrendingUp, group: "clinico" },
@@ -29,6 +31,7 @@ export const sections = [
   { id: "orientacoes", label: "Orientações", icon: BookOpen, group: "outros" },
   { id: "prontuario", label: "Prontuário", icon: FileText, group: "outros" },
   { id: "financeiro", label: "Financeiro", icon: DollarSign, group: "outros" },
+  { id: "emails", label: "E-mails enviados", icon: Mail, group: "outros" },
   { id: "acesso", label: "Acesso do Paciente", icon: KeyRound, group: "outros" },
 ] as const;
 

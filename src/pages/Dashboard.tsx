@@ -6,8 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard, StatGrid, type StatTone } from "@/components/StatCard";
 import { StatsSkeleton } from "@/components/Loading";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ESTILO_SITUACAO } from "@/components/paciente/estiloVencimento";
+import { useVencimentos } from "@/hooks/useVencimentos";
+import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
 import { PageHeader } from "@/components/PageHeader";
-import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp } from "lucide-react";
+import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp, CalendarClock } from "lucide-react";
 import { format, subDays, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -35,6 +40,7 @@ function formatRelativeDate(dateStr: string) {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const venc = useVencimentos();
   const [carregando, setCarregando] = useState(true);
   const [data, setData] = useState<DashboardData>({
     totalPacientes: 0,
@@ -136,6 +142,47 @@ export default function Dashboard() {
             />
           ))}
         </StatGrid>
+      )}
+
+      {!venc.semTabela && (venc.urgentes.length > 0 || venc.semPlano.length > 0) && (
+        <Card className="border-border/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-semibold">Vencimentos</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/vencimentos")}>Ver todos</Button>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {venc.urgentes.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-muted-foreground">
+                Nenhum plano vencendo nos próximos {venc.diasAlerta} dias.
+                {venc.semPlano.length > 0 && ` ${venc.semPlano.length} paciente${venc.semPlano.length !== 1 ? "s" : ""} sem plano registrado.`}
+              </p>
+            ) : (
+              <div className="space-y-1">
+                {venc.urgentes.slice(0, 6).map((l) => (
+                  <button
+                    key={l.contrato.id}
+                    onClick={() => navigate(`/pacientes/${l.pacienteId}?secao=contrato`)}
+                    className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{l.nome}</p>
+                      <p className="text-xs text-muted-foreground">Vence em {formatarDataVenc(l.contrato.data_vencimento)}</p>
+                    </div>
+                    <Badge variant="outline" className={`shrink-0 rounded-full ${ESTILO_SITUACAO[l.situacao].badge}`}>
+                      {rotuloPrazo(l.dias)}
+                    </Badge>
+                  </button>
+                ))}
+                {venc.urgentes.length > 6 && (
+                  <p className="px-3 pt-1 text-xs text-muted-foreground">e mais {venc.urgentes.length - 6}.</p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

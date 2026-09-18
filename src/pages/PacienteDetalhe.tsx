@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PacienteHeader } from "@/components/paciente/PacienteHeader";
@@ -24,6 +24,8 @@ import { SuplementosSection } from "@/components/paciente/SuplementosSection";
 import { AvaliacoesFisicasSection } from "@/components/paciente/AvaliacoesFisicasSection";
 import { DiarioAlimentarSection } from "@/components/paciente/DiarioAlimentarSection";
 import { FinanceiroSection } from "@/components/paciente/FinanceiroSection";
+import { ContratoSection } from "@/components/paciente/ContratoSection";
+import { EmailsSection } from "@/components/paciente/EmailsSection";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 
@@ -32,7 +34,10 @@ export default function PacienteDetalhe() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [paciente, setPaciente] = useState<any>(null);
-  const [activeSection, setActiveSection] = useState<SectionId>("visao-geral");
+  const [searchParams] = useSearchParams();
+  // Permite abrir a ficha direto numa seção, ex.: /pacientes/:id?secao=contrato
+  const secaoInicial = sections.find((s) => s.id === searchParams.get("secao"))?.id ?? "visao-geral";
+  const [activeSection, setActiveSection] = useState<SectionId>(secaoInicial);
   const [accessModal, setAccessModal] = useState<{ open: boolean; mode: "create" | "edit" }>({ open: false, mode: "create" });
   const [deleteModal, setDeleteModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -114,6 +119,8 @@ export default function PacienteDetalhe() {
       case "materiais": return <MateriaisExtrasSection paciente={paciente} />;
       case "suplementos": return <SuplementosSection paciente={paciente} />;
       case "financeiro": return <FinanceiroSection paciente={paciente} />;
+      case "contrato": return <ContratoSection paciente={paciente} />;
+      case "emails": return <EmailsSection paciente={paciente} />;
       default: return null;
     }
   };
