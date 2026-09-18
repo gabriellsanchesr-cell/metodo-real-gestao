@@ -10,6 +10,7 @@ import { PacientesTab } from "@/components/relatorios/PacientesTab";
 import { EvolucaoClinicaTab } from "@/components/relatorios/EvolucaoClinicaTab";
 import { EngajamentoTab } from "@/components/relatorios/EngajamentoTab";
 import { ExportacoesTab } from "@/components/relatorios/ExportacoesTab";
+import { PageHeader } from "@/components/PageHeader";
 
 type PeriodoKey = "mes" | "mes_anterior" | "3meses" | "6meses" | "ano";
 
@@ -93,12 +94,8 @@ export default function Relatorios() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <BarChart3 className="h-6 w-6 text-[hsl(var(--primary))]" />
-          <h1 className="text-2xl font-bold">Relatórios e Indicadores</h1>
-        </div>
+    <div className="space-y-6">
+      <PageHeader title="Relatórios e Indicadores" icon={BarChart3}>
         <Select value={periodo} onValueChange={(v) => setPeriodo(v as PeriodoKey)}>
           <SelectTrigger className="w-[180px]">
             <SelectValue />
@@ -111,7 +108,7 @@ export default function Relatorios() {
             <SelectItem value="ano">Este ano</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </PageHeader>
 
       <Tabs defaultValue="geral" className="space-y-4">
         <TabsList className="flex-wrap h-auto">

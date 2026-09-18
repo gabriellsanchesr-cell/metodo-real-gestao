@@ -12,6 +12,7 @@ import { Plus, Copy, FileText, FileUp, Pencil, Trash2, FileDown } from "lucide-r
 import { ImportarPlanoPdfModal } from "@/components/paciente/ImportarPlanoPdfModal";
 import { PlanoAlimentarEditor } from "@/components/paciente/PlanoAlimentarEditor";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
+import { PageHeader } from "@/components/PageHeader";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -157,8 +158,7 @@ export default function Templates() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-bold">Templates de Plano</h1>
+      <PageHeader title="Templates de Plano" description={`${templates.length} template${templates.length !== 1 ? "s" : ""} disponíve${templates.length !== 1 ? "is" : "l"}`} icon={FileText}>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileUp className="h-4 w-4 mr-2" /> Importar PDF
@@ -194,7 +194,7 @@ export default function Templates() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </PageHeader>
 
       <Dialog open={duplicateDialogOpen} onOpenChange={setDuplicateDialogOpen}>
         <DialogContent>

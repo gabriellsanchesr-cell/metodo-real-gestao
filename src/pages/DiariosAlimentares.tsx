@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { PageHeader } from "@/components/PageHeader";
 import { BookMarked, Search, MessageSquare, Clock, Eye, Send, Image as ImageIcon } from "lucide-react";
 import { format, parseISO, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -176,19 +177,17 @@ export default function DiariosAlimentares() {
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground flex items-center gap-2">
-            <BookMarked className="h-6 w-6 text-primary" /> Diários Alimentares
-          </h1>
-          <p className="text-sm text-muted-foreground">Visão consolidada de todos os registros das pacientes.</p>
-        </div>
+      <PageHeader
+        title="Diários Alimentares"
+        description="Visão consolidada de todos os registros das pacientes."
+        icon={BookMarked}
+      >
         <div className="flex gap-2 text-xs flex-wrap">
           <Badge variant="outline">{stats.total} registros</Badge>
           {stats.naoVistos > 0 && <Badge className="bg-warning text-warning-foreground">{stats.naoVistos} novos</Badge>}
           {stats.semFb > 0 && <Badge className="bg-primary/10 text-primary border-primary/20">{stats.semFb} sem feedback</Badge>}
         </div>
-      </div>
+      </PageHeader>
 
       <Card className="rounded-xl">
         <CardContent className="p-3 grid grid-cols-1 md:grid-cols-5 gap-2">

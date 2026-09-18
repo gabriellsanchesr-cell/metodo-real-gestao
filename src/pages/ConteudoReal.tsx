@@ -13,9 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Calendar, Target, Key, Heart, Edit, Trash2, Copy, Eye, EyeOff,
+  Plus, Calendar, Target, Key, Heart, Edit, Trash2, Copy, Eye, EyeOff, Sparkles,
   Video, FileText, Type, Headphones, ExternalLink, Users, BarChart3,
 } from "lucide-react";
 
@@ -193,12 +194,7 @@ export default function ConteudoReal() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Conteúdo R.E.A.L.</h1>
-          <p className="text-sm text-muted-foreground">Gerencie a biblioteca de conteúdo por fase do método</p>
-        </div>
-      </div>
+      <PageHeader title="Conteúdo R.E.A.L." description="Gerencie a biblioteca de conteúdo por fase do método" icon={Sparkles} />
 
       <Tabs value={mainTab} onValueChange={setMainTab}>
         <TabsList>

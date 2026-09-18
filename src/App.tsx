@@ -32,19 +32,20 @@ import Relatorios from "./pages/Relatorios";
 import Leads from "./pages/Leads";
 import Financeiro from "./pages/Financeiro";
 import NotFound from "./pages/NotFound";
+import { FullPageLoader } from "@/components/Loading";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  if (loading) return <FullPageLoader />;
   if (!session) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, role } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  if (loading) return <FullPageLoader />;
   if (session && role === "paciente") return <Navigate to="/portal" replace />;
   if (session && role === "equipe") return <Navigate to="/" replace />;
   if (session) return <Navigate to="/" replace />;
@@ -53,7 +54,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, role, equipeMembro } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  if (loading) return <FullPageLoader />;
   if (!session) return <Navigate to="/login" replace />;
   if (role === "paciente") return <Navigate to="/portal" replace />;
   // Force password change for equipe
@@ -63,7 +64,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 function PacienteRoute({ children }: { children: React.ReactNode }) {
   const { session, loading, role } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  if (loading) return <FullPageLoader />;
   if (!session) return <Navigate to="/login" replace />;
   if (role === "nutri" || role === "equipe") return <Navigate to="/" replace />;
   return <>{children}</>;

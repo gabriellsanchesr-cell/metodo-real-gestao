@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/PageHeader";
 import { Plus, Calendar as CalIcon, Clock, Ban, AlertTriangle, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -207,8 +208,7 @@ export default function Agenda() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-bold">Agenda</h1>
+      <PageHeader title="Agenda" description="Consultas, bloqueios e retornos" icon={CalIcon}>
         <div className="flex flex-wrap gap-2">
           <div className="flex border rounded-lg overflow-hidden">
             {(["month", "week", "day"] as ViewType[]).map(v => (
@@ -313,7 +313,7 @@ export default function Agenda() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Navigation */}
       <div className="flex items-center justify-between">
@@ -322,7 +322,7 @@ export default function Agenda() {
         </Button>
         <div className="flex items-center gap-2">
           <h2 className="text-lg font-semibold capitalize">{headerLabel}</h2>
-          <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
+          <Button variant="outline" size="sm" className="rounded-full px-3" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
         </div>
         <Button variant="outline" size="sm" onClick={() => navigate(1)}>
           Próximo <ChevronRight className="h-4 w-4 ml-1" />

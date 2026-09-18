@@ -12,11 +12,14 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, MoreHorizontal, UserCheck, UserX, Pencil, Trash2, KeyRound, Loader2, X, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Search, Users, MoreHorizontal, UserCheck, UserX, Pencil, Trash2, KeyRound, Loader2, X, Archive, ArchiveRestore } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { TableSkeleton } from "@/components/Loading";
 import { format } from "date-fns";
 
 
@@ -35,6 +38,7 @@ export default function Pacientes() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [pacientes, setPacientes] = useState<any[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
 
@@ -60,6 +64,7 @@ export default function Pacientes() {
       .select("*")
       .order("nome_completo");
     setPacientes(data || []);
+    setCarregando(false);
   };
 
   const filtered = pacientes.filter((p) => {
@@ -73,7 +78,14 @@ export default function Pacientes() {
   });
 
 
-  const arquivadosCount = pacientes.filter((p) => p.ativo === false).length;
+  /** Quantos pacientes cada filtro traria, ignorando a busca por nome. */
+  const contagens: Record<string, number> = {
+    todos: pacientes.filter((p) => p.ativo !== false).length,
+    ativo: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "ativo").length,
+    desativado: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "desativado").length,
+    sem_conta: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "sem_conta").length,
+    arquivados: pacientes.filter((p) => p.ativo === false).length,
+  };
   const selectedPacientes = pacientes.filter((p) => selected.includes(p.id));
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selected.includes(p.id));
@@ -179,16 +191,16 @@ export default function Pacientes() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Pacientes</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{filtered.length} paciente{filtered.length !== 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}</p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        title="Pacientes"
+        description={`${filtered.length} paciente${filtered.length !== 1 ? "s" : ""} encontrado${filtered.length !== 1 ? "s" : ""}`}
+        icon={Users}
+      >
         <Button onClick={() => navigate("/pacientes/novo")} className="rounded-xl">
           <Plus className="h-4 w-4 mr-2" /> Novo Paciente
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
@@ -205,9 +217,7 @@ export default function Pacientes() {
               className="rounded-full px-4 text-xs"
             >
               {s === "todos" ? "Todos" : s === "arquivados" ? "Arquivados" : statusConfig[s]?.label || s}
-              {s === "arquivados" && arquivadosCount > 0 && (
-                <span className="ml-1.5 opacity-70">{arquivadosCount}</span>
-              )}
+              <span className="ml-1.5 tabular-nums opacity-70">{contagens[s] ?? 0}</span>
             </Button>
           ))}
         </div>
@@ -254,6 +264,9 @@ export default function Pacientes() {
         </div>
       )}
 
+      {carregando ? (
+        <TableSkeleton rows={6} cols={4} />
+      ) : (
       <div className="border rounded-xl overflow-hidden shadow-sm bg-card">
         <div className="overflow-x-auto">
           <Table>
@@ -332,10 +345,18 @@ export default function Pacientes() {
               );
             })}
             {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <Search className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-sm">Nenhum paciente encontrado</p>
+              <TableRow className="hover:bg-transparent">
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={busca ? Search : Users}
+                    title={busca ? `Nenhum paciente para "${busca}"` : "Nenhum paciente neste filtro"}
+                    description={busca
+                      ? "Confira a grafia ou limpe a busca para ver a lista inteira."
+                      : "Troque o filtro acima ou cadastre a primeira paciente."}
+                    action={busca
+                      ? <Button variant="outline" onClick={() => setBusca("")}>Limpar busca</Button>
+                      : <Button onClick={() => navigate("/pacientes/novo")}><Plus className="h-4 w-4 mr-2" /> Novo Paciente</Button>}
+                  />
                 </TableCell>
               </TableRow>
             )}
@@ -343,6 +364,7 @@ export default function Pacientes() {
           </Table>
         </div>
       </div>
+      )}
 
       {accessModal.paciente && (
         <PacienteAccessModal

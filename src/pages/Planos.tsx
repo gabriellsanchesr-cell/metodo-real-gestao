@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/PageHeader";
+import { EmptyState } from "@/components/EmptyState";
+import { CardsSkeleton } from "@/components/Loading";
 import { Plus, Utensils } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -25,6 +28,7 @@ export default function Planos() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [planos, setPlanos] = useState<any[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [pacientes, setPacientes] = useState<any[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newPlano, setNewPlano] = useState({ nome: "", paciente_id: "", observacoes: "" });
@@ -43,6 +47,7 @@ export default function Planos() {
       .eq("is_template", false)
       .order("created_at", { ascending: false });
     setPlanos(data || []);
+    setCarregando(false);
   };
 
   const loadPacientes = async () => {
@@ -70,8 +75,7 @@ export default function Planos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-bold">Planos Alimentares</h1>
+      <PageHeader title="Planos Alimentares" description={`${planos.length} plano${planos.length !== 1 ? "s" : ""} cadastrado${planos.length !== 1 ? "s" : ""}`} icon={Utensils}>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Plano</Button>
@@ -102,8 +106,9 @@ export default function Planos() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
+      {carregando ? <CardsSkeleton /> : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {planos.map((p) => (
           <Card key={p.id} className="hover:shadow-md transition-shadow">
@@ -121,9 +126,16 @@ export default function Planos() {
           </Card>
         ))}
         {planos.length === 0 && (
-          <p className="text-muted-foreground col-span-full text-center py-8">Nenhum plano criado ainda</p>
+          <div className="col-span-full">
+            <EmptyState
+              icon={Utensils}
+              title="Nenhum plano criado ainda"
+              description="Crie um plano do zero ou anexe o PDF de um plano que você já montou."
+            />
+          </div>
         )}
       </div>
+      )}
     </div>
   );
 }

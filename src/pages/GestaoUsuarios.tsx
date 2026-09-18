@@ -6,6 +6,7 @@ import { EquipeTab } from "@/components/usuarios/EquipeTab";
 import { PacientesTab } from "@/components/usuarios/PacientesTab";
 import { AuditLogTab } from "@/components/usuarios/AuditLogTab";
 import { ConfigUsuariosTab } from "@/components/usuarios/ConfigUsuariosTab";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function GestaoUsuarios() {
   const { isAdmin } = useAuth();
@@ -13,10 +14,11 @@ export default function GestaoUsuarios() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Gestão de Usuários</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gerencie equipe, pacientes, auditoria e configurações de acesso</p>
-      </div>
+      <PageHeader
+        title="Gestão de Usuários"
+        description="Gerencie equipe, pacientes, auditoria e configurações de acesso"
+        icon={Shield}
+      />
       <Tabs defaultValue="equipe" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="equipe" className="gap-2"><Shield className="h-4 w-4" /> Equipe</TabsTrigger>

@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import {
-  LayoutDashboard, Users, Utensils, Activity, Calendar, BookOpen, FileText, LogOut, MessageSquare, Settings, Sparkles, Pill, BarChart3, UserPlus, DollarSign, BookMarked,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { MAIN_NAV, CONFIG_NAV } from "@/lib/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +14,6 @@ import {
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
   const { signOut, user, isAdmin, hasPermission } = useAuth();
   const [unreadChat, setUnreadChat] = useState(0);
 
@@ -38,27 +35,27 @@ export function AppSidebar() {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const menuItems = [
-    { title: "Dashboard", url: "/", icon: LayoutDashboard, show: true },
-    { title: "Pacientes", url: "/pacientes", icon: Users, show: hasPermission("pacientes", "ver") },
-    { title: "Chat", url: "/chat", icon: MessageSquare, show: hasPermission("comunicacao", "ver_chat") },
-    { title: "Planos Alimentares", url: "/planos", icon: Utensils, show: hasPermission("planos", "ver") },
-    { title: "Acompanhamento", url: "/acompanhamento", icon: Activity, show: hasPermission("avaliacoes", "ver_acompanhamento") },
-    { title: "Diários Alimentares", url: "/diarios", icon: BookMarked, show: hasPermission("avaliacoes", "ver_acompanhamento") },
-    { title: "Agenda", url: "/agenda", icon: Calendar, show: hasPermission("consultas", "ver_agenda") },
-    { title: "Biblioteca", url: "/biblioteca", icon: BookOpen, show: true },
-    { title: "Conteúdo R.E.A.L.", url: "/conteudo-real", icon: Sparkles, show: isAdmin || hasPermission("planos", "ver") },
-    { title: "Suplementos", url: "/suplementos", icon: Pill, show: isAdmin || hasPermission("planos", "ver") },
-    { title: "Relatórios", url: "/relatorios", icon: BarChart3, show: isAdmin },
-    { title: "Templates", url: "/templates", icon: FileText, show: isAdmin || hasPermission("planos", "criar") },
-    { title: "Leads", url: "/leads", icon: UserPlus, show: isAdmin },
-    { title: "Financeiro", url: "/financeiro", icon: DollarSign, show: isAdmin || hasPermission("financeiro", "ver") },
-  ].filter(i => i.show);
+  // Quem enxerga cada item. As rotas, os titulos e os icones vem de
+  // @/lib/navigation, para a sidebar e a barra superior nao divergirem.
+  const canSee: Record<string, boolean> = {
+    "/": true,
+    "/pacientes": hasPermission("pacientes", "ver"),
+    "/chat": hasPermission("comunicacao", "ver_chat"),
+    "/planos": hasPermission("planos", "ver"),
+    "/acompanhamento": hasPermission("avaliacoes", "ver_acompanhamento"),
+    "/diarios": hasPermission("avaliacoes", "ver_acompanhamento"),
+    "/agenda": hasPermission("consultas", "ver_agenda"),
+    "/biblioteca": true,
+    "/conteudo-real": isAdmin || hasPermission("planos", "ver"),
+    "/suplementos": isAdmin || hasPermission("planos", "ver"),
+    "/relatorios": isAdmin,
+    "/templates": isAdmin || hasPermission("planos", "criar"),
+    "/leads": isAdmin,
+    "/financeiro": isAdmin || hasPermission("financeiro", "ver"),
+  };
 
-  const configItems = [
-    { title: "Geral", url: "/configuracoes/geral", icon: Settings, show: isAdmin },
-    { title: "Usuários", url: "/configuracoes/usuarios", icon: Users, show: isAdmin },
-  ].filter(i => i.show);
+  const menuItems = MAIN_NAV.filter((item) => canSee[item.url]);
+  const configItems = isAdmin ? CONFIG_NAV : [];
 
   const userEmail = user?.email || "";
   const userInitial = (userEmail[0] || "N").toUpperCase();
@@ -67,11 +64,11 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 bg-gradient-to-b from-sidebar-accent/30 to-transparent">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="NutriGabriel" className="h-10 w-10 rounded-lg object-contain" />
+          <img src="/logo.png" alt="Método R.E.A.L" className="h-10 w-10 rounded-lg object-contain" />
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-sidebar-primary-foreground">NutriGabriel</span>
-              <span className="text-xs text-sidebar-foreground/60">Gestão Nutricional</span>
+              <span className="text-sm font-bold text-sidebar-primary-foreground">Método R.E.A.L</span>
+              <span className="text-xs text-sidebar-foreground/60">Área de membros</span>
             </div>
           )}
         </div>

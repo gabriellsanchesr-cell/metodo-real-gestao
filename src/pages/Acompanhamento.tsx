@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
+import { Plus, Activity } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
@@ -90,8 +91,7 @@ export default function Acompanhamento() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-bold">Acompanhamento</h1>
+      <PageHeader title="Acompanhamento" description="Evolução de peso e medidas por paciente" icon={Activity}>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Novo Registro</Button>
@@ -146,7 +146,7 @@ export default function Acompanhamento() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       <div className="space-y-2">
         <Label>Selecione o paciente para ver evolução</Label>

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Switch } from "@/components/ui/switch";
+import { PageHeader } from "@/components/PageHeader";
 import { Plus, Search, Pill, FlaskConical, Pencil, Copy, Trash2, X } from "lucide-react";
 
 const categoriaLabels: Record<string, string> = {
@@ -175,16 +176,12 @@ export default function Suplementos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Suplementos e Manipulados</h1>
-          <p className="text-sm text-muted-foreground">Banco global de suplementos e fórmulas manipuladas</p>
-        </div>
+      <PageHeader title="Suplementos e Manipulados" description="Banco global de suplementos e fórmulas manipuladas" icon={Pill}>
         <div className="flex gap-2">
           <Button onClick={() => openNew("suplemento")}><Pill className="h-4 w-4 mr-1" /> Suplemento</Button>
           <Button variant="outline" onClick={() => openNew("manipulado")}><FlaskConical className="h-4 w-4 mr-1" /> Manipulado</Button>
         </div>
-      </div>
+      </PageHeader>
 
       <Card>
         <CardContent className="p-4">

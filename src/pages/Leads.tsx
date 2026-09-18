@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/PageHeader";
+import { formatBRL } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Search, GripVertical, Pencil, Trash2, UserPlus } from "lucide-react";
 
@@ -135,14 +137,10 @@ export default function Leads() {
   });
 
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Gestão de Leads</h1>
-          <p className="text-sm text-muted-foreground">Pipeline de captação de pacientes</p>
-        </div>
+    <div className="space-y-6">
+      <PageHeader title="Gestão de Leads" description="Pipeline de captação de pacientes" icon={UserPlus}>
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Novo Lead</Button>
-      </div>
+      </PageHeader>
 
       <div className="flex gap-3 items-center flex-wrap">
         <div className="relative flex-1 min-w-[180px] sm:max-w-xs">
@@ -202,7 +200,7 @@ export default function Leads() {
                         {lead.telefone && <p className="text-xs text-muted-foreground">{lead.telefone}</p>}
                         {lead.valor_estimado && (
                           <p className="text-xs font-medium text-primary">
-                            R$ {Number(lead.valor_estimado).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            {formatBRL(lead.valor_estimado)}
                           </p>
                         )}
                         <Badge variant="outline" className="text-[10px]">

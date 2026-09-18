@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/PageHeader";
+import { formatBRL } from "@/lib/format";
+import { StatCard, StatGrid } from "@/components/StatCard";
 import { toast } from "@/hooks/use-toast";
 import { Plus, DollarSign, TrendingUp, Clock, Users, Pencil, Trash2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -154,16 +157,11 @@ export default function Financeiro() {
 
   const filteredReceitas = receitas.filter(r => filtroStatus === "todos" || r.status === filtroStatus);
 
-  const fmt = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+  const fmt = formatBRL;
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Financeiro</h1>
-          <p className="text-sm text-muted-foreground">Controle de receitas e faturamento</p>
-        </div>
-      </div>
+    <div className="space-y-6">
+      <PageHeader title="Financeiro" description="Controle de receitas e faturamento" icon={DollarSign} />
 
       <Tabs defaultValue="dashboard">
         <TabsList>
@@ -172,36 +170,12 @@ export default function Financeiro() {
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Faturamento do Mês</CardTitle>
-                <DollarSign className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent><p className="text-2xl font-bold">{fmt(faturamentoMes)}</p></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Total Recebido</CardTitle>
-                <TrendingUp className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent><p className="text-2xl font-bold">{fmt(totalRecebido)}</p></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Pendentes</CardTitle>
-                <Clock className="h-4 w-4 text-accent-foreground" />
-              </CardHeader>
-              <CardContent><p className="text-2xl font-bold">{fmt(pendentes)}</p></CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">Ticket Médio</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent><p className="text-2xl font-bold">{fmt(ticketMedio)}</p></CardContent>
-            </Card>
-          </div>
+          <StatGrid>
+            <StatCard label="Faturamento do Mês" value={fmt(faturamentoMes)} icon={DollarSign} tone="primary" hint="Recebido neste mês" />
+            <StatCard label="Total Recebido" value={fmt(totalRecebido)} icon={TrendingUp} tone="success" hint="Todo o período" />
+            <StatCard label="Pendentes" value={fmt(pendentes)} icon={Clock} tone="warning" hint="A receber" />
+            <StatCard label="Ticket Médio" value={fmt(ticketMedio)} icon={Users} tone="neutral" hint={`${pagosCount} recebimento${pagosCount !== 1 ? "s" : ""}`} />
+          </StatGrid>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Faturamento — Últimos 6 meses</CardTitle></CardHeader>

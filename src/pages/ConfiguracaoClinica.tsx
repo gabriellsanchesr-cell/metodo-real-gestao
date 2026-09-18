@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Save, Building, Palette, Mail, Info } from "lucide-react";
+import { Save, Building, Palette, Mail, Info, Settings } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PageHeader } from "@/components/PageHeader";
 
 interface ConfigClinica {
   id?: string;
@@ -173,16 +174,12 @@ export default function ConfiguracaoClinica() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Configurações da Clínica</h1>
-          <p className="text-muted-foreground">Personalize os dados da sua clínica e portal</p>
-        </div>
+      <PageHeader title="Configurações da Clínica" description="Personalize os dados da sua clínica e portal" icon={Settings}>
         <Button onClick={handleSave} disabled={saving}>
           <Save className="h-4 w-4 mr-2" />
           {saving ? "Salvando..." : "Salvar Configurações"}
         </Button>
-      </div>
+      </PageHeader>
 
       <Tabs defaultValue="consultorio" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">

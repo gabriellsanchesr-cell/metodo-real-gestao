@@ -88,7 +88,7 @@ export default function MeuPainel() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="NutriGabriel" className="h-8 w-8 rounded-lg object-contain" />
+          <img src="/logo.png" alt="Método R.E.A.L" className="h-8 w-8 rounded-lg object-contain" />
           <div>
             <h1 className="text-lg font-bold text-foreground">Meu Painel</h1>
             <p className="text-sm text-muted-foreground">{paciente.nome_completo}</p>

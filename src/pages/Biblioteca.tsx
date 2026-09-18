@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, ArrowRightLeft, Trash2, Sparkles, Search } from "lucide-react";
+import { PageHeader } from "@/components/PageHeader";
+import { Plus, ArrowRightLeft, Trash2, Sparkles, Search, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const grupoLabels: Record<string, string> = {
@@ -117,11 +118,7 @@ export default function Biblioteca() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Biblioteca de Substituições</h1>
-          <p className="text-sm text-muted-foreground">{subs.length} substituições cadastradas</p>
-        </div>
+      <PageHeader title="Biblioteca de Substituições" description={`${subs.length} substituições cadastradas`} icon={BookOpen}>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={seedDefaults} disabled={seeding}>
             <Sparkles className="h-4 w-4 mr-2" />
@@ -162,7 +159,7 @@ export default function Biblioteca() {
             </DialogContent>
           </Dialog>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="relative">

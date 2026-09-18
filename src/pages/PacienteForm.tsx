@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/PageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
@@ -123,11 +124,10 @@ export default function PacienteForm() {
         <ArrowLeft className="h-4 w-4" /> Voltar
       </Button>
 
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">
-          {isEdit ? "Editar Paciente" : "Cadastrar Paciente"}
-        </h1>
-      </div>
+      <PageHeader
+        title={isEdit ? "Editar Paciente" : "Cadastrar Paciente"}
+        description={isEdit ? "Atualize os dados cadastrais" : "Preencha os dados para criar o cadastro"}
+      />
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>

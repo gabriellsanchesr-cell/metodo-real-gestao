@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StatCard, StatGrid, type StatTone } from "@/components/StatCard";
+import { StatsSkeleton } from "@/components/Loading";
+import { EmptyState } from "@/components/EmptyState";
+import { PageHeader } from "@/components/PageHeader";
 import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp } from "lucide-react";
 import { format, subDays, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -14,12 +19,11 @@ interface DashboardData {
   ultimosAcompanhamentos: Array<{ id: string; paciente_nome: string; data_registro: string; peso: number | null }>;
 }
 
-const cardStyles = [
-  { gradient: "from-primary/20 to-primary/5", iconBg: "bg-primary/15", iconColor: "text-primary" },
-  { gradient: "from-warning/20 to-warning/5", iconBg: "bg-warning/15", iconColor: "text-warning" },
-  { gradient: "from-destructive/20 to-destructive/5", iconBg: "bg-destructive/15", iconColor: "text-destructive" },
-  { gradient: "from-success/20 to-success/5", iconBg: "bg-success/15", iconColor: "text-success" },
-];
+/** Data curta a partir de "2026-09-17", sem passar por fuso. */
+function formatarData(dateStr: string) {
+  const [ano, mes, dia] = dateStr.split("-");
+  return dia && mes ? `${dia}/${mes}/${ano}` : dateStr;
+}
 
 function formatRelativeDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -30,6 +34,8 @@ function formatRelativeDate(dateStr: string) {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [carregando, setCarregando] = useState(true);
   const [data, setData] = useState<DashboardData>({
     totalPacientes: 0,
     retornoPendente: 0,
@@ -64,7 +70,9 @@ export default function Dashboard() {
     const idsComConsulta = new Set((consultasRecentes || []).map((c: any) => c.paciente_id));
     const retornoPendente = pacientes.filter((p) => !idsComConsulta.has(p.id)).length;
 
-    const inicioSemana = subDays(new Date(), 7).toISOString().split("T")[0];
+    // format() usa a data local. toISOString() usaria UTC e, depois das 21h
+    // no horário de Brasília, encurtaria a janela para 6 dias.
+    const inicioSemana = format(subDays(new Date(), 7), "yyyy-MM-dd");
     const { data: pesosRecentes } = await supabase
       .from("acompanhamentos")
       .select("paciente_id")
@@ -89,13 +97,14 @@ export default function Dashboard() {
         peso: a.peso,
       })),
     });
+    setCarregando(false);
   };
 
-  const cards = [
-    { title: "Pacientes Ativos", value: data.totalPacientes, icon: Users },
-    { title: "Retorno Pendente", value: data.retornoPendente, icon: AlertTriangle },
-    { title: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale },
-    { title: "Próximas Consultas", value: data.proximasConsultas.length, icon: Calendar },
+  const cards: { label: string; value: number; icon: typeof Users; tone: StatTone }[] = [
+    { label: "Pacientes Ativos", value: data.totalPacientes, icon: Users, tone: "primary" },
+    { label: "Retorno Pendente", value: data.retornoPendente, icon: AlertTriangle, tone: "warning" },
+    { label: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale, tone: "destructive" },
+    { label: "Próximas Consultas", value: data.proximasConsultas.length, icon: Calendar, tone: "success" },
   ];
 
   const greeting = (() => {
@@ -106,29 +115,28 @@ export default function Dashboard() {
   })();
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">{greeting}! 👋</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-        </p>
-      </div>
+    <div className="space-y-6">
+      <PageHeader
+        title={`${greeting}!`}
+        description={format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {cards.map((card, i) => (
-          <Card key={card.title} className="hover-card border-0 shadow-sm overflow-hidden">
-            <CardContent className="flex items-center gap-4 p-5">
-              <div className={`rounded-xl p-3 ${cardStyles[i].iconBg}`}>
-                <card.icon className={`h-5 w-5 ${cardStyles[i].iconColor}`} />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground font-medium">{card.title}</p>
-                <p className="text-2xl font-bold text-foreground">{card.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {carregando ? (
+        <StatsSkeleton />
+      ) : (
+        <StatGrid>
+          {cards.map((card) => (
+            <StatCard
+              key={card.label}
+              label={card.label}
+              value={card.value}
+              icon={card.icon}
+              tone={card.tone}
+              onClick={() => navigate(card.label === "Próximas Consultas" ? "/agenda" : "/pacientes")}
+            />
+          ))}
+        </StatGrid>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-0 shadow-sm">
@@ -140,10 +148,12 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {data.proximasConsultas.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <Calendar className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Nenhuma consulta agendada</p>
-              </div>
+              <EmptyState
+                compact
+                icon={Calendar}
+                title="Nenhuma consulta agendada"
+                description="As próximas consultas aparecem aqui assim que você agendar."
+              />
             ) : (
               <div className="space-y-1">
                 {data.proximasConsultas.map((c) => (
@@ -171,17 +181,19 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {data.ultimosAcompanhamentos.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <TrendingUp className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Nenhum acompanhamento registrado</p>
-              </div>
+              <EmptyState
+                compact
+                icon={TrendingUp}
+                title="Nenhum acompanhamento registrado"
+                description="Pesos e medidas registrados pelas pacientes aparecem aqui."
+              />
             ) : (
               <div className="space-y-1">
                 {data.ultimosAcompanhamentos.map((a) => (
                   <div key={a.id} className="flex justify-between items-center py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
                     <div>
                       <p className="font-medium text-sm text-foreground">{a.paciente_nome}</p>
-                      <p className="text-xs text-muted-foreground">{a.data_registro}</p>
+                      <p className="text-xs text-muted-foreground">{formatarData(a.data_registro)}</p>
                     </div>
                     {a.peso && (
                       <span className="text-sm font-semibold text-foreground bg-primary/10 px-2 py-1 rounded-md">
