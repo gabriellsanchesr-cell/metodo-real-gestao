@@ -137,18 +137,18 @@ export function AnamneseSection({ paciente }: Props) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-[#1A1F3C]">Anamnese</h2>
+          <h2 className="text-xl font-semibold text-[#0E1E35]">Anamnese</h2>
         </div>
         <Card className="border-[#E2E5F0] rounded-xl">
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <FileText className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground text-center">Nenhuma anamnese preenchida para este paciente.</p>
             <div className="flex gap-3">
-              <Button onClick={handleSendLink} variant="outline" className="border-[#2B3990] text-[#2B3990]">
+              <Button onClick={handleSendLink} variant="outline" className="border-[#004AAD] text-[#004AAD]">
                 <ClipboardCopy className="h-4 w-4 mr-2" />
                 Enviar link ao paciente
               </Button>
-              <Button onClick={() => { setFormOpen(true); }} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+              <Button onClick={() => { setFormOpen(true); }} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
                 <Edit className="h-4 w-4 mr-2" />
                 Preencher manualmente
               </Button>
@@ -170,7 +170,7 @@ export function AnamneseSection({ paciente }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#1A1F3C]">Anamnese</h2>
+        <h2 className="text-xl font-semibold text-[#0E1E35]">Anamnese</h2>
         <div className="flex items-center gap-3">
           <Badge variant="outline" className="gap-1">
             {anamnese.preenchido_por === "paciente" ? (
@@ -182,7 +182,7 @@ export function AnamneseSection({ paciente }: Props) {
           <span className="text-xs text-muted-foreground">
             {format(new Date(anamnese.updated_at || anamnese.created_at), "dd/MM/yyyy")}
           </span>
-          <Button size="sm" variant="outline" onClick={() => setFormOpen(true)} className="border-[#2B3990] text-[#2B3990]">
+          <Button size="sm" variant="outline" onClick={() => setFormOpen(true)} className="border-[#004AAD] text-[#004AAD]">
             <Edit className="h-4 w-4 mr-1" /> Editar
           </Button>
         </div>
@@ -195,7 +195,7 @@ export function AnamneseSection({ paciente }: Props) {
               <CardTitle className="text-sm font-medium text-[#6B7080]">{label}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-[#1A1F3C] whitespace-pre-wrap">
+              <p className="text-sm text-[#0E1E35] whitespace-pre-wrap">
                 {(anamnese as any)[key] || <span className="text-muted-foreground italic">Não preenchido</span>}
               </p>
             </CardContent>
@@ -246,7 +246,7 @@ function AnamneseFormDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={onSave} disabled={saving} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+          <Button onClick={onSave} disabled={saving} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Salvar
           </Button>

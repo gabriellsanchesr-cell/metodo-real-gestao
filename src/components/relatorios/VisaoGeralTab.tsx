@@ -15,7 +15,7 @@ interface Props {
   periodoAnteriorFim: Date;
 }
 
-const COLORS_FASE = ["#2B3990", "#7C3AED", "#F59E0B", "#22C55E"];
+const COLORS_FASE = ["#004AAD", "#7C3AED", "#F59E0B", "#22C55E"];
 const FASE_LABELS: Record<string, string> = {
   rotina: "Rotina",
   estrategia: "Estratégia",
@@ -176,7 +176,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="total" stroke="#2B3990" strokeWidth={2} dot={{ r: 3 }} name="Pacientes ativos" />
+                <Line type="monotone" dataKey="total" stroke="#004AAD" strokeWidth={2} dot={{ r: 3 }} name="Pacientes ativos" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -192,8 +192,8 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="primeira" stackId="a" fill="#2B3990" name="Primeira consulta" />
-                <Bar dataKey="retorno" stackId="a" fill="#5B6EC7" name="Retorno" />
+                <Bar dataKey="primeira" stackId="a" fill="#004AAD" name="Primeira consulta" />
+                <Bar dataKey="retorno" stackId="a" fill="#3B7BD6" name="Retorno" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

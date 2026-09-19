@@ -276,7 +276,7 @@ export default function Pacientes() {
                   <Checkbox checked={allFilteredSelected} onCheckedChange={toggleAllFiltered} aria-label="Selecionar todos" />
                 </TableHead>
                 <TableHead>Nome</TableHead>
-                <TableHead className="hidden md:table-cell">E-mail</TableHead>
+                <TableHead className="hidden xl:table-cell">E-mail</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden sm:table-cell">Cadastro</TableHead>
                 <TableHead className="w-[60px]">Ações</TableHead>
@@ -300,7 +300,7 @@ export default function Pacientes() {
                         <span className="font-medium text-foreground truncate">{p.nome_completo}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground hidden md:table-cell">{p.email || "—"}</TableCell>
+                    <TableCell className="text-muted-foreground hidden xl:table-cell">{p.email || "—"}</TableCell>
                     <TableCell>
                       <Badge variant={cfg.variant} className="rounded-full whitespace-nowrap">{cfg.label}</Badge>
                     </TableCell>

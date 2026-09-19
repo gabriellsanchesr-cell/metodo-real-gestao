@@ -178,7 +178,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
                 <XAxis dataKey="name" tick={{ fontSize: 10 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="pacientes" fill="#2B3990" name="Pacientes" />
+                <Bar dataKey="pacientes" fill="#004AAD" name="Pacientes" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -193,7 +193,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={["auto", "auto"]} />
                 <Tooltip />
-                <Line type="monotone" dataKey="pesoMedio" stroke="#2B3990" strokeWidth={2} name="Peso médio (kg)" />
+                <Line type="monotone" dataKey="pesoMedio" stroke="#004AAD" strokeWidth={2} name="Peso médio (kg)" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

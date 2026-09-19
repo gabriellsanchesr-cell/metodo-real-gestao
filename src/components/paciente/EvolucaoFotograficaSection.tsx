@@ -121,14 +121,14 @@ export function EvolucaoFotograficaSection({ paciente }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="text-lg md:text-xl font-semibold text-[#1A1F3C]">Evolução Fotográfica</h2>
+        <h2 className="text-lg md:text-xl font-semibold text-[#0E1E35]">Evolução Fotográfica</h2>
         <div className="flex gap-2 flex-wrap">
           {dates.length >= 2 && (
-            <Button variant="outline" size="sm" onClick={() => setCompareMode(!compareMode)} className="border-[#2B3990] text-[#2B3990]">
+            <Button variant="outline" size="sm" onClick={() => setCompareMode(!compareMode)} className="border-[#004AAD] text-[#004AAD]">
               <ArrowLeftRight className="h-4 w-4 mr-1" /> {compareMode ? "Fechar comparação" : "Comparar"}
             </Button>
           )}
-          <Button size="sm" onClick={() => setUploadOpen(true)} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+          <Button size="sm" onClick={() => setUploadOpen(true)} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
             <Plus className="h-4 w-4 mr-1" /> Adicionar fotos
           </Button>
         </div>
@@ -178,7 +178,7 @@ export function EvolucaoFotograficaSection({ paciente }: Props) {
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <Camera className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground">Nenhuma foto registrada ainda.</p>
-            <Button onClick={() => setUploadOpen(true)} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+            <Button onClick={() => setUploadOpen(true)} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
               <Plus className="h-4 w-4 mr-1" /> Adicionar fotos
             </Button>
           </CardContent>
@@ -243,7 +243,7 @@ export function EvolucaoFotograficaSection({ paciente }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setUploadOpen(false)}>Cancelar</Button>
-            <Button onClick={handleUpload} disabled={uploading || selectedFiles.length === 0} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+            <Button onClick={handleUpload} disabled={uploading || selectedFiles.length === 0} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
               {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Enviar
             </Button>

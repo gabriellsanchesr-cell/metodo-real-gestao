@@ -138,7 +138,7 @@ export function EngajamentoTab({ pacientes, checklists, diarioRegistros, conteud
                 <XAxis dataKey="semana" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} domain={[0, 100]} />
                 <Tooltip />
-                <Line type="monotone" dataKey="taxa" stroke="#2B3990" strokeWidth={2} name="Taxa (%)" />
+                <Line type="monotone" dataKey="taxa" stroke="#004AAD" strokeWidth={2} name="Taxa (%)" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

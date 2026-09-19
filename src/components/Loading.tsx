@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export function StatsSkeleton({ cards = 4 }: { cards?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {Array.from({ length: cards }).map((_, i) => (
         <Card key={i} className="border-border/60 shadow-sm">
           <CardContent className="flex items-start gap-4 p-5">

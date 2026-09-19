@@ -79,22 +79,22 @@ export default function QuestionarioPublico() {
 
   const questions = questionario ? QUESTIONS[questionario.tipo] || [] : [];
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Loader2 className="h-8 w-8 animate-spin text-[#2B3990]" /></div>;
-  if (notFound) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Card className="max-w-md rounded-xl border-[#E2E5F0]"><CardContent className="py-12 text-center"><p className="text-lg font-medium text-[#1A1F3C]">Link inválido ou expirado.</p></CardContent></Card></div>;
-  if (saved) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Card className="max-w-md rounded-xl border-[#E2E5F0]"><CardContent className="py-12 text-center space-y-3"><CheckCircle className="h-12 w-12 text-green-500 mx-auto" /><p className="text-lg font-medium text-[#1A1F3C]">Questionário respondido!</p><p className="text-sm text-muted-foreground">Obrigado por preencher.</p></CardContent></Card></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Loader2 className="h-8 w-8 animate-spin text-[#004AAD]" /></div>;
+  if (notFound) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Card className="max-w-md rounded-xl border-[#E2E5F0]"><CardContent className="py-12 text-center"><p className="text-lg font-medium text-[#0E1E35]">Link inválido ou expirado.</p></CardContent></Card></div>;
+  if (saved) return <div className="min-h-screen flex items-center justify-center bg-[#F4F5FA]"><Card className="max-w-md rounded-xl border-[#E2E5F0]"><CardContent className="py-12 text-center space-y-3"><CheckCircle className="h-12 w-12 text-green-500 mx-auto" /><p className="text-lg font-medium text-[#0E1E35]">Questionário respondido!</p><p className="text-sm text-muted-foreground">Obrigado por preencher.</p></CardContent></Card></div>;
 
   return (
     <div className="min-h-screen bg-[#F4F5FA] py-8 px-4">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="text-center space-y-2">
           <img src="/logo.png" alt="Logo" className="h-10 mx-auto" />
-          <h1 className="text-2xl font-bold text-[#1A1F3C]">{TIPO_LABELS[questionario.tipo] || "Questionário"}</h1>
+          <h1 className="text-2xl font-bold text-[#0E1E35]">{TIPO_LABELS[questionario.tipo] || "Questionário"}</h1>
           <p className="text-muted-foreground">Responda as perguntas abaixo.</p>
         </div>
 
         {questions.map(q => (
           <Card key={q.key} className="rounded-xl border-[#E2E5F0]">
-            <CardHeader className="pb-2"><CardTitle className="text-base text-[#1A1F3C]">{q.label}</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base text-[#0E1E35]">{q.label}</CardTitle></CardHeader>
             <CardContent>
               {q.type === "text" && (
                 <Textarea value={answers[q.key] || ""} onChange={e => setAnswers({ ...answers, [q.key]: e.target.value })} rows={3} />
@@ -112,7 +112,7 @@ export default function QuestionarioPublico() {
           </Card>
         ))}
 
-        <Button onClick={handleSubmit} disabled={saving} className="w-full bg-[#2B3990] hover:bg-[#2B3990]/90 h-12 text-base">
+        <Button onClick={handleSubmit} disabled={saving} className="w-full bg-[#004AAD] hover:bg-[#004AAD]/90 h-12 text-base">
           {saving ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : null}
           Enviar Respostas
         </Button>

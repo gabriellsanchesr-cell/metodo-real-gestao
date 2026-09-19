@@ -11,8 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ESTILO_SITUACAO } from "@/components/paciente/estiloVencimento";
 import { useVencimentos } from "@/hooks/useVencimentos";
 import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
-import { PageHeader } from "@/components/PageHeader";
-import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp, CalendarClock } from "lucide-react";
+import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp, CalendarClock, UserPlus } from "lucide-react";
 import { format, subDays, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -42,6 +41,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const venc = useVencimentos();
   const [carregando, setCarregando] = useState(true);
+  const [diariosSemRetorno, setDiariosSemRetorno] = useState(0);
   const [data, setData] = useState<DashboardData>({
     totalPacientes: 0,
     retornoPendente: 0,
@@ -56,6 +56,16 @@ export default function Dashboard() {
   }, [user]);
 
   const loadDashboard = async () => {
+    // Registros do diário não vistos, só da última semana. Há centenas de
+    // registros antigos nunca marcados como vistos; contá-los aqui daria um
+    // número que não diz nada sobre o dia de hoje.
+    supabase
+      .from("diario_registros")
+      .select("id", { count: "exact", head: true })
+      .eq("visto_nutri", false)
+      .gte("data_registro", format(subDays(new Date(), 7), "yyyy-MM-dd"))
+      .then(({ count }) => setDiariosSemRetorno(count ?? 0));
+
     const [pacientesRes, consultasRes, acompRes] = await Promise.all([
       supabase.from("pacientes").select("id, nome_completo").eq("ativo", true),
       supabase.from("consultas").select("id, data_hora, tipo, paciente_id, pacientes(nome_completo)").gte("data_hora", new Date().toISOString()).eq("status", "agendado").order("data_hora").limit(5),
@@ -113,6 +123,20 @@ export default function Dashboard() {
     { label: "Próximas Consultas", value: data.proximasConsultas.length, icon: Calendar, tone: "success" },
   ];
 
+  const consultasHoje = data.proximasConsultas.filter((c) => isToday(new Date(c.data_hora))).length;
+  const urgentesVenc = venc.semTabela ? 0 : venc.urgentes.length;
+
+  /** Uma frase com o que pede atenção hoje, ou um respiro quando nada pede. */
+  const resumoDoDia = carregando ? "Carregando o seu dia." : (() => {
+    const partes: string[] = [];
+    if (consultasHoje) partes.push(`${consultasHoje} consulta${consultasHoje > 1 ? "s" : ""} hoje`);
+    if (diariosSemRetorno) partes.push(`${diariosSemRetorno} registro${diariosSemRetorno > 1 ? "s" : ""} de diário da semana para ver`);
+    if (urgentesVenc) partes.push(`${urgentesVenc} plano${urgentesVenc > 1 ? "s" : ""} vencendo`);
+    if (partes.length === 0) return "Nada urgente por aqui. Um bom dia para olhar a evolução das pacientes com calma.";
+    const ultima = partes.pop();
+    return `Hoje: ${partes.length ? `${partes.join(", ")} e ${ultima}` : ultima}.`;
+  })();
+
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return "Bom dia";
@@ -122,10 +146,36 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={`${greeting}!`}
-        description={format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-      />
+      <section className="bg-marca relative overflow-hidden rounded-3xl px-6 py-7 text-white shadow-lg shadow-primary/20 sm:px-8 sm:py-9">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full border border-white/10" />
+        <div className="pointer-events-none absolute -right-4 top-10 h-40 w-40 rounded-full border border-white/10" />
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/60">
+              {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
+            </p>
+            <h1 className="mt-2 text-3xl font-light tracking-tight sm:text-4xl">{greeting}.</h1>
+            <p className="mt-2 max-w-md text-sm text-white/75">
+              {resumoDoDia}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => navigate("/pacientes/novo")}
+              className="rounded-full bg-white text-primary shadow-none hover:bg-white/90"
+            >
+              <UserPlus className="mr-2 h-4 w-4" /> Nova paciente
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate("/agenda")}
+              className="rounded-full border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            >
+              <Calendar className="mr-2 h-4 w-4" /> Agenda
+            </Button>
+          </div>
+        </div>
+      </section>
 
       {carregando ? (
         <StatsSkeleton />

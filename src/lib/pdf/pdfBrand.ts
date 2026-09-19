@@ -12,9 +12,9 @@ export interface PdfConfig {
 }
 
 export const BRAND = {
-  primary: [43, 57, 144] as [number, number, number],     // #2B3990
-  accent: [91, 110, 199] as [number, number, number],     // #5B6EC7
-  text: [26, 31, 60] as [number, number, number],         // #1A1F3C
+  primary: [43, 57, 144] as [number, number, number],     // #004AAD
+  accent: [91, 110, 199] as [number, number, number],     // #3B7BD6
+  text: [26, 31, 60] as [number, number, number],         // #0E1E35
   textBody: [44, 44, 44] as [number, number, number],     // #2C2C2C
   textLabel: [107, 112, 128] as [number, number, number], // #6B7080
   tableLine: [226, 229, 240] as [number, number, number], // #E2E5F0
@@ -266,7 +266,7 @@ export async function loadPdfConfig(userId: string): Promise<PdfConfig> {
       crn: (data as any).crn || undefined,
       telefone: (data as any).telefone || undefined,
       site: (data as any).site || "gabrielnutri.com.br",
-      cor_primaria: (data as any).cor_primaria || "#2B3990",
+      cor_primaria: (data as any).cor_primaria || "#004AAD",
       incluir_capa: (data as any).incluir_capa ?? true,
       marca_dagua: (data as any).marca_dagua ?? false,
     };

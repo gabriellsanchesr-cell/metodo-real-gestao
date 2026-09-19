@@ -34,23 +34,32 @@ export function StatCard({ label, value, icon: Icon, tone = "primary", hint, onC
     <Card
       onClick={onClick}
       className={cn(
-        "border-border/60 shadow-sm transition-all duration-200",
+        "transition-all duration-200",
         clicavel && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md hover:border-primary/30",
       )}
     >
-      <CardContent className="flex items-start gap-4 p-5">
-        {Icon && (
-          <div className={cn("shrink-0 rounded-xl p-2.5", cores.fundo)}>
-            <Icon className={cn("h-5 w-5", cores.icone)} />
-          </div>
-        )}
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="line-clamp-2 text-[11px] font-semibold uppercase leading-snug tracking-[0.1em] text-muted-foreground">
             {label}
           </p>
-          <p className="mt-1 text-2xl font-bold leading-tight text-foreground">{value}</p>
-          {hint && <p className="mt-0.5 truncate text-xs text-muted-foreground">{hint}</p>}
+          {Icon && (
+            // No celular o ícone some: o rótulo precisa da largura toda.
+            <div className={cn("hidden shrink-0 rounded-lg p-2 sm:block", cores.fundo)}>
+              <Icon className={cn("h-4 w-4", cores.icone)} />
+            </div>
+          )}
         </div>
+        <p
+          className={cn(
+            "mt-3 whitespace-nowrap font-light leading-none tracking-tight text-foreground tabular-nums",
+            // Valor longo (moeda) usa corpo menor, para não quebrar o número no meio.
+            String(value).length >= 9 ? "text-[20px] sm:text-[28px]" : "text-[26px] sm:text-[32px]",
+          )}
+        >
+          {value}
+        </p>
+        {hint && <p className="mt-2 truncate text-xs text-muted-foreground">{hint}</p>}
       </CardContent>
     </Card>
   );
@@ -58,5 +67,6 @@ export function StatCard({ label, value, icon: Icon, tone = "primary", hint, onC
 
 /** Grade padrão para uma linha de indicadores. */
 export function StatGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>;
+  // Quatro colunas só em tela larga: com a Montserrat os rótulos não cabem antes.
+  return <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">{children}</div>;
 }

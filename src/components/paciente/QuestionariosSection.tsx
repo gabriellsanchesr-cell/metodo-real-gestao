@@ -101,8 +101,8 @@ export function QuestionariosSection({ paciente }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-[#1A1F3C]">Questionários</h2>
-        <Button size="sm" onClick={() => setSendOpen(true)} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+        <h2 className="text-xl font-semibold text-[#0E1E35]">Questionários</h2>
+        <Button size="sm" onClick={() => setSendOpen(true)} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
           <Send className="h-4 w-4 mr-1" /> Enviar questionário
         </Button>
       </div>
@@ -112,7 +112,7 @@ export function QuestionariosSection({ paciente }: Props) {
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <FileText className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-muted-foreground">Nenhum questionário enviado.</p>
-            <Button onClick={() => setSendOpen(true)} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+            <Button onClick={() => setSendOpen(true)} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
               <Send className="h-4 w-4 mr-1" /> Enviar questionário
             </Button>
           </CardContent>
@@ -181,7 +181,7 @@ export function QuestionariosSection({ paciente }: Props) {
           />
           <DialogFooter>
             <Button variant="outline" onClick={() => setSendOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSend} disabled={sending} className="bg-[#2B3990] hover:bg-[#2B3990]/90">
+            <Button onClick={handleSend} disabled={sending} className="bg-[#004AAD] hover:bg-[#004AAD]/90">
               {sending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {avisar ? "Criar e enviar" : "Criar e copiar link"}
             </Button>
@@ -200,7 +200,7 @@ export function QuestionariosSection({ paciente }: Props) {
               {Object.entries(viewData.respostas).map(([key, value]) => (
                 <div key={key}>
                   <p className="text-xs font-medium text-[#6B7080] capitalize">{key.replace(/_/g, " ")}</p>
-                  <p className="text-sm text-[#1A1F3C] whitespace-pre-wrap">{String(value)}</p>
+                  <p className="text-sm text-[#0E1E35] whitespace-pre-wrap">{String(value)}</p>
                 </div>
               ))}
             </div>

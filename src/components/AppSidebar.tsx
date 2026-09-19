@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { MAIN_NAV, CONFIG_NAV } from "@/lib/navigation";
+import { MAIN_NAV, CONFIG_NAV, GRUPOS_NAV } from "@/lib/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu,
-  SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar,
+  SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, SidebarGroupLabel, useSidebar,
 } from "@/components/ui/sidebar";
 
 export function AppSidebar() {
@@ -61,91 +60,96 @@ export function AppSidebar() {
   const userEmail = user?.email || "";
   const userInitial = (userEmail[0] || "N").toUpperCase();
 
+  const linkClasse =
+    "group/link relative flex items-center gap-3 rounded-xl px-3 py-2 text-[13px] font-medium text-sidebar-foreground transition-colors duration-150 hover:bg-sidebar-accent hover:text-white";
+  // Item ativo: fundo claro e um traço dourado à esquerda, como marcador de página.
+  const ativoClasse =
+    "bg-sidebar-accent !text-white font-semibold before:absolute before:left-0 before:top-1/2 before:h-5 before:w-[3px] before:-translate-y-1/2 before:rounded-r-full before:bg-sidebar-primary";
+
+  const renderItem = (item: (typeof MAIN_NAV)[number], end = false) => (
+    <SidebarMenuItem key={item.url}>
+      <SidebarMenuButton asChild tooltip={item.title} className="h-auto p-0 hover:bg-transparent data-[active=true]:bg-transparent">
+        <NavLink to={item.url} end={end} className={linkClasse} activeClassName={ativoClasse}>
+          <item.icon className="h-[18px] w-[18px] shrink-0 opacity-80 group-hover/link:opacity-100" />
+          {!collapsed && <span className="flex-1 truncate">{item.title}</span>}
+          {!collapsed && item.url === "/chat" && unreadChat > 0 && (
+            <Badge className="h-[18px] min-w-[18px] justify-center rounded-full bg-sidebar-primary px-1.5 text-[10px] font-bold text-sidebar-primary-foreground hover:bg-sidebar-primary">
+              {unreadChat > 99 ? "99+" : unreadChat}
+            </Badge>
+          )}
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+
+  const grupos = GRUPOS_NAV
+    .map((g) => ({ ...g, itens: menuItems.filter((i) => i.grupo === g.id) }))
+    .filter((g) => g.itens.length > 0);
+
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 bg-gradient-to-b from-sidebar-accent/30 to-transparent">
+    <Sidebar collapsible="icon" className="border-r-0">
+      <SidebarHeader className="px-4 pb-3 pt-5">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Método R.E.A.L" className="h-10 w-10 rounded-lg object-contain" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/5 ring-1 ring-white/10">
+            <img src="/logo.png" alt="Método R.E.A.L" className="h-8 w-8 object-contain" />
+          </div>
           {!collapsed && (
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-sidebar-primary-foreground">Método R.E.A.L</span>
-              <span className="text-xs text-sidebar-foreground/60">Área de membros</span>
+            <div className="min-w-0 leading-tight">
+              <p className="truncate text-sm font-bold tracking-wide text-white">Método R.E.A.L</p>
+              <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-sidebar-primary">
+                Área de membros
+              </p>
             </div>
           )}
         </div>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild tooltip={item.title}>
-                    <NavLink
-                      to={item.url}
-                      end={item.url === "/"}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold border-l-[3px] border-sidebar-primary ml-0"
-                    >
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      {!collapsed && <span className="flex-1">{item.title}</span>}
-                      {!collapsed && item.url === "/chat" && unreadChat > 0 && (
-                        <Badge className="h-4 min-w-[16px] text-[9px] px-1 bg-destructive text-destructive-foreground">
-                          {unreadChat > 99 ? "99+" : unreadChat}
-                        </Badge>
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              {isAdmin && configItems.length > 0 && (
-                <>
-                  {!collapsed && (
-                    <div className="px-3 py-2">
-                      <Separator className="bg-sidebar-border mb-2" />
-                      <div className="text-xs font-semibold text-sidebar-foreground/50 uppercase tracking-wider">
-                        Configurações
-                      </div>
-                    </div>
-                  )}
-                  {configItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild tooltip={item.title}>
-                        <NavLink
-                          to={item.url}
-                          className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200 hover:bg-sidebar-accent"
-                          activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold border-l-[3px] border-sidebar-primary ml-0"
-                        >
-                          <item.icon className="h-5 w-5 shrink-0" />
-                          {!collapsed && <span className="flex-1">{item.title}</span>}
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+
+      <SidebarContent className="gap-0 px-2">
+        {grupos.map((g) => (
+          <SidebarGroup key={g.id} className="px-0 py-1.5">
+            {!collapsed && (
+              <SidebarGroupLabel className="h-6 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
+                {g.rotulo}
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5">{g.itens.map((i) => renderItem(i, i.url === "/"))}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
+
+        {configItems.length > 0 && (
+          <SidebarGroup className="px-0 py-1.5">
+            {!collapsed && (
+              <SidebarGroupLabel className="h-6 px-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45">
+                Configurações
+              </SidebarGroupLabel>
+            )}
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-0.5">{configItems.map((i) => renderItem(i))}</SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t border-sidebar-border">
-        <SidebarMenu>
-          {!collapsed && (
-            <div className="px-3 py-2 flex items-center gap-2">
-              <div className="h-7 w-7 rounded-full bg-sidebar-primary/20 flex items-center justify-center text-sidebar-primary text-xs font-bold shrink-0">
-                {userInitial}
-              </div>
-              <span className="text-xs text-sidebar-foreground/70 truncate">{userEmail}</span>
+
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        {!collapsed && (
+          <div className="flex items-center gap-2.5 rounded-xl px-3 py-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
+              {userInitial}
             </div>
-          )}
+            <span className="truncate text-xs text-sidebar-foreground/80">{userEmail}</span>
+          </div>
+        )}
+        <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={signOut}
               tooltip="Sair"
-              className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              className="rounded-xl text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-white"
             >
-              <LogOut className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>Sair</span>}
+              <LogOut className="h-[18px] w-[18px] shrink-0" />
+              {!collapsed && <span className="text-[13px]">Sair</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

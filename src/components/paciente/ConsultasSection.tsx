@@ -156,9 +156,9 @@ export function ConsultasSection({ paciente }: Props) {
             </div>
             <div><Label>Anotações Clínicas</Label><Textarea value={form.anotacoes} onChange={e => setForm(f => ({ ...f, anotacoes: e.target.value }))} rows={4} /></div>
           </div>
+          {podeAvisar && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
-            {podeAvisar && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={!form.data_hora}>Salvar</Button>
           </DialogFooter>
         </DialogContent>

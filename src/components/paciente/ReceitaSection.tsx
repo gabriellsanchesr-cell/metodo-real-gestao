@@ -215,7 +215,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
           <Button variant="ghost" size="sm" onClick={() => { setView("list"); setEditingId(null); setForm(emptyReceita); }}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
-          <h2 className="text-lg font-bold" style={{ color: "#1A1F3C" }}>
+          <h2 className="text-lg font-bold" style={{ color: "#0E1E35" }}>
             {editingId ? "Editar Receita" : "Nova Receita"}
           </h2>
           <div />
@@ -225,7 +225,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-5 space-y-4">
             <div>
-              <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Título *</Label>
+              <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Título *</Label>
               <Input
                 value={form.titulo}
                 onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
@@ -235,7 +235,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
               />
             </div>
             <div>
-              <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Descrição</Label>
+              <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Descrição</Label>
               <Textarea
                 value={form.descricao}
                 onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
@@ -247,7 +247,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Tempo de preparo (min)</Label>
+                <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Tempo de preparo (min)</Label>
                 <Input
                   type="number"
                   value={form.tempo_preparo_min ?? ""}
@@ -257,7 +257,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
                 />
               </div>
               <div>
-                <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Porções</Label>
+                <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Porções</Label>
                 <Input
                   type="number"
                   value={form.porcoes}
@@ -275,7 +275,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-semibold" style={{ color: "#1A1F3C" }}>Ingredientes</CardTitle>
+              <CardTitle className="text-sm font-semibold" style={{ color: "#0E1E35" }}>Ingredientes</CardTitle>
               <Button size="sm" variant="outline" onClick={addIngredient} className="h-8 text-xs rounded-lg">
                 <Plus className="h-3 w-3 mr-1" /> Adicionar
               </Button>
@@ -316,7 +316,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         {/* Modo de Preparo */}
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-5">
-            <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Modo de Preparo</Label>
+            <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Modo de Preparo</Label>
             <Textarea
               value={form.modo_preparo}
               onChange={e => setForm(f => ({ ...f, modo_preparo: e.target.value }))}
@@ -331,13 +331,13 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         {/* Info Nutricional */}
         <Card className="rounded-xl shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold" style={{ color: "#1A1F3C" }}>Informações Nutricionais (total da receita)</CardTitle>
+            <CardTitle className="text-sm font-semibold" style={{ color: "#0E1E35" }}>Informações Nutricionais (total da receita)</CardTitle>
           </CardHeader>
           <CardContent className="p-5 pt-0">
             <div className="grid grid-cols-5 gap-3">
               {[
-                { key: "calorias_total", label: "Kcal", color: "#2B3990" },
-                { key: "proteina_total", label: "Prot (g)", color: "#2B3990" },
+                { key: "calorias_total", label: "Kcal", color: "#004AAD" },
+                { key: "proteina_total", label: "Prot (g)", color: "#004AAD" },
                 { key: "carboidrato_total", label: "Carb (g)", color: "#F59E0B" },
                 { key: "gordura_total", label: "Gord (g)", color: "#FCD34D" },
                 { key: "fibra_total", label: "Fibra (g)", color: "#22C55E" },
@@ -361,14 +361,14 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         {/* Tags */}
         <Card className="rounded-xl shadow-sm">
           <CardContent className="p-5">
-            <Label className="text-sm font-medium" style={{ color: "#1A1F3C" }}>Tags dietéticas</Label>
+            <Label className="text-sm font-medium" style={{ color: "#0E1E35" }}>Tags dietéticas</Label>
             <div className="flex flex-wrap gap-2 mt-2">
               {TAG_OPTIONS.map(tag => (
                 <Badge
                   key={tag}
                   variant={form.tags.includes(tag) ? "default" : "outline"}
                   className="cursor-pointer text-xs rounded-full px-3 py-1 transition-colors"
-                  style={form.tags.includes(tag) ? { backgroundColor: "#2B3990", color: "#fff" } : {}}
+                  style={form.tags.includes(tag) ? { backgroundColor: "#004AAD", color: "#fff" } : {}}
                   onClick={() => toggleTag(tag)}
                 >
                   {tag}
@@ -382,7 +382,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
           onClick={handleSave}
           disabled={saving}
           className="w-full h-[52px] rounded-xl text-base font-semibold"
-          style={{ backgroundColor: "#2B3990" }}
+          style={{ backgroundColor: "#004AAD" }}
         >
           {saving ? "Salvando..." : editingId ? "Atualizar Receita" : "Salvar Receita"}
         </Button>
@@ -394,8 +394,8 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold" style={{ color: "#1A1F3C" }}>Receituário</h2>
-        <Button onClick={openNew} className="rounded-lg h-9 text-sm" style={{ backgroundColor: "#2B3990" }}>
+        <h2 className="text-lg font-bold" style={{ color: "#0E1E35" }}>Receituário</h2>
+        <Button onClick={openNew} className="rounded-lg h-9 text-sm" style={{ backgroundColor: "#004AAD" }}>
           <Plus className="h-4 w-4 mr-1" /> Nova Receita
         </Button>
       </div>
@@ -417,7 +417,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
         <Card className="rounded-xl">
           <CardContent className="py-12 text-center">
             <UtensilsCrossed className="h-10 w-10 mx-auto mb-3 opacity-30" style={{ color: "#6B7080" }} />
-            <p className="font-medium" style={{ color: "#1A1F3C" }}>Nenhuma receita encontrada</p>
+            <p className="font-medium" style={{ color: "#0E1E35" }}>Nenhuma receita encontrada</p>
             <p className="text-sm mt-1" style={{ color: "#6B7080" }}>Crie sua primeira receita clicando no botão acima.</p>
           </CardContent>
         </Card>
@@ -430,7 +430,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0" onClick={() => { setSelectedDetail(r); setView("detail"); }} role="button">
-                      <h3 className="font-semibold text-sm truncate" style={{ color: "#1A1F3C" }}>{r.titulo}</h3>
+                      <h3 className="font-semibold text-sm truncate" style={{ color: "#0E1E35" }}>{r.titulo}</h3>
                       <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: "#6B7080" }}>
                         {r.tempo_preparo_min && (
                           <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {r.tempo_preparo_min} min</span>
@@ -491,7 +491,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
           <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setSendModal(false)}>Cancelar</Button>
-            <Button onClick={handleSend} style={{ backgroundColor: "#2B3990" }}>Enviar</Button>
+            <Button onClick={handleSend} style={{ backgroundColor: "#004AAD" }}>Enviar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -506,7 +506,7 @@ function ReceitaDetailCard({ receita: r }: { receita: Receita }) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-bold" style={{ color: "#1A1F3C" }}>{r.titulo}</h2>
+        <h2 className="text-xl font-bold" style={{ color: "#0E1E35" }}>{r.titulo}</h2>
         {r.descricao && <p className="text-sm mt-1" style={{ color: "#6B7080" }}>{r.descricao}</p>}
         <div className="flex items-center gap-4 mt-2 text-sm" style={{ color: "#6B7080" }}>
           {r.tempo_preparo_min && <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {r.tempo_preparo_min} min</span>}
@@ -524,8 +524,8 @@ function ReceitaDetailCard({ receita: r }: { receita: Receita }) {
       {/* Macro cards */}
       <div className="grid grid-cols-5 gap-2">
         {[
-          { v: r.calorias_total, l: "Kcal", c: "#2B3990" },
-          { v: r.proteina_total, l: "Prot", c: "#2B3990" },
+          { v: r.calorias_total, l: "Kcal", c: "#004AAD" },
+          { v: r.proteina_total, l: "Prot", c: "#004AAD" },
           { v: r.carboidrato_total, l: "Carb", c: "#F59E0B" },
           { v: r.gordura_total, l: "Gord", c: "#FCD34D" },
           { v: r.fibra_total, l: "Fibra", c: "#22C55E" },
@@ -543,13 +543,13 @@ function ReceitaDetailCard({ receita: r }: { receita: Receita }) {
       {ingredientes.length > 0 && (
         <Card className="rounded-xl">
           <CardHeader className="pb-1">
-            <CardTitle className="text-sm" style={{ color: "#1A1F3C" }}>Ingredientes</CardTitle>
+            <CardTitle className="text-sm" style={{ color: "#0E1E35" }}>Ingredientes</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <ul className="space-y-1.5">
               {ingredientes.map((ing, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm" style={{ color: "#1A1F3C" }}>
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: "#2B3990" }} />
+                <li key={i} className="flex items-center gap-2 text-sm" style={{ color: "#0E1E35" }}>
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: "#004AAD" }} />
                   {ing.quantidade && <span className="font-medium">{ing.quantidade}{ing.unidade}</span>}
                   <span>{ing.nome}</span>
                 </li>
@@ -566,12 +566,12 @@ function ReceitaDetailCard({ receita: r }: { receita: Receita }) {
             className="w-full flex items-center justify-between p-4"
             onClick={() => setShowPreparo(!showPreparo)}
           >
-            <span className="text-sm font-semibold" style={{ color: "#1A1F3C" }}>Modo de Preparo</span>
+            <span className="text-sm font-semibold" style={{ color: "#0E1E35" }}>Modo de Preparo</span>
             {showPreparo ? <ChevronUp className="h-4 w-4" style={{ color: "#6B7080" }} /> : <ChevronDown className="h-4 w-4" style={{ color: "#6B7080" }} />}
           </button>
           {showPreparo && (
             <CardContent className="px-4 pb-4 pt-0">
-              <p className="text-sm whitespace-pre-wrap" style={{ color: "#1A1F3C" }}>{r.modo_preparo}</p>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: "#0E1E35" }}>{r.modo_preparo}</p>
             </CardContent>
           )}
         </Card>

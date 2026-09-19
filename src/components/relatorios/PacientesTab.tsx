@@ -33,7 +33,7 @@ const FASE_LABELS: Record<string, string> = {
   liberdade: "Liberdade",
 };
 
-const COLORS = ["#2B3990", "#5B6EC7", "#93A8D8", "#F59E0B", "#22C55E", "#EF4444", "#6B7080"];
+const COLORS = ["#004AAD", "#3B7BD6", "#93A8D8", "#F59E0B", "#22C55E", "#EF4444", "#6B7080"];
 
 export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists, periodoInicio, periodoFim }: Props) {
   const [busca, setBusca] = useState("");
@@ -149,7 +149,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
                 <XAxis type="number" tick={{ fontSize: 11 }} />
                 <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#2B3990" name="Pacientes" />
+                <Bar dataKey="value" fill="#004AAD" name="Pacientes" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -179,7 +179,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Bar dataKey="value" fill="#5B6EC7" name="Pacientes" />
+                <Bar dataKey="value" fill="#3B7BD6" name="Pacientes" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -192,7 +192,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
               {faseData.map((f, i) => (
                 <div key={f.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ["#2B3990", "#7C3AED", "#F59E0B", "#22C55E"][i] }} />
+                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ["#004AAD", "#7C3AED", "#F59E0B", "#22C55E"][i] }} />
                     <span className="text-sm">{f.name}</span>
                   </div>
                   <div className="flex items-center gap-2">

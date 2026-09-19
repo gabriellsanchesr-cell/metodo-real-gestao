@@ -19,12 +19,16 @@ export function PageHeader({ title, description, icon: Icon, children }: PageHea
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground">
-          {Icon && <Icon className="h-6 w-6 shrink-0 text-primary" />}
+        <h1 className="flex items-center gap-3 text-[26px] font-semibold leading-tight tracking-tight text-foreground">
+          {Icon && (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Icon className="h-5 w-5" />
+            </span>
+          )}
           <span className="truncate">{title}</span>
         </h1>
         {description && (
-          <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
+          <p className={Icon ? "mt-1 pl-[52px] text-sm text-muted-foreground" : "mt-1 text-sm text-muted-foreground"}>{description}</p>
         )}
       </div>
       {children && (

@@ -42,7 +42,7 @@ const defaultConfig: ConfigClinica = {
   facebook: "",
   whatsapp: "",
   mensagem_boas_vindas: "Bem-vindo ao seu portal nutricional! Aqui você acompanha sua evolução e acessa seu plano personalizado.",
-  cor_primaria: "#2B3990",
+  cor_primaria: "#004AAD",
   cor_secundaria: "#10B981",
   logo_url: "",
   incluir_capa: true,
@@ -320,7 +320,7 @@ export default function ConfiguracaoClinica() {
                     <Input
                       value={config.cor_primaria}
                       onChange={(e) => updateConfig("cor_primaria", e.target.value)}
-                      placeholder="#2B3990"
+                      placeholder="#004AAD"
                       className="flex-1"
                     />
                   </div>

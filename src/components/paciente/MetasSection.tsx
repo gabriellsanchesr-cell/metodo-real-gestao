@@ -312,9 +312,9 @@ export function MetasSection({ paciente }: { paciente: any }) {
               <Input type="date" value={form.prazo} onChange={e => setForm(f => ({ ...f, prazo: e.target.value }))} />
             </div>
           </div>
+          {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>

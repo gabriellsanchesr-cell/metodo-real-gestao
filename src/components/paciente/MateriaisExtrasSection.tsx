@@ -303,9 +303,9 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
               </div>
             )}
           </div>
+          {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            {!editingId && <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} className="mr-auto" />}
             <Button onClick={handleSave} disabled={saving}>{saving ? "Salvando..." : "Salvar"}</Button>
           </DialogFooter>
         </DialogContent>

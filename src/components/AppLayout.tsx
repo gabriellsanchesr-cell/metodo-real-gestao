@@ -13,7 +13,7 @@ export function AppLayout() {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between gap-4 border-b border-border/60 bg-card/80 backdrop-blur-sm px-4 shrink-0 sticky top-0 z-30">
+          <header className="h-14 flex items-center justify-between gap-4 border-b border-border/60 bg-background/80 backdrop-blur-md px-4 md:px-6 shrink-0 sticky top-0 z-30">
             <div className="flex items-center gap-3 min-w-0">
               <SidebarTrigger />
               {pageTitle && (
@@ -24,10 +24,11 @@ export function AppLayout() {
             </div>
             <NotificationCenter />
           </header>
-          <main className="flex-1 overflow-auto p-4 md:p-6">
+          <main className="flex-1 overflow-auto p-4 md:p-8">
+            {/* Largura máxima: em monitor grande o conteúdo não estica de ponta a ponta. */}
             {/* A key remonta o wrapper a cada rota, para a animação de entrada
                 valer em todas as telas e não só nas três que a declaravam. */}
-            <div key={pathname} className="animate-fade-in">
+            <div key={pathname} className="animate-fade-in mx-auto w-full max-w-[1400px]">
               <Outlet />
             </div>
           </main>
