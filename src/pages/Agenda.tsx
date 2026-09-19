@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
-import { Plus, Calendar as CalIcon, Clock, Ban, AlertTriangle, ChevronLeft, ChevronRight, Link2 } from "lucide-react";
+import { Plus, Calendar as CalIcon, Clock, Ban, AlertTriangle, ChevronLeft, ChevronRight, Link2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
@@ -20,6 +20,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { faltaMigration } from "@/lib/contratosApi";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -50,17 +51,59 @@ interface ConsultaForm {
   link_reuniao: string;
   is_bloqueio: boolean;
   bloqueio_motivo: string;
+  hora_fim: string;
 }
 
 const defaultForm: ConsultaForm = {
   paciente_id: "", data: "", hora: "", tipo: "retorno", anotacoes: "",
-  link_reuniao: "", is_bloqueio: false, bloqueio_motivo: "",
+  link_reuniao: "", is_bloqueio: false, bloqueio_motivo: "", hora_fim: "",
 };
+
+// A tabela bloqueios_agenda ainda não está nos tipos gerados do Supabase.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any;
+
+interface Bloqueio {
+  id: string;
+  inicio: string;
+  fim: string;
+  motivo: string | null;
+}
+
+/** Bloqueio convertido no formato que as visões do calendário já desenham. */
+function bloqueioComoItem(b: Bloqueio) {
+  return {
+    id: `bloqueio-${b.id}`,
+    bloqueioId: b.id,
+    _bloqueio: true,
+    data_hora: b.inicio,
+    fim: b.fim,
+    motivo: b.motivo,
+    status: "bloqueio",
+    pacientes: null,
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ehBloqueio = (c: any) => Boolean(c?._bloqueio) || Boolean(c?.anotacoes?.startsWith("🚫"));
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rotuloCurto = (c: any) => (ehBloqueio(c) ? "Bloqueio" : c.pacientes?.nome_completo?.split(" ")[0]);
+
+/** Hora de fim padrão: uma hora depois do início. */
+function umaHoraDepois(hora: string) {
+  const [h, m] = hora.split(":").map(Number);
+  if (Number.isNaN(h)) return "";
+  return `${String(Math.min(h + 1, 23)).padStart(2, "0")}:${String(m || 0).padStart(2, "0")}`;
+}
 
 export default function Agenda() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [consultas, setConsultas] = useState<any[]>([]);
+  const [bloqueios, setBloqueios] = useState<Bloqueio[]>([]);
+  const [bloqueiosDoDia, setBloqueiosDoDia] = useState<Bloqueio[]>([]);
+  const [removendo, setRemovendo] = useState<Bloqueio | null>(null);
   const [pacientes, setPacientes] = useState<any[]>([]);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -91,7 +134,41 @@ export default function Agenda() {
       .lte("data_hora", end.toISOString())
       .order("data_hora");
     setConsultas(data || []);
+
+    // Bloqueios que tocam o mês: começam antes do fim e terminam depois do início.
+    const { data: bl, error: blErr } = await db
+      .from("bloqueios_agenda")
+      .select("id, inicio, fim, motivo")
+      .lte("inicio", end.toISOString())
+      .gte("fim", start.toISOString())
+      .order("inicio");
+    setBloqueios(blErr ? [] : (bl as Bloqueio[]) || []);
   };
+
+  // O calendário desenha consultas e bloqueios juntos; o resto da página
+  // (retornos pendentes, contagens) continua olhando só as consultas.
+  const itens = useMemo(
+    () => [...consultas, ...bloqueios.map(bloqueioComoItem)]
+      .sort((a, b) => new Date(a.data_hora).getTime() - new Date(b.data_hora).getTime()),
+    [consultas, bloqueios],
+  );
+
+  // Ao escolher a data da consulta, carrega os bloqueios daquele dia para avisar.
+  useEffect(() => {
+    if (!dialogOpen || !form.data) { setBloqueiosDoDia([]); return; }
+    const ini = new Date(`${form.data}T00:00:00`);
+    const fim = new Date(`${form.data}T23:59:59`);
+    db.from("bloqueios_agenda").select("id, inicio, fim, motivo")
+      .lte("inicio", fim.toISOString()).gte("fim", ini.toISOString())
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data, error }: any) => setBloqueiosDoDia(error ? [] : data || []));
+  }, [dialogOpen, form.data]);
+
+  const conflito = (() => {
+    if (!form.data || !form.hora) return null;
+    const t = new Date(`${form.data}T${form.hora}:00`).getTime();
+    return bloqueiosDoDia.find((b) => t >= new Date(b.inicio).getTime() && t < new Date(b.fim).getTime()) ?? null;
+  })();
 
   const loadPacientes = async () => {
     const { data } = await supabase.from("pacientes").select("id, nome_completo").eq("ativo", true).order("nome_completo");
@@ -164,25 +241,46 @@ export default function Agenda() {
 
   const createBloqueio = async () => {
     if (!user || !form.data || !form.hora) return;
-    // Usar o primeiro paciente como placeholder (bloqueio é do nutri, não do paciente)
-    // Na verdade, para bloqueios precisamos tratar diferente
-    const data_hora = new Date(`${form.data}T${form.hora}:00`).toISOString();
-    const { error } = await supabase.from("consultas").insert({
+    const horaFim = form.hora_fim || umaHoraDepois(form.hora);
+    const inicio = new Date(`${form.data}T${form.hora}:00`);
+    const fim = new Date(`${form.data}T${horaFim}:00`);
+    if (fim <= inicio) {
+      toast({ title: "O fim precisa ser depois do início", variant: "destructive" });
+      return;
+    }
+    const { error } = await db.from("bloqueios_agenda").insert({
       user_id: user.id,
-      paciente_id: pacientes[0]?.id, // placeholder
-      data_hora,
-      tipo: "presencial" as any,
-      status: "cancelado" as any, // Usamos cancelado para bloqueios por agora
-      anotacoes: `🚫 BLOQUEIO: ${form.bloqueio_motivo || "Horário bloqueado"}`,
+      inicio: inicio.toISOString(),
+      fim: fim.toISOString(),
+      motivo: form.bloqueio_motivo.trim() || null,
     });
     if (error) {
-      toast({ title: "Erro", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Horário bloqueado!" });
-      setBloqueioDialogOpen(false);
-      setForm(defaultForm);
-      loadConsultas();
+      toast({
+        title: "Não consegui bloquear o horário",
+        description: faltaMigration(error)
+          ? "A atualização do banco para bloqueios ainda não foi aplicada."
+          : error.message,
+        variant: "destructive",
+      });
+      return;
     }
+    toast({ title: "Horário bloqueado" });
+    setBloqueioDialogOpen(false);
+    setForm(defaultForm);
+    loadConsultas();
+  };
+
+  const removerBloqueio = async () => {
+    const b = removendo;
+    setRemovendo(null);
+    if (!b) return;
+    const { error } = await db.from("bloqueios_agenda").delete().eq("id", b.id);
+    if (error) {
+      toast({ title: "Não consegui remover o bloqueio", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Bloqueio removido" });
+    loadConsultas();
   };
 
   const updateStatus = async (id: string, status: string) => {
@@ -222,7 +320,7 @@ export default function Agenda() {
     return format(currentDate, "EEEE, dd 'de' MMMM yyyy", { locale: ptBR });
   }, [currentDate, view, weekStart]);
 
-  const dayConsultas = (day: Date) => consultas.filter(c => isSameDay(new Date(c.data_hora), day));
+  const dayConsultas = (day: Date) => itens.filter(c => isSameDay(new Date(c.data_hora), day));
 
   // Hours for day view
   const hours = Array.from({ length: 12 }, (_, i) => i + 7); // 7h to 18h
@@ -258,9 +356,19 @@ export default function Agenda() {
                     <Label>Data *</Label>
                     <Input type="date" value={form.data} onChange={e => setForm(f => ({ ...f, data: e.target.value }))} />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Hora *</Label>
-                    <Input type="time" value={form.hora} onChange={e => setForm(f => ({ ...f, hora: e.target.value }))} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label>Das *</Label>
+                      <Input
+                        type="time"
+                        value={form.hora}
+                        onChange={e => setForm(f => ({ ...f, hora: e.target.value, hora_fim: f.hora_fim || umaHoraDepois(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Até *</Label>
+                      <Input type="time" value={form.hora_fim} onChange={e => setForm(f => ({ ...f, hora_fim: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -330,6 +438,16 @@ export default function Agenda() {
                   <Label>Anotações</Label>
                   <Textarea value={form.anotacoes} onChange={e => setForm(f => ({ ...f, anotacoes: e.target.value }))} />
                 </div>
+                {conflito && (
+                  <div className="flex gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+                    <Ban className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                    <p className="text-foreground">
+                      Este horário está bloqueado
+                      ({format(new Date(conflito.inicio), "HH:mm")} às {format(new Date(conflito.fim), "HH:mm")}
+                      {conflito.motivo ? `, ${conflito.motivo}` : ""}). Dá para agendar mesmo assim.
+                    </p>
+                  </div>
+                )}
                 <AvisarPacienteToggle checked={avisar} onCheckedChange={setAvisar} />
                 <Button onClick={createConsulta} className="w-full">Agendar</Button>
               </div>
@@ -376,8 +494,8 @@ export default function Agenda() {
                   >
                     <p className={`text-[10px] md:text-xs font-medium mb-0.5 md:mb-1 ${today ? "text-primary font-bold" : isCurrentMonth ? "" : "text-muted-foreground"}`}>{day.getDate()}</p>
                     {dc.slice(0, 2).map(c => (
-                      <div key={c.id} className={`text-[9px] md:text-xs truncate mb-0.5 px-1 rounded ${c.anotacoes?.startsWith("🚫") ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
-                        <span className="hidden md:inline">{format(new Date(c.data_hora), "HH:mm")} </span>{c.pacientes?.nome_completo?.split(" ")[0]}
+                      <div key={c.id} className={`text-[9px] md:text-xs truncate mb-0.5 px-1 rounded ${ehBloqueio(c) ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                        <span className="hidden md:inline">{format(new Date(c.data_hora), "HH:mm")} </span>{rotuloCurto(c)}
                       </div>
                     ))}
                     {dc.length > 2 && <p className="text-[9px] md:text-xs text-muted-foreground">+{dc.length - 2}</p>}
@@ -406,7 +524,7 @@ export default function Agenda() {
                       {dc.map(c => (
                         <div key={c.id} className={`text-xs mb-1 p-1.5 rounded ${statusColors[c.status] || "bg-muted"}`}>
                           <p className="font-medium">{format(new Date(c.data_hora), "HH:mm")}</p>
-                          <p className="truncate">{c.pacientes?.nome_completo?.split(" ")[0]}</p>
+                          <p className="truncate">{rotuloCurto(c)}</p>
                         </div>
                       ))}
                     </div>
@@ -422,7 +540,7 @@ export default function Agenda() {
               <CardContent className="p-4">
                 <div className="space-y-1">
                   {hours.map(h => {
-                    const hourConsultas = consultas.filter(c => {
+                    const hourConsultas = itens.filter(c => {
                       const d = new Date(c.data_hora);
                       return isSameDay(d, currentDate) && d.getHours() === h;
                     });
@@ -436,7 +554,7 @@ export default function Agenda() {
                             <div className="h-full min-h-[40px]" />
                           )}
                           {hourConsultas.map(c => {
-                            const isBloqueio = c.anotacoes?.startsWith("🚫");
+                            const isBloqueio = ehBloqueio(c);
                             return (
                               <div
                                 key={c.id}
@@ -444,10 +562,14 @@ export default function Agenda() {
                               >
                                 <div>
                                   <p className="font-medium">
-                                    {format(new Date(c.data_hora), "HH:mm")} — {isBloqueio ? "Bloqueio" : c.pacientes?.nome_completo}
+                                    {format(new Date(c.data_hora), "HH:mm")}
+                                    {c.fim ? ` às ${format(new Date(c.fim), "HH:mm")}` : ""}
+                                    {" · "}{isBloqueio ? "Bloqueio" : c.pacientes?.nome_completo}
                                   </p>
                                   <p className="text-xs opacity-70">
-                                    {isBloqueio ? c.anotacoes?.replace("🚫 BLOQUEIO: ", "") : tipoLabels[c.tipo] || c.tipo}
+                                    {isBloqueio
+                                      ? c.motivo || c.anotacoes?.replace("🚫 BLOQUEIO: ", "") || "Horário bloqueado"
+                                      : tipoLabels[c.tipo] || c.tipo}
                                     {c.anotacoes?.includes("🔗 Link:") && (
                                       <span className="ml-2 inline-flex items-center gap-0.5">
                                         <Link2 className="h-3 w-3" /> Online
@@ -455,6 +577,17 @@ export default function Agenda() {
                                     )}
                                   </p>
                                 </div>
+                                {c._bloqueio && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-xs text-muted-foreground"
+                                    onClick={() => setRemovendo({ id: c.bloqueioId, inicio: c.data_hora, fim: c.fim, motivo: c.motivo })}
+                                    aria-label="Remover bloqueio"
+                                  >
+                                    <X className="h-3.5 w-3.5 mr-1" /> Remover
+                                  </Button>
+                                )}
                                 {!isBloqueio && c.status === "agendado" && (
                                   <div className="flex gap-1">
                                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "realizado")} aria-label="Marcar como realizada">✓</Button>
@@ -524,8 +657,8 @@ export default function Agenda() {
             </CardHeader>
             <CardContent>
               {(() => {
-                const todayConsultas = consultas.filter(c => isSameDay(new Date(c.data_hora), new Date()));
-                if (todayConsultas.length === 0) return <p className="text-xs text-muted-foreground">Sem consultas hoje</p>;
+                const todayConsultas = itens.filter(c => isSameDay(new Date(c.data_hora), new Date()));
+                if (todayConsultas.length === 0) return <p className="text-xs text-muted-foreground">Nada marcado para hoje</p>;
                 return (
                   <div className="space-y-2">
                     {todayConsultas.map(c => (
@@ -533,7 +666,7 @@ export default function Agenda() {
                         <Badge variant="secondary" className={`text-xs ${statusColors[c.status] || ""}`}>
                           {format(new Date(c.data_hora), "HH:mm")}
                         </Badge>
-                        <span className="text-sm truncate">{c.pacientes?.nome_completo?.split(" ")[0]}</span>
+                        <span className="text-sm truncate">{rotuloCurto(c)}{ehBloqueio(c) && c.motivo ? ` · ${c.motivo}` : ""}</span>
                       </div>
                     ))}
                   </div>
@@ -543,6 +676,22 @@ export default function Agenda() {
           </Card>
         </div>
       </div>
+      <AlertDialog open={!!removendo} onOpenChange={(o) => !o && setRemovendo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover este bloqueio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removendo ? `${format(new Date(removendo.inicio), "dd/MM, HH:mm")} às ${format(new Date(removendo.fim), "HH:mm")}` : ""}
+              {removendo?.motivo ? ` (${removendo.motivo})` : ""}. O horário volta a ficar livre.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={removerBloqueio}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={!!cancelando} onOpenChange={(o) => !o && setCancelando(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
