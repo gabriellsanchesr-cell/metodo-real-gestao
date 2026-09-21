@@ -39,6 +39,7 @@ export default function Pacientes() {
   const { toast } = useToast();
   const [pacientes, setPacientes] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [confirmarArquivar, setConfirmarArquivar] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<string>("todos");
 
@@ -77,6 +78,15 @@ export default function Pacientes() {
     return matchBusca && matchStatus;
   });
 
+
+  /**
+   * Arquivadas que combinam com a busca mas não aparecem por causa do filtro.
+   * Sem isto, procurar uma paciente arquivada devolve "nenhum resultado" e
+   * parece que ela sumiu do sistema.
+   */
+  const arquivadasNaBusca = busca.trim() && filtroStatus !== "arquivados"
+    ? pacientes.filter((p) => p.ativo === false && p.nome_completo.toLowerCase().includes(busca.toLowerCase()))
+    : [];
 
   /** Quantos pacientes cada filtro traria, ignorando a busca por nome. */
   const contagens: Record<string, number> = {
@@ -248,7 +258,7 @@ export default function Pacientes() {
             <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkReactivate}>
               <UserCheck className="h-4 w-4 mr-1.5" /> Reativar acesso
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => bulkSetAtivo(false)}>
+            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => setConfirmarArquivar(true)}>
               <Archive className="h-4 w-4 mr-1.5" /> Arquivar
             </Button>
             <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => bulkSetAtivo(true)}>
@@ -261,6 +271,20 @@ export default function Pacientes() {
               <X className="h-4 w-4" />
             </Button>
           </div>
+        </div>
+      )}
+
+      {arquivadasNaBusca.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm">
+          <Archive className="h-4 w-4 shrink-0 text-warning" />
+          <p className="text-foreground">
+            {arquivadasNaBusca.length === 1
+              ? `${arquivadasNaBusca[0].nome_completo} está arquivada e por isso não aparece nesta lista.`
+              : `${arquivadasNaBusca.length} pacientes arquivadas combinam com esta busca.`}
+          </p>
+          <Button size="sm" variant="outline" className="ml-auto rounded-full" onClick={() => setFiltroStatus("arquivados")}>
+            Ver arquivadas
+          </Button>
         </div>
       )}
 
@@ -302,7 +326,18 @@ export default function Pacientes() {
                     </TableCell>
                     <TableCell className="text-muted-foreground hidden xl:table-cell">{p.email || "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={cfg.variant} className="rounded-full whitespace-nowrap">{cfg.label}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={cfg.variant} className="rounded-full whitespace-nowrap">{cfg.label}</Badge>
+                        {p.ativo === false && status === "ativo" && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full whitespace-nowrap border-warning/40 bg-warning/10 text-warning"
+                            title="Arquivar não remove o acesso: esta paciente ainda consegue entrar no portal."
+                          >
+                            Acesso ativo
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm hidden sm:table-cell">
                       {p.created_at ? format(new Date(p.created_at), "dd/MM/yyyy") : "—"}
@@ -365,6 +400,38 @@ export default function Pacientes() {
         </div>
       </div>
       )}
+
+      <AlertDialog open={confirmarArquivar} onOpenChange={setConfirmarArquivar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Arquivar {selected.length} paciente{selected.length !== 1 ? "s" : ""}?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>{selectedPacientes.slice(0, 5).map((p) => p.nome_completo).join(", ")}
+                  {selectedPacientes.length > 5 ? ` e mais ${selectedPacientes.length - 5}.` : "."}</p>
+                <p>
+                  Elas saem da lista e passam a aparecer só no filtro "Arquivados". Nada é apagado, e
+                  dá para reativar depois.
+                </p>
+                {selectedPacientes.some((p) => p.account_status === "ativo") && (
+                  <p className="font-medium text-foreground">
+                    Atenção: arquivar não remove o acesso ao portal. Quem tem conta ativa continua
+                    conseguindo entrar.
+                  </p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmarArquivar(false); bulkSetAtivo(false); }}>
+              Arquivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {accessModal.paciente && (
         <PacienteAccessModal
