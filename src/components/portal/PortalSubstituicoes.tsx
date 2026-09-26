@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   CATEGORIAS, LISTA_ALIMENTOS, buscarAlimentos, formatarGramas, gramasPara, kcalEm,
+  agruparDoPlano, refeicoesDoPlano,
   type Alimento, type CategoriaSubstituicao, type ItemDoPlano,
 } from "@/lib/substituicoes";
 
@@ -40,6 +41,8 @@ export function PortalSubstituicoes({ itensPlano = [], semTitulo = false }: Prop
   const [base, setBase] = useState<Alimento | null>(null);
   const [gramasTexto, setGramasTexto] = useState("100");
   const [kcalTexto, setKcalTexto] = useState("100");
+  /** Filtro opcional: null mostra todas as refeições, cada alimento uma vez. */
+  const [refeicao, setRefeicao] = useState<string | null>(null);
 
   const kcal = base ? kcalEm(base.kcal100g, lerNumero(gramasTexto)) : lerNumero(kcalTexto);
 
@@ -49,8 +52,9 @@ export function PortalSubstituicoes({ itensPlano = [], semTitulo = false }: Prop
     [categoria, busca, base],
   );
 
-  const doPlano = itensPlano.filter((i) => i.categoria === categoria && i.id !== base?.id);
-  const contagemPlano = (c: CategoriaSubstituicao) => itensPlano.filter((i) => i.categoria === c).length;
+  const refeicoes = useMemo(() => refeicoesDoPlano(itensPlano), [itensPlano]);
+  const doPlano = useMemo(() => agruparDoPlano(itensPlano, categoria, refeicao), [itensPlano, categoria, refeicao]);
+  const contagemPlano = (c: CategoriaSubstituicao) => agruparDoPlano(itensPlano, c, refeicao).length;
 
   const escolherDoPlano = (i: ItemDoPlano) => {
     const g = i.gramas ?? (kcal > 0 ? gramasPara(i.kcal100g, kcal) : 100);
@@ -169,25 +173,64 @@ export function PortalSubstituicoes({ itensPlano = [], semTitulo = false }: Prop
       </div>
 
       {/* Do plano: já prontos, sem precisar buscar */}
-      {doPlano.length > 0 && !busca.trim() && (
-        <section>
-          <h3 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+      {itensPlano.length > 0 && !busca.trim() && (
+        <section className="space-y-2">
+          <h3 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             <Utensils className="h-3.5 w-3.5" /> Do seu plano
           </h3>
-          <div className="flex flex-wrap gap-2">
-            {doPlano.map((i) => (
-              <button
-                key={i.id}
-                onClick={() => escolherDoPlano(i)}
-                className="flex max-w-full flex-col items-start rounded-xl border border-border bg-card px-3 py-2 text-left transition-colors active:bg-muted"
-              >
-                <span className="line-clamp-1 text-sm font-medium text-foreground first-letter:uppercase">{i.nome}</span>
-                <span className="text-[11px] text-muted-foreground">
-                  {[i.gramas ? formatarGramas(i.gramas) : null, i.refeicao].filter(Boolean).join(" · ")}
-                </span>
-              </button>
-            ))}
-          </div>
+
+          {/* Refeição: escolha opcional, só filtra */}
+          {refeicoes.length > 1 && (
+            <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1">
+              {[null, ...refeicoes].map((r) => {
+                const ativa = r === refeicao;
+                return (
+                  <button
+                    key={r ?? "todas"}
+                    onClick={() => setRefeicao(r)}
+                    className={cn(
+                      "shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      ativa ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground",
+                    )}
+                  >
+                    {r ?? "Todas"}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {doPlano.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Nenhum alimento deste grupo {refeicao ? "nesta refeição" : "no seu plano"}.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {doPlano.map(({ item, refeicoes: onde, gramasVariam }) => {
+                const escolhido = base?.id === item.id;
+                const gramas = item.gramas && !gramasVariam ? formatarGramas(item.gramas) : null;
+                // Com refeição escolhida o nome dela já está no filtro.
+                const refeicoesTexto = refeicao ? null : onde.join(", ");
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => escolherDoPlano(item)}
+                    className={cn(
+                      "flex max-w-full flex-col items-start rounded-xl border px-3 py-2 text-left transition-colors active:bg-muted",
+                      escolhido ? "border-primary bg-primary/5" : "border-border bg-card",
+                    )}
+                  >
+                    <span className="line-clamp-1 text-sm font-medium text-foreground first-letter:uppercase">{item.nome}</span>
+                    {(gramas || refeicoesTexto || gramasVariam) && (
+                      <span className="line-clamp-1 text-[11px] text-muted-foreground">
+                        {[gramas ?? (gramasVariam ? "quantidades variam" : null), refeicoesTexto].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 

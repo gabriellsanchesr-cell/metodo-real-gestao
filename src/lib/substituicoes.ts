@@ -107,7 +107,9 @@ export function itemDeAlimentoPlano(a: AlimentoPlanoLinha, refeicao: string | nu
   if (kcal100g < KCAL100G_MINIMO) return null;
   const categoria = categoriaPorMacros(Number(a.proteina_g) || 0, Number(a.carboidrato_g) || 0, Number(a.lipidio_g) || 0);
   if (!categoria) return null;
-  return { id: `plano:${nome}:${gramas}`, nome, categoria, kcal100g, gramas, refeicao };
+  // O id precisa distinguir quantidade e refeição: com id repetido o React
+  // duplica cartões na tela a cada atualização.
+  return { id: `plano:${refeicao ?? ""}:${nome}:${gramas}`, nome, categoria, kcal100g, gramas, refeicao };
 }
 
 // Variações que mudam muito a energia. A leitura do PDF às vezes liga
@@ -138,7 +140,7 @@ export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] 
   if (!nome || !par || !correspondenciaConfiavel(nome, par.nome)) return null;
   const gramas = Number(r.quantidade_g);
   return {
-    id: `pdf:${nome}:${par.id}`,
+    id: `pdf:${r.refeicao?.trim() ?? ""}:${nome}:${gramas > 0 ? gramas : ""}:${par.id}`,
     nome,
     categoria: par.categoria,
     kcal100g: par.kcal100g,
@@ -197,12 +199,51 @@ export function itensDoPlano(plano: PlanoParaSubstituicao | null | undefined): I
     if (item) itens.push(item);
   }
   const vistos = new Set<string>();
+  // Repetição só dentro da mesma refeição (as opções A/B repetem itens).
   return itens.filter((i) => {
-    const chave = `${semAcento(i.nome)}|${Math.round(i.gramas ?? 0)}`;
+    const chave = `${semAcento(i.refeicao ?? "")}|${semAcento(i.nome)}|${Math.round(i.gramas ?? 0)}`;
     if (vistos.has(chave)) return false;
     vistos.add(chave);
     return true;
   });
+}
+
+/** Refeições do plano, na ordem em que aparecem. */
+export function refeicoesDoPlano(itens: ItemDoPlano[]): string[] {
+  return [...new Set(itens.map((i) => i.refeicao).filter((r): r is string => !!r))];
+}
+
+export interface GrupoDoPlano {
+  /** Primeira ocorrência: é dela que saem as gramas ao tocar. */
+  item: ItemDoPlano;
+  refeicoes: string[];
+  /** O mesmo alimento aparece com quantidades diferentes nas refeições. */
+  gramasVariam: boolean;
+}
+
+/**
+ * Alimentos do plano para mostrar, um cartão por alimento. Sem refeição
+ * escolhida junta as ocorrências do mesmo nome; com refeição, só as dela.
+ */
+export function agruparDoPlano(
+  itens: ItemDoPlano[],
+  categoria: CategoriaSubstituicao,
+  refeicao: string | null,
+): GrupoDoPlano[] {
+  const grupos = new Map<string, GrupoDoPlano>();
+  for (const i of itens) {
+    if (i.categoria !== categoria) continue;
+    if (refeicao && i.refeicao !== refeicao) continue;
+    const chave = semAcento(i.nome);
+    const g = grupos.get(chave);
+    if (!g) {
+      grupos.set(chave, { item: i, refeicoes: i.refeicao ? [i.refeicao] : [], gramasVariam: false });
+      continue;
+    }
+    if (i.refeicao && !g.refeicoes.includes(i.refeicao)) g.refeicoes.push(i.refeicao);
+    if (Math.round(i.gramas ?? 0) !== Math.round(g.item.gramas ?? 0)) g.gramasVariam = true;
+  }
+  return [...grupos.values()];
 }
 
 function semAcento(s: string): string {

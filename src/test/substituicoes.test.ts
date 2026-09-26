@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   LISTA_ALIMENTOS, gramasPara, kcalEm, equivalente, formatarGramas, buscarAlimentos, itensDoPlano,
-  correspondenciaConfiavel,
+  correspondenciaConfiavel, agruparDoPlano, refeicoesDoPlano,
 } from "@/lib/substituicoes";
 
 const achar = (nome: string) => {
@@ -100,10 +100,11 @@ describe("itensDoPlano", () => {
     ],
   };
 
-  it("classifica pelo macro dominante, na ordem das refeições, sem duplicar", () => {
+  it("classifica pelo macro dominante, na ordem das refeições", () => {
     const itens = itensDoPlano(plano);
     expect(itens.map((i) => [i.nome, i.categoria, i.refeicao])).toEqual([
       ["Arroz branco cozido", "carboidrato", "Café da manhã"],
+      ["arroz branco cozido", "carboidrato", "Almoço"],
       ["frango grelhado", "proteina", "Almoço"],
       ["azeite", "gordura", "Almoço"],
     ]);
@@ -131,6 +132,23 @@ describe("itensDoPlano", () => {
       ["pão francês", "carboidrato", 50],
       ["whey", "proteina", null],
     ]);
+  });
+
+  it("não repete o mesmo alimento na mesma refeição (opções A/B)", () => {
+    const linha = { nome_alimento: "arroz", quantidade: 100, energia_kcal: 128, proteina_g: 2.5, carboidrato_g: 28, lipidio_g: 0.2 };
+    const itens = itensDoPlano({ refeicoes: [{ nome: "Almoço", alimentos_plano: [linha, linha] }] });
+    expect(itens).toHaveLength(1);
+  });
+
+  it("ids distintos para o mesmo alimento em quantidades ou refeições diferentes", () => {
+    const itens = itensDoPlano({
+      alimentos_referencia: [
+        { nome: "Banana nanica", quantidade_g: 65, refeicao: "Pré-treino", correspondente: "Banana" },
+        { nome: "Banana nanica", quantidade_g: 90, refeicao: "Café da manhã", correspondente: "Banana" },
+        { nome: "Banana nanica", quantidade_g: 65, refeicao: "Café da manhã", correspondente: "Banana" },
+      ],
+    });
+    expect(new Set(itens.map((i) => i.id)).size).toBe(3);
   });
 
   it("aceita plano vazio ou coluna com lixo", () => {
@@ -169,5 +187,38 @@ describe("correspondenciaConfiavel", () => {
       ],
     });
     expect(itens.map((i) => i.nome)).toEqual(["arroz"]);
+  });
+});
+
+describe("agruparDoPlano", () => {
+  const ref = (nome: string, g: number, refeicao: string, correspondente: string) =>
+    ({ nome, quantidade_g: g, refeicao, correspondente });
+  // Plano real que mostrava "Mel" e "Arroz" repetidos na tela.
+  const itens = itensDoPlano({
+    alimentos_referencia: [
+      ref("Banana nanica", 65, "Pré-treino", "Banana"),
+      ref("Mel", 20, "Café da manhã", "Mel, de abelha"),
+      ref("Arroz branco cozido", 300, "Almoço", "Arroz cozido"),
+      ref("Arroz branco cozido", 300, "Jantar", "Arroz cozido"),
+      ref("Banana nanica", 90, "Café da manhã", "Banana"),
+    ],
+  });
+
+  it("sem refeição escolhida, um cartão por alimento com as refeições juntas", () => {
+    const g = agruparDoPlano(itens, "carboidrato", null);
+    expect(g.map((x) => [x.item.nome, x.refeicoes, x.gramasVariam])).toEqual([
+      ["Banana nanica", ["Pré-treino", "Café da manhã"], true],
+      ["Mel", ["Café da manhã"], false],
+      ["Arroz branco cozido", ["Almoço", "Jantar"], false],
+    ]);
+  });
+
+  it("com refeição escolhida, só os alimentos dela", () => {
+    const g = agruparDoPlano(itens, "carboidrato", "Café da manhã");
+    expect(g.map((x) => [x.item.nome, x.item.gramas])).toEqual([["Mel", 20], ["Banana nanica", 90]]);
+  });
+
+  it("lista as refeições na ordem do plano", () => {
+    expect(refeicoesDoPlano(itens)).toEqual(["Pré-treino", "Café da manhã", "Almoço", "Jantar"]);
   });
 });
