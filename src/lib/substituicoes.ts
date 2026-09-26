@@ -145,7 +145,11 @@ function nomeDaRefeicao(r: RefeicaoParaSubstituicao): string | null {
 
 interface PlanoParaSubstituicao {
   refeicoes?: RefeicaoParaSubstituicao[] | null;
-  alimentos_referencia?: AlimentoReferenciaPdf[] | null;
+  alimentos_referencia?: unknown;
+}
+
+function referenciaPdfValida(valor: unknown): valor is AlimentoReferenciaPdf {
+  return typeof valor === "object" && valor !== null && "nome" in valor && typeof valor.nome === "string";
 }
 
 /**
@@ -164,7 +168,10 @@ export function itensDoPlano(plano: PlanoParaSubstituicao | null | undefined): I
       if (item) itens.push(item);
     }
   }
-  for (const r of Array.isArray(plano.alimentos_referencia) ? plano.alimentos_referencia : []) {
+  const referencias = Array.isArray(plano.alimentos_referencia)
+    ? plano.alimentos_referencia.filter(referenciaPdfValida)
+    : [];
+  for (const r of referencias) {
     const item = itemDeReferenciaPdf(r);
     if (item) itens.push(item);
   }

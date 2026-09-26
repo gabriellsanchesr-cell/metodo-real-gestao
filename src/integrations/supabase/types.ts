@@ -613,6 +613,33 @@ export type Database = {
           },
         ]
       }
+      bloqueios_agenda: {
+        Row: {
+          created_at: string
+          fim: string
+          id: string
+          inicio: string
+          motivo: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fim: string
+          id?: string
+          inicio: string
+          motivo?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fim?: string
+          id?: string
+          inicio?: string
+          motivo?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calculos_energeticos: {
         Row: {
           adicional_gestante: boolean | null
@@ -2058,6 +2085,7 @@ export type Database = {
       }
       planos_alimentares: {
         Row: {
+          alimentos_referencia: Json | null
           created_at: string
           data_fim: string | null
           data_inicio: string | null
@@ -2078,6 +2106,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          alimentos_referencia?: Json | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
@@ -2098,6 +2127,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          alimentos_referencia?: Json | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
