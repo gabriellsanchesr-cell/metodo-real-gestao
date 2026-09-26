@@ -2,6 +2,31 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
+/**
+ * O modelo às vezes devolve um "correspondente" que não está na lista, ou
+ * com a grafia levemente diferente. Só aceita o nome exato; o resto vira null.
+ */
+function limparAlimentos(bruto: unknown, catalogo: string[], num: (v: unknown) => number | null) {
+  if (!Array.isArray(bruto) || !catalogo.length) return [];
+  const validos = new Set(catalogo);
+  const texto = (v: unknown, max: number) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null);
+  return bruto
+    .map((a: Record<string, unknown> | null) => {
+      const nome = texto(a?.nome, 120);
+      if (!nome) return null;
+      const g = num(a?.quantidade_g);
+      const corr = texto(a?.correspondente, 120);
+      return {
+        nome,
+        quantidade_g: g && g > 0 && g < 2000 ? g : null,
+        refeicao: texto(a?.refeicao, 60),
+        correspondente: corr && validos.has(corr) ? corr : null,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 120);
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -24,7 +49,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { fileBase64, mimeType } = await req.json();
+    const { fileBase64, mimeType, catalogo: catalogoBruto } = await req.json();
+    // Lista de alimentos da calculadora de substituições do portal. Opcional:
+    // sem ela, a função devolve só os totais, como antes.
+    const catalogo: string[] = Array.isArray(catalogoBruto)
+      ? catalogoBruto.filter((n: unknown) => typeof n === 'string' && n.length < 120).slice(0, 400)
+      : [];
     if (!fileBase64) {
       return new Response(JSON.stringify({ error: 'fileBase64 obrigatório' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -50,7 +80,8 @@ Retorne SOMENTE JSON válido neste formato exato:
   "gordura_g": number | null,
   "fibra_g": number | null,
   "refeicoes_estimadas": number | null,
-  "observacoes": string | null
+  "observacoes": string | null,
+  "alimentos": [{ "nome": string, "quantidade_g": number | null, "refeicao": string | null, "correspondente": string | null }]
 }
 
 REGRAS:
@@ -59,7 +90,18 @@ REGRAS:
 - NÃO invente valores. Se algum campo não existir no PDF, retorne null naquele campo.
 - Unidades: kcal em kcal, macros em gramas. Converta vírgula para ponto.
 - "refeicoes_estimadas" = quantas refeições (café, lanche, almoço, etc) o plano tem.
-- "observacoes": curta nota (até 200 chars) explicando de onde extraiu (ex: "Totais retirados da seção 'Resumo Nutricional' na última página"). Use null se nada notável.`;
+- "observacoes": curta nota (até 200 chars) explicando de onde extraiu (ex: "Totais retirados da seção 'Resumo Nutricional' na última página"). Use null se nada notável.
+${catalogo.length ? `
+ALIMENTOS (lista "alimentos"):
+- Liste cada alimento que aparece no plano, de todas as refeições e opções, uma vez por refeição.
+- "nome": o nome como está no PDF, em minúsculo, sem quantidade (ex.: "arroz branco", "pão francês").
+- "quantidade_g": a quantidade em gramas ou ml, se o PDF trouxer. Converta medidas caseiras só quando o PDF der o peso; senão null.
+- "refeicao": o nome da refeição (ex.: "Café da manhã", "Almoço").
+- "correspondente": o nome EXATO, copiado letra por letra, do item mais parecido da LISTA abaixo, respeitando o preparo (cru, cozido, grelhado). Se nenhum item for claramente o mesmo alimento, use null. Não force: verduras, legumes, temperos, bebidas sem caloria e preparações compostas quase sempre ficam null.
+- NÃO inclua substituições sugeridas pelo PDF como alimentos do plano.
+
+LISTA:
+${catalogo.join('\n')}` : ''}`;
 
     const aiRes = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -72,7 +114,9 @@ REGRAS:
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: [
-            { type: 'text', text: 'Extraia os totais nutricionais diários deste plano alimentar.' },
+            { type: 'text', text: catalogo.length
+              ? 'Extraia os totais nutricionais diários e a lista de alimentos deste plano alimentar.'
+              : 'Extraia os totais nutricionais diários deste plano alimentar.' },
             { type: 'image_url', image_url: { url: dataUrl } },
           ] },
         ],
@@ -121,6 +165,7 @@ REGRAS:
       fibra_g: num(parsed.fibra_g),
       refeicoes_estimadas: num(parsed.refeicoes_estimadas),
       observacoes: typeof parsed.observacoes === 'string' ? parsed.observacoes.slice(0, 240) : null,
+      alimentos: limparAlimentos(parsed.alimentos, catalogo, num),
     };
 
     return new Response(JSON.stringify(totals), {

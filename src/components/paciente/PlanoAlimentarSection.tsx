@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Utensils, ChevronDown, ChevronUp, Pencil, Copy, Power, Trash2, Send, FileDown, Paperclip, Download, ExternalLink,
+  ArrowRightLeft, Loader2,
 } from "lucide-react";
 import { PlanoAlimentarEditor } from "./PlanoAlimentarEditor";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
@@ -16,6 +17,7 @@ import { PdfViewer } from "./PdfViewer";
 import { FileUp } from "lucide-react";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { lerAlimentosDoPdfAnexado } from "@/lib/planoPdfAlimentos";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -48,6 +50,7 @@ export function PlanoAlimentarSection({ paciente }: Props) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [ativando, setAtivando] = useState<any | null>(null);
+  const [lendoAlimentos, setLendoAlimentos] = useState<string | null>(null);
   const [avisarAtivacao, setAvisarAtivacao] = useState(true);
   const [exportPlano, setExportPlano] = useState<any>(null);
   const [exportType, setExportType] = useState<"plano_alimentar" | "plano_simplificado">("plano_alimentar");
@@ -212,6 +215,33 @@ export function PlanoAlimentarSection({ paciente }: Props) {
     setAtivando(plano);
   };
 
+  const lerAlimentos = async (plano: { id: string; pdf_path?: string | null }) => {
+    if (!plano.pdf_path) return;
+    setLendoAlimentos(plano.id);
+    try {
+      const { resultado, total, comPar } = await lerAlimentosDoPdfAnexado(plano.id, plano.pdf_path);
+      if (resultado === "sem_migration") {
+        toast({
+          title: "Falta aplicar a atualização do banco",
+          description: "Aplique a migration plano_alimentos_referencia pelo Lovable e tente de novo.",
+          variant: "destructive",
+        });
+      } else if (total === 0) {
+        toast({ title: "Não encontrei alimentos neste PDF", description: "A calculadora da paciente continua funcionando pela busca." });
+      } else {
+        toast({
+          title: `${comPar} de ${total} alimentos prontos na calculadora`,
+          description: comPar < total ? "Os demais (verduras, temperos, preparações) não têm equivalente na tabela." : undefined,
+        });
+      }
+      loadPlanos();
+    } catch (e) {
+      toast({ title: "Não consegui ler o PDF", description: (e as Error)?.message, variant: "destructive" });
+    } finally {
+      setLendoAlimentos(null);
+    }
+  };
+
   const deletePlano = async () => {
     if (!deleteId) return;
     const plano = planos.find(p => p.id === deleteId);
@@ -334,6 +364,30 @@ export function PlanoAlimentarSection({ paciente }: Props) {
                 )}
               </CardHeader>
               <CardContent className="pt-0">
+                {isAnexo && plano.pdf_path && (() => {
+                  const lidos = Array.isArray(plano.alimentos_referencia)
+                    ? plano.alimentos_referencia.filter((a: { correspondente?: string | null } | null) => a?.correspondente).length
+                    : null;
+                  return (
+                    <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <ArrowRightLeft className="h-3.5 w-3.5" />
+                      {lidos === null
+                        ? "Alimentos ainda não lidos para a calculadora de substituições."
+                        : `${lidos} alimento${lidos === 1 ? "" : "s"} na calculadora de substituições da paciente.`}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        disabled={lendoAlimentos === plano.id}
+                        onClick={() => lerAlimentos(plano)}
+                      >
+                        {lendoAlimentos === plano.id
+                          ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Lendo PDF...</>
+                          : lidos === null ? "Ler alimentos do PDF" : "Ler de novo"}
+                      </Button>
+                    </div>
+                  );
+                })()}
                 <Button variant="ghost" size="sm" className="text-xs" onClick={() => toggleExpand(plano)}>
                   {expanded === plano.id ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
                   {expanded === plano.id ? "Recolher" : (isAnexo ? "Ver PDF" : "Ver refeições")}

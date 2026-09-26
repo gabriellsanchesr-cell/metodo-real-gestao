@@ -14,6 +14,7 @@ import { Paperclip, Loader2 } from "lucide-react";
 import { conferirCoerenciaMacros } from "@/lib/antropometria";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { catalogoSubstituicoes, salvarAlimentosReferencia } from "@/lib/planoPdfAlimentos";
 
 interface Props {
   open: boolean;
@@ -142,10 +143,10 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
 
         // Leitura mínima dos totais nutricionais via IA
         try {
-          setProgress("Lendo totais nutricionais...");
+          setProgress("Lendo totais e alimentos...");
           const b64 = await fileToBase64(file);
           const { data, error } = await supabase.functions.invoke("parse-plano-pdf-totais", {
-            body: { fileBase64: b64, mimeType: "application/pdf" },
+            body: { fileBase64: b64, mimeType: "application/pdf", catalogo: catalogoSubstituicoes() },
           });
           if (error) console.warn("parse-plano-pdf-totais falhou", error);
           else totals = data;
@@ -181,6 +182,13 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       }
 
       if (planoId && file) {
+        // Alimentos para a calculadora de substituições do portal. Falhar aqui
+        // não pode impedir o anexo: o PDF e os totais já estão salvos.
+        try {
+          await salvarAlimentosReferencia(planoId, Array.isArray(totals?.alimentos) ? totals.alimentos : []);
+        } catch (e) {
+          console.warn("Não consegui salvar os alimentos do PDF", e);
+        }
         setProgress("Atualizando resumo...");
         const ok = await upsertResumoRefeicao(planoId, totals);
         if (ok) {
@@ -234,7 +242,7 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
         <DialogHeader>
           <DialogTitle>{isEdit ? "Editar plano anexado" : "Anexar PDF do plano alimentar"}</DialogTitle>
           <DialogDescription>
-            O PDF é exibido exatamente como foi enviado. O sistema lê apenas os totais nutricionais (kcal e macros) para exibir no resumo.
+            O PDF é exibido exatamente como foi enviado. O sistema lê os totais (kcal e macros) para o resumo e a lista de alimentos para a calculadora de substituições da paciente.
           </DialogDescription>
         </DialogHeader>
 

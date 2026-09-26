@@ -6,6 +6,8 @@ import { PortalReceitas } from "@/components/portal/PortalReceitas";
 import { PortalChat } from "@/components/portal/PortalChat";
 import { PortalMetas } from "@/components/portal/PortalMetas";
 import { PortalMateriais } from "@/components/portal/PortalMateriais";
+import { PortalSubstituicoes } from "@/components/portal/PortalSubstituicoes";
+import { itensDoPlano } from "@/lib/substituicoes";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +20,7 @@ import {
   ChevronDown, ChevronUp, Clock, User, Activity, Sparkles,
   UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical,
   Bell, Flame, Weight, Zap, CalendarDays, ChevronRight, Heart, Droplets, Moon, Sun, Sunrise, Sunset,
-  Calendar, Star, Trophy, CheckCircle2,
+  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -38,7 +40,7 @@ import {
 } from "recharts";
 
 type PortalTab = "inicio" | "plano" | "diario" | "metas" | "mais";
-type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos";
+type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes";
 
 const tipoRefeicaoLabels: Record<string, string> = {
   cafe_da_manha: "Café da Manhã", lanche_da_manha: "Lanche da Manhã", almoco: "Almoço",
@@ -251,7 +253,27 @@ export default function PortalPaciente() {
     if (moreTab) return renderMoreContent();
     switch (activeTab) {
       case "inicio": return renderInicio();
-      case "plano": return renderPlano();
+      case "plano":
+        return (
+          <>
+            {renderPlano()}
+            {plano && (
+              <button
+                onClick={() => { setMoreTab("substituicoes"); setActiveTab("mais"); }}
+                className="mt-4 flex w-full items-center gap-3 rounded-2xl border border-border bg-card p-3.5 text-left transition-colors active:bg-muted"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ArrowRightLeft className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground">Precisa trocar um alimento?</p>
+                  <p className="text-xs text-muted-foreground">Veja a quantidade equivalente de outro do mesmo grupo.</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            )}
+          </>
+        );
       case "diario": return <PortalDiario paciente={paciente} />;
       case "metas": return <PortalMetas paciente={paciente} />;
       case "mais": return renderMoreContent();
@@ -905,6 +927,18 @@ export default function PortalPaciente() {
       case "jornada": return <PortalJornada paciente={paciente} />;
       case "suplementos": return renderPortalSuplemenos();
       case "materiais": return <PortalMateriais paciente={paciente} />;
+      case "substituicoes":
+        return (
+          <PortalSubstituicoes
+            itensPlano={itensDoPlano(plano && {
+              ...plano,
+              refeicoes: (plano.refeicoes || []).map((r: { nome_customizado?: string | null; tipo: string }) => ({
+                ...r,
+                nome: r.nome_customizado?.trim() || tipoRefeicaoLabels[r.tipo] || null,
+              })),
+            })}
+          />
+        );
       default: return renderPlaceholder("Materiais", "Este recurso estará disponível em breve.");
     }
   };
@@ -993,6 +1027,7 @@ export default function PortalPaciente() {
 
   const moreItems: { id: MoreTab; label: string; icon: any; desc: string; color: string; gradient: string }[] = [
     { id: "avaliacoes", label: "Avaliações", icon: Activity, desc: "Medidas e composição", color: "text-blue-600", gradient: "from-blue-100 to-blue-50" },
+    { id: "substituicoes", label: "Substituições", icon: ArrowRightLeft, desc: "Trocar alimentos", color: "text-amber-600", gradient: "from-amber-100 to-amber-50" },
     { id: "receitas", label: "Receitas", icon: UtensilsCrossed, desc: "Receitas saudáveis", color: "text-orange-600", gradient: "from-orange-100 to-orange-50" },
     { id: "suplementos", label: "Suplementos", icon: Pill, desc: "Prescrições ativas", color: "text-violet-600", gradient: "from-violet-100 to-violet-50" },
     { id: "jornada", label: "Jornada", icon: Sparkles, desc: "Seu progresso", color: "text-emerald-600", gradient: "from-emerald-100 to-emerald-50" },
