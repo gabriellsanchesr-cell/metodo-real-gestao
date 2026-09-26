@@ -11,8 +11,8 @@ const achar = (nome: string) => {
 };
 
 describe("dados", () => {
-  it("tem os 269 alimentos da planilha, todos com energia válida", () => {
-    expect(LISTA_ALIMENTOS).toHaveLength(269);
+  it("tem os 269 alimentos da planilha e os 22 extras, todos com energia válida", () => {
+    expect(LISTA_ALIMENTOS).toHaveLength(291);
     for (const a of LISTA_ALIMENTOS) {
       expect(a.kcal100g).toBeGreaterThan(0);
       // Nada passa de 900 kcal/100 g (gordura pura é 884).
@@ -36,6 +36,53 @@ describe("dados", () => {
     expect(() => achar("Carne, bovina, filé mignon, sem gordura, cru")).not.toThrow();
     expect(() => achar("Amendoim, torrado, salgado")).not.toThrow();
     expect(LISTA_ALIMENTOS.some((a) => a.nome.includes("/10minutos") || a.nome.endsWith(","))).toBe(false);
+  });
+});
+
+describe("alimentos extras", () => {
+  it("nomes novos não colidem com a planilha", () => {
+    expect(new Set(LISTA_ALIMENTOS.map((a) => a.id)).size).toBe(LISTA_ALIMENTOS.length);
+  });
+
+  // O nome precisa passar pela trava das variações, senão a leitura do PDF
+  // liga o alimento certo e a tela recusa.
+  it("casam com o que os PDFs dos planos escrevem", () => {
+    const pares: [string, string][] = [
+      ["iogurte natural desnatado", "Iogurte, natural, desnatado"],
+      ["requeijao light", "Requeijão light (Vigor)"],
+      ["granola sem açúcar", "Granola sem açúcar (Mãe Terra Zero Açúcar)"],
+      ["farelo de aveia", "Farelo de aveia"],
+      ["pasta de amendoim integral", "Pasta de amendoim integral"],
+      ["acai zero acucar", "Açaí, polpa congelada, sem açúcar (zero)"],
+      ["suco de laranja natural", "Laranja, pêra, suco natural"],
+      ["suco de uva integral", "Suco de uva integral (Aurora)"],
+      ["pão de forma integral", "Pão, trigo, forma, integral"],
+      ["peito de peru", "Peito de peru defumado (Sadia)"],
+      ["leite integral", "Leite, vaca, integral"],
+      ["rap10 integral", "Rap10 integral (Pullman)"],
+    ];
+    for (const [pdf, lista] of pares) {
+      expect(LISTA_ALIMENTOS.some((a) => a.nome === lista), lista).toBe(true);
+      expect(correspondenciaConfiavel(pdf, lista), `${pdf} -> ${lista}`).toBe(true);
+    }
+    // E continuam barrando a variação errada.
+    expect(correspondenciaConfiavel("leite desnatado", "Leite, vaca, integral")).toBe(false);
+    expect(correspondenciaConfiavel("iogurte natural desnatado", "Iogurte, natural")).toBe(false);
+  });
+
+  it("ignora observação entre parênteses", () => {
+    expect(correspondenciaConfiavel("leite desnatado (não usar integral)", "Leite, vaca, desnatado")).toBe(true);
+  });
+
+  it("básicos sem par da IA ganham par fixo; combinações continuam sem par", () => {
+    const itens = itensDoPlano({
+      alimentos_referencia: ["frango grelhado", "filé de frango grelhado", "ovos mexidos", "patinho moido refogado",
+        "carne moída magra", "tapioca (goma)", "frango ou carne magra", "pate de frango (frango desfiado + requeijao light)"]
+        .map((nome) => ({ nome, quantidade_g: 100, refeicao: "Almoço", correspondente: null })),
+    });
+    expect(itens.map((i) => i.nome)).toEqual([
+      "frango grelhado", "filé de frango grelhado", "ovos mexidos", "patinho moido refogado", "carne moída magra", "tapioca (goma)",
+    ]);
   });
 });
 

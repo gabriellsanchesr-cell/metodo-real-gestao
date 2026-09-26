@@ -6,6 +6,7 @@
  * Por isso a busca fica restrita à categoria do alimento de origem.
  */
 import { ALIMENTOS } from "./substituicoesDados";
+import { ALIMENTOS_EXTRAS } from "./substituicoesExtras";
 
 export type CategoriaSubstituicao = "carboidrato" | "proteina" | "gordura";
 
@@ -24,12 +25,12 @@ export const CATEGORIAS: { id: CategoriaSubstituicao; rotulo: string }[] = [
 ];
 
 // A paçoca aparece em duas categorias na planilha, então o nome sozinho não é chave.
-export const LISTA_ALIMENTOS: Alimento[] = ALIMENTOS.map(([categoria, nome, kcal100g]) => ({
-  id: `${categoria}:${nome}`,
-  nome,
-  categoria,
-  kcal100g,
-}));
+export const LISTA_ALIMENTOS: Alimento[] = [
+  ...ALIMENTOS.map(([categoria, nome, kcal100g]) => ({ categoria, nome, kcal100g })),
+  ...ALIMENTOS_EXTRAS,
+]
+  .map(({ categoria, nome, kcal100g }) => ({ id: `${categoria}:${nome}`, nome, categoria, kcal100g }))
+  .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
 
 /** Gramas do alimento que fornecem `kcal`. */
 export function gramasPara(kcal100g: number, kcal: number): number {
@@ -126,17 +127,37 @@ const VARIACOES_DA_LISTA = ["aveia", "com sabor", "chocolate", "calda", "frit", 
  * melhor do que mostrar uma troca com a caloria errada.
  */
 export function correspondenciaConfiavel(nomePdf: string, nomeLista: string): boolean {
-  const pdf = semAcento(nomePdf);
+  // Observação entre parênteses não descreve o alimento: "leite desnatado
+  // (não usar integral)" é leite desnatado.
+  const pdf = semAcento(nomePdf).replace(/\([^)]*\)/g, " ");
   const lista = semAcento(nomeLista);
   if (VARIACOES_DO_PDF.some((v) => pdf.includes(v) && !lista.includes(v))) return false;
   if (VARIACOES_DA_LISTA.some((v) => lista.includes(v) && !pdf.includes(v))) return false;
   return true;
 }
 
+/**
+ * Alimentos básicos que a leitura por IA às vezes deixa sem par de uma
+ * leitura para outra. Só o alimento sozinho: "frango ou carne magra" e
+ * "patê de frango" continuam sem par.
+ */
+const SINONIMOS: [RegExp, string][] = [
+  [/^(file de )?(peito de )?frango (grelhado|desfiado|cozido|assado)$/, "Frango, peito, sem pele, pronto"],
+  [/^ovos? (inteiros? )?(mexidos?|cozidos?)$/, "Ovo, inteiro, cozido"],
+  [/^(carne moida|patinho moido|patinho)( de patinho)?( magra)?( refogad[ao]| grelhado)?$/, "Carne, bovina, patinho, sem gordura, grelhado"],
+  [/^(tapioca|goma de tapioca)( \(goma\)| hidratada)?$/, "Tapioca, goma hidratada (Yoki)"],
+];
+
+function sinonimo(nome: string): string | null {
+  const n = semAcento(nome).trim().replace(/\s+/g, " ");
+  return SINONIMOS.find(([rx]) => rx.test(n))?.[1] ?? null;
+}
+
 /** Um alimento lido do PDF anexado usa a energia do item correspondente da lista. */
 export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] = LISTA_ALIMENTOS): ItemDoPlano | null {
   const nome = (r.nome || "").trim();
-  const par = r.correspondente ? lista.find((a) => a.nome === r.correspondente) : undefined;
+  const alvo = r.correspondente || sinonimo(nome);
+  const par = alvo ? lista.find((a) => a.nome === alvo) : undefined;
   if (!nome || !par || !correspondenciaConfiavel(nome, par.nome)) return null;
   const gramas = Number(r.quantidade_g);
   return {
