@@ -184,8 +184,10 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       if (planoId && file) {
         // Alimentos para a calculadora de substituições do portal. Falhar aqui
         // não pode impedir o anexo: o PDF e os totais já estão salvos.
+        // Sem a chave "alimentos" a função publicada é a antiga: não grava
+        // lista vazia, para o botão "Ler alimentos do PDF" continuar aparecendo.
         try {
-          await salvarAlimentosReferencia(planoId, Array.isArray(totals?.alimentos) ? totals.alimentos : []);
+          if (Array.isArray(totals?.alimentos)) await salvarAlimentosReferencia(planoId, totals.alimentos);
         } catch (e) {
           console.warn("Não consegui salvar os alimentos do PDF", e);
         }

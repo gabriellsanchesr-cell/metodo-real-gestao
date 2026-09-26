@@ -53,6 +53,11 @@ export async function lerAlimentosDoPdfAnexado(
     body: { fileBase64: await blobParaBase64(arquivo), mimeType: "application/pdf", catalogo: catalogoSubstituicoes() },
   });
   if (error) throw error;
+  // A versão antiga da função devolve só os totais. Gravar [] marcaria o
+  // plano como "lido, sem alimentos", então é melhor parar e avisar.
+  if (!data || !("alimentos" in data)) {
+    throw new Error("A função parse-plano-pdf-totais publicada ainda é a versão antiga. Republique pelo Lovable e tente de novo.");
+  }
 
   const alimentos: AlimentoReferenciaPdf[] = Array.isArray(data?.alimentos) ? data.alimentos : [];
   const resultado = await salvarAlimentosReferencia(planoId, alimentos);
