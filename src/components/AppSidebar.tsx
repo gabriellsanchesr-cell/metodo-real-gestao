@@ -46,6 +46,7 @@ export function AppSidebar() {
     "/agenda": hasPermission("consultas", "ver_agenda"),
     "/vencimentos": isAdmin || hasPermission("financeiro", "ver"),
     "/biblioteca": true,
+    "/substituicoes": true,
     "/conteudo-real": isAdmin || hasPermission("planos", "ver"),
     "/suplementos": isAdmin || hasPermission("planos", "ver"),
     "/relatorios": isAdmin,

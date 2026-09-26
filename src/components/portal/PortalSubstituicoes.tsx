@@ -28,9 +28,11 @@ function soNumero(texto: string): string {
 interface Props {
   /** Alimentos do plano ativo, que aparecem prontos no topo para ela não precisar buscar. */
   itensPlano?: ItemDoPlano[];
+  /** No painel do nutri o título já vem do cabeçalho da página. */
+  semTitulo?: boolean;
 }
 
-export function PortalSubstituicoes({ itensPlano = [] }: Props) {
+export function PortalSubstituicoes({ itensPlano = [], semTitulo = false }: Props) {
   const [categoria, setCategoria] = useState<CategoriaSubstituicao>(
     () => itensPlano[0]?.categoria ?? "carboidrato",
   );
@@ -79,12 +81,12 @@ export function PortalSubstituicoes({ itensPlano = [] }: Props) {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <div>
+      {!semTitulo && <div>
         <h2 className="text-lg font-semibold text-foreground">Substituições</h2>
         <p className="text-sm text-muted-foreground">
           Troque um alimento do seu plano por outro do mesmo grupo, mantendo as calorias.
         </p>
-      </div>
+      </div>}
 
       {/* Grupo */}
       <div className="grid grid-cols-3 gap-1 rounded-2xl bg-muted p-1" role="tablist">

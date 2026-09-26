@@ -929,15 +929,7 @@ export default function PortalPaciente() {
       case "materiais": return <PortalMateriais paciente={paciente} />;
       case "substituicoes":
         return (
-          <PortalSubstituicoes
-            itensPlano={itensDoPlano(plano && {
-              ...plano,
-              refeicoes: (plano.refeicoes || []).map((r: { nome_customizado?: string | null; tipo: string }) => ({
-                ...r,
-                nome: r.nome_customizado?.trim() || tipoRefeicaoLabels[r.tipo] || null,
-              })),
-            })}
-          />
+          <PortalSubstituicoes itensPlano={itensDoPlano(plano)} />
         );
       default: return renderPlaceholder("Materiais", "Este recurso estará disponível em breve.");
     }

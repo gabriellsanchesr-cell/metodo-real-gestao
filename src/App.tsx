@@ -32,6 +32,7 @@ import Vencimentos from "./pages/Vencimentos";
 import Relatorios from "./pages/Relatorios";
 import Leads from "./pages/Leads";
 import Financeiro from "./pages/Financeiro";
+import Substituicoes from "./pages/Substituicoes";
 import NotFound from "./pages/NotFound";
 import { FullPageLoader } from "@/components/Loading";
 
@@ -98,6 +99,7 @@ const App = () => (
               <Route path="diarios" element={<DiariosAlimentares />} />
               <Route path="agenda" element={<Agenda />} />
               <Route path="biblioteca" element={<Biblioteca />} />
+              <Route path="substituicoes" element={<Substituicoes />} />
               <Route path="conteudo-real" element={<ConteudoReal />} />
               <Route path="suplementos" element={<Suplementos />} />
               <Route path="templates" element={<Templates />} />

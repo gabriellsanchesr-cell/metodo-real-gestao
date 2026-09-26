@@ -126,8 +126,25 @@ export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] 
   };
 }
 
+const NOME_REFEICAO: Record<string, string> = {
+  cafe_da_manha: "Café da manhã", lanche_da_manha: "Lanche da manhã", almoco: "Almoço",
+  lanche_da_tarde: "Lanche da tarde", jantar: "Jantar", ceia: "Ceia",
+};
+
+interface RefeicaoParaSubstituicao {
+  nome?: string | null;
+  nome_customizado?: string | null;
+  tipo?: string | null;
+  ordem?: number | null;
+  alimentos_plano?: AlimentoPlanoLinha[] | null;
+}
+
+function nomeDaRefeicao(r: RefeicaoParaSubstituicao): string | null {
+  return r.nome_customizado?.trim() || r.nome?.trim() || (r.tipo ? NOME_REFEICAO[r.tipo] ?? null : null);
+}
+
 interface PlanoParaSubstituicao {
-  refeicoes?: { nome?: string | null; ordem?: number | null; alimentos_plano?: AlimentoPlanoLinha[] | null }[] | null;
+  refeicoes?: RefeicaoParaSubstituicao[] | null;
   alimentos_referencia?: AlimentoReferenciaPdf[] | null;
 }
 
@@ -143,7 +160,7 @@ export function itensDoPlano(plano: PlanoParaSubstituicao | null | undefined): I
     for (const a of r.alimentos_plano || []) {
       // A linha-resumo do PDF anexado soma o dia todo; não é um alimento.
       if (a.nome_alimento === "Resumo nutricional do PDF") continue;
-      const item = itemDeAlimentoPlano(a, r.nome || null);
+      const item = itemDeAlimentoPlano(a, nomeDaRefeicao(r));
       if (item) itens.push(item);
     }
   }
