@@ -2767,7 +2767,7 @@ export type Database = {
         | "performance"
         | "outro"
       preenchido_por: "nutricionista" | "paciente"
-      status_consulta: "agendado" | "realizado" | "cancelado"
+      status_consulta: "agendado" | "realizado" | "cancelado" | "faltou"
       status_conteudo: "rascunho" | "publicado"
       status_questionario: "pendente" | "enviado" | "respondido"
       tipo_consulta: "primeira_consulta" | "retorno" | "online" | "presencial"
@@ -2981,7 +2981,7 @@ export const Constants = {
         "outro",
       ],
       preenchido_por: ["nutricionista", "paciente"],
-      status_consulta: ["agendado", "realizado", "cancelado"],
+      status_consulta: ["agendado", "realizado", "cancelado", "faltou"],
       status_conteudo: ["rascunho", "publicado"],
       status_questionario: ["pendente", "enviado", "respondido"],
       tipo_consulta: ["primeira_consulta", "retorno", "online", "presencial"],

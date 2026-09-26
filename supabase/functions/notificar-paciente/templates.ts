@@ -19,6 +19,7 @@ export const TIPOS = [
   "consulta_agendada",
   "consulta_remarcada",
   "consulta_cancelada",
+  "consulta_falta",
   "orientacao_nova",
   "material_novo",
   "receita_nova",
@@ -165,6 +166,20 @@ function conteudo(tipo: TipoAviso, d: DadosAviso): Conteudo {
         paragrafos: [
           quando ? `A consulta de <strong>${escapar(quando)}</strong> foi cancelada.` : "Uma consulta sua foi cancelada.",
           "Quando quiser marcar um novo horário, é só me chamar.",
+        ],
+        botao: "Abrir meu portal",
+        caminho: "/portal",
+      };
+    case "consulta_falta":
+      // Sem cobrança nem culpa: o objetivo é a paciente voltar, não se justificar.
+      return {
+        assunto: "Senti sua falta na consulta",
+        titulo: "Vamos remarcar?",
+        paragrafos: [
+          quando
+            ? `Você tinha consulta marcada para <strong>${escapar(quando)}</strong> e não conseguimos nos ver.`
+            : "Você tinha uma consulta marcada e não conseguimos nos ver.",
+          "Imprevistos acontecem. O importante é seguir o acompanhamento: me chama e a gente encontra um novo horário.",
         ],
         botao: "Abrir meu portal",
         caminho: "/portal",

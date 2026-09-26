@@ -22,6 +22,7 @@ const statusLabels: Record<string, { label: string; variant: "default" | "second
   agendado: { label: "Agendada", variant: "default" },
   realizado: { label: "Realizada", variant: "secondary" },
   cancelado: { label: "Cancelada", variant: "destructive" },
+  faltou: { label: "Faltou", variant: "destructive" },
 };
 
 interface Props { paciente: any; }
@@ -150,6 +151,7 @@ export function ConsultasSection({ paciente }: Props) {
                     <SelectItem value="agendado">Agendada</SelectItem>
                     <SelectItem value="realizado">Realizada</SelectItem>
                     <SelectItem value="cancelado">Cancelada</SelectItem>
+                    <SelectItem value="faltou">Faltou</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

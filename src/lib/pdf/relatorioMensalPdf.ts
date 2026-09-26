@@ -165,7 +165,7 @@ export function generateRelatorioMensalPdf(
       online: "Online", presencial: "Presencial",
     };
     const statusMap: Record<string, string> = {
-      agendado: "Agendado", realizado: "Realizado", cancelado: "Cancelado",
+      agendado: "Agendado", realizado: "Realizado", cancelado: "Cancelado", faltou: "Faltou",
     };
     const body = consultasMes.map(c => [
       new Date(c.data_hora).toLocaleDateString("pt-BR"),

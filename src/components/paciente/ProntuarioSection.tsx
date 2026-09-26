@@ -69,7 +69,7 @@ export function ProntuarioSection({ paciente }: Props) {
     (consultas.data || []).forEach(c => all.push({
       id: c.id, date: new Date(c.data_hora), type: "consulta",
       title: `Consulta ${c.tipo || ""}`.trim(),
-      description: c.status === "cancelado" ? "Cancelada" : c.anotacoes?.substring(0, 80) || undefined,
+      description: c.status === "cancelado" ? "Cancelada" : c.status === "faltou" ? "Faltou" : c.anotacoes?.substring(0, 80) || undefined,
     }));
 
     (acompanhamentos.data || []).forEach(a => all.push({

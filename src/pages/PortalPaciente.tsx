@@ -136,6 +136,7 @@ export default function PortalPaciente() {
           .from("consultas")
           .select("*")
           .eq("paciente_id", pac.id)
+          .eq("status", "agendado")
           .gte("data_hora", now)
           .order("data_hora", { ascending: true })
           .limit(1);

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/PageHeader";
-import { Plus, Calendar as CalIcon, Clock, Ban, AlertTriangle, ChevronLeft, ChevronRight, Link2, X } from "lucide-react";
+import { Plus, Calendar as CalIcon, Clock, Ban, AlertTriangle, ChevronLeft, ChevronRight, Link2, X, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay,
@@ -30,6 +30,7 @@ const statusColors: Record<string, string> = {
   agendado: "bg-primary/10 text-primary",
   realizado: "bg-emerald-500/10 text-emerald-600",
   cancelado: "bg-destructive/10 text-destructive",
+  faltou: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
   bloqueio: "bg-muted text-muted-foreground",
 };
 
@@ -113,6 +114,9 @@ export default function Agenda() {
   const [avisar, setAvisar] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [cancelando, setCancelando] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [faltando, setFaltando] = useState<any | null>(null);
+  const [avisarFalta, setAvisarFalta] = useState(true);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [retornosPendentes, setRetornosPendentes] = useState<any[]>([]);
 
@@ -296,6 +300,34 @@ export default function Agenda() {
     await updateStatus(c.id, "cancelado");
     toast({ title: "Consulta cancelada" });
     if (avisarPaciente_) avisarPaciente(c.paciente_id, "consulta_cancelada", { data: c.data_hora });
+  };
+
+  const pedirFalta = (c: { id: string }) => {
+    setAvisarFalta(true);
+    setFaltando(c);
+  };
+
+  const confirmarFalta = async () => {
+    const c = faltando;
+    setFaltando(null);
+    if (!c) return;
+    const { error } = await supabase.from("consultas").update({ status: "faltou" }).eq("id", c.id);
+    if (error) {
+      // 22P02: o banco ainda não conhece o status "faltou".
+      const semMigration = error.code === "22P02" || /faltou/.test(error.message);
+      toast({
+        title: "Não consegui marcar a falta",
+        description: semMigration
+          ? "Falta aplicar a atualização do banco (migration consulta_faltou) pelo Lovable."
+          : error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: "Falta registrada" });
+    loadConsultas();
+    loadRetornosPendentes();
+    if (avisarFalta) avisarPaciente(c.paciente_id, "consulta_falta", { data: c.data_hora });
   };
 
   // Calendar calculations
@@ -592,6 +624,12 @@ export default function Agenda() {
                                   <div className="flex gap-1">
                                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "realizado")} aria-label="Marcar como realizada">✓</Button>
                                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCancelando(c)} aria-label="Cancelar consulta">✗</Button>
+                                    {/* Falta só faz sentido depois do horário marcado. */}
+                                    {new Date(c.data_hora) <= new Date() && (
+                                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => pedirFalta(c)} aria-label="Marcar falta" title="Paciente faltou">
+                                        <UserX className="h-3.5 w-3.5" />
+                                      </Button>
+                                    )}
                                   </div>
                                 )}
                               </div>
@@ -688,6 +726,28 @@ export default function Agenda() {
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
             <AlertDialogAction onClick={removerBloqueio}>Remover</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!faltando} onOpenChange={(o) => !o && setFaltando(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Marcar falta nesta consulta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {faltando?.pacientes?.nome_completo ? `${faltando.pacientes.nome_completo}, ` : ""}
+              {faltando ? format(new Date(faltando.data_hora), "dd/MM 'às' HH:mm") : ""}.
+              A consulta fica registrada como falta, separada das canceladas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AvisarPacienteToggle
+            checked={avisarFalta}
+            onCheckedChange={setAvisarFalta}
+            label="Avisar a paciente por e-mail, convidando a remarcar"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmarFalta}>Marcar falta</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

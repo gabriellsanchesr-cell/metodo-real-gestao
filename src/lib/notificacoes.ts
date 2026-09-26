@@ -13,6 +13,7 @@ export type TipoAviso =
   | "consulta_agendada"
   | "consulta_remarcada"
   | "consulta_cancelada"
+  | "consulta_falta"
   | "orientacao_nova"
   | "material_novo"
   | "receita_nova"
@@ -29,6 +30,7 @@ export const ROTULO_TIPO: Record<TipoAviso, string> = {
   consulta_agendada: "Consulta agendada",
   consulta_remarcada: "Consulta remarcada",
   consulta_cancelada: "Consulta cancelada",
+  consulta_falta: "Falta na consulta",
   orientacao_nova: "Orientação",
   material_novo: "Material extra",
   receita_nova: "Receita",
