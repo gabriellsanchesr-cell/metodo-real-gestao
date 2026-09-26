@@ -17,6 +17,7 @@ import { PdfViewer } from "./PdfViewer";
 import { FileUp } from "lucide-react";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 import { lerAlimentosDoPdfAnexado } from "@/lib/planoPdfAlimentos";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -344,6 +345,16 @@ export function PlanoAlimentarSection({ paciente }: Props) {
                         <FileDown className="h-3.5 w-3.5" />
                       </Button>
                     )}
+                    <AvisarAgoraButton
+                      pacienteId={paciente.id}
+                      oQue={`o plano "${plano.nome}"`}
+                      dados={{ titulo: plano.nome }}
+                      bloqueadoPor={plano.status === "ativo" ? null : "Ative o plano antes: a paciente só vê plano ativo"}
+                      opcoes={[
+                        { tipo: "plano_novo", rotulo: "Plano novo", detalhe: "\"Seu novo plano alimentar está disponível\"" },
+                        { tipo: "plano_atualizado", rotulo: "Plano ajustado", detalhe: "\"Seu plano alimentar foi ajustado\": para quando você refez ou trocou o PDF" },
+                      ]}
+                    />
                     <Button variant="ghost" size="icon" className="h-8 w-8" title={plano.status === "ativo" ? "Desativar" : "Ativar"} onClick={() => pedirToggle(plano)}>
                       <Power className="h-3.5 w-3.5" />
                     </Button>

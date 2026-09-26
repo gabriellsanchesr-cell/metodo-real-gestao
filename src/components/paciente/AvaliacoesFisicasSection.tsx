@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 
 // Parse YYYY-MM-DD as local date to avoid timezone shifting by -1 day
 const parseLocalDate = (s: string | null | undefined): Date => {
@@ -377,6 +378,14 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* O card inteiro abre a avaliação: o aviso não pode propagar o clique. */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <AvisarAgoraButton
+                          pacienteId={paciente.id}
+                          oQue={`a avaliação de ${format(parseLocalDate(av.data_avaliacao), "dd/MM/yyyy")}`}
+                          opcoes={[{ tipo: "avaliacao_registrada", rotulo: "Avaliação registrada" }]}
+                        />
+                      </div>
                       {prev && av.peso && prev.peso && (
                         <DeltaBadge current={av.peso} previous={prev.peso} unit="kg" invert />
                       )}

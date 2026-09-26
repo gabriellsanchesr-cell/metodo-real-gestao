@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, Target, CheckCircle2, Pause, Play, Circle } from "l
 import { format } from "date-fns";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 
 const PRIORIDADES = [
   { value: "baixa", label: "Baixa", color: "bg-muted text-muted-foreground" },
@@ -202,6 +203,13 @@ export function MetasSection({ paciente }: { paciente: any }) {
                   <Circle className="h-4 w-4" />
                 </Button>
               )}
+              <AvisarAgoraButton
+                className="h-10 w-10"
+                pacienteId={paciente.id}
+                oQue={`a meta "${m.titulo}"`}
+                dados={{ titulo: m.titulo }}
+                opcoes={[{ tipo: "meta_nova", rotulo: "Meta nova" }]}
+              />
               <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="Editar">
                 <Edit className="h-4 w-4" />
               </Button>

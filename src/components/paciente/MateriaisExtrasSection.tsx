@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, FolderOpen, FileText, Link as LinkIcon, ExternalLin
 import { format } from "date-fns";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 
 const CATEGORIAS = [
   { value: "ebook", label: "E-book" },
@@ -239,6 +240,13 @@ export function MateriaisExtrasSection({ paciente }: { paciente: any }) {
                     <Button variant="ghost" size="icon" onClick={() => handleOpen(m)} title={m.tipo === "link" ? "Abrir link" : "Baixar arquivo"}>
                       {m.tipo === "link" ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
                     </Button>
+                    <AvisarAgoraButton
+                      className="h-10 w-10"
+                      pacienteId={paciente.id}
+                      oQue={`o material "${m.titulo}"`}
+                      dados={{ titulo: m.titulo }}
+                      opcoes={[{ tipo: "material_novo", rotulo: "Material novo" }]}
+                    />
                     <Button variant="ghost" size="icon" onClick={() => openEdit(m)} title="Editar"><Edit className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" onClick={() => handleDelete(m)} title="Excluir" className="text-destructive hover:text-destructive">
                       <Trash2 className="h-4 w-4" />

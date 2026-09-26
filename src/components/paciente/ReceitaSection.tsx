@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 import {
   Plus, Trash2, Edit, Send, ArrowLeft, Clock, Users, Search,
   UtensilsCrossed, X, ChevronDown, ChevronUp, Eye,
@@ -464,6 +465,13 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
                           <Send className="h-3 w-3 mr-1" /> Enviar
                         </Button>
                       )}
+                      <AvisarAgoraButton
+                        pacienteId={paciente.id}
+                        oQue={`a receita "${r.titulo}"`}
+                        dados={{ titulo: r.titulo }}
+                        bloqueadoPor={isSent ? null : "Envie a receita antes: a paciente só vê as enviadas"}
+                        opcoes={[{ tipo: "receita_nova", rotulo: "Receita nova" }]}
+                      />
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}>
                         <Edit className="h-3.5 w-3.5" style={{ color: "#6B7080" }} />
                       </Button>

@@ -13,6 +13,7 @@ import { Send, Eye, ClipboardCopy, FileText, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 
 const TIPOS = [
   { value: "anamnese", label: "Anamnese" },
@@ -146,6 +147,14 @@ export function QuestionariosSection({ paciente }: Props) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <AvisarAgoraButton
+                        className="h-10 w-10"
+                        pacienteId={paciente.id}
+                        oQue={`o questionário "${TIPOS.find(t => t.value === q.tipo)?.label || q.tipo}", com o link para responder`}
+                        dados={{ titulo: TIPOS.find(t => t.value === q.tipo)?.label || q.tipo, token: q.token }}
+                        bloqueadoPor={q.status === "respondido" ? "Já respondido" : null}
+                        opcoes={[{ tipo: "questionario_enviado", rotulo: "Questionário para responder" }]}
+                      />
                       <Button size="icon" variant="ghost" onClick={() => handleCopyLink(q.token)} title="Copiar link">
                         <ClipboardCopy className="h-4 w-4" />
                       </Button>
