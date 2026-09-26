@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   LISTA_ALIMENTOS, gramasPara, kcalEm, equivalente, formatarGramas, buscarAlimentos, itensDoPlano,
+  correspondenciaConfiavel,
 } from "@/lib/substituicoes";
 
 const achar = (nome: string) => {
@@ -135,5 +136,38 @@ describe("itensDoPlano", () => {
   it("aceita plano vazio ou coluna com lixo", () => {
     expect(itensDoPlano(null)).toEqual([]);
     expect(itensDoPlano({ alimentos_referencia: "x" as never })).toEqual([]);
+  });
+});
+
+describe("correspondenciaConfiavel", () => {
+  // Casos reais da leitura do PDF de um plano anexado.
+  it("recusa variações que mudam a energia", () => {
+    expect(correspondenciaConfiavel("farelo de aveia", "Aveia, flocos, crua")).toBe(false);
+    expect(correspondenciaConfiavel("iogurte natural desnatado", "Iogurte com sabor")).toBe(false);
+    expect(correspondenciaConfiavel("requeijao light", "Queijo, requeijão, cremoso")).toBe(false);
+    expect(correspondenciaConfiavel("pão de forma", "Pão, aveia, forma")).toBe(false);
+    expect(correspondenciaConfiavel("batata inglesa cozida", "Batata, inglesa, frita")).toBe(false);
+    expect(correspondenciaConfiavel("pasta de amendoim", "Paçoca, amendoim")).toBe(false);
+    expect(correspondenciaConfiavel("semente de chia", "Linhaça, semente")).toBe(false);
+    expect(correspondenciaConfiavel("molho de tomate", "Tomate, extrato")).toBe(false);
+    expect(correspondenciaConfiavel("peito de peru", "Peru, assado")).toBe(false);
+  });
+
+  it("aceita o mesmo alimento", () => {
+    expect(correspondenciaConfiavel("arroz", "Arroz cozido")).toBe(true);
+    expect(correspondenciaConfiavel("batata doce cozida", "Batata, doce, cozida")).toBe(true);
+    expect(correspondenciaConfiavel("ovos mexidos", "Ovo, inteiro, cozido")).toBe(true);
+    expect(correspondenciaConfiavel("whey protein", "Whey protein 80%")).toBe(true);
+    expect(correspondenciaConfiavel("pão francês", "Pão, trigo, soja ou milho, francês, integral ou sovado")).toBe(true);
+  });
+
+  it("itensDoPlano deixa de fora a ligação recusada", () => {
+    const itens = itensDoPlano({
+      alimentos_referencia: [
+        { nome: "farelo de aveia", quantidade_g: 14, correspondente: "Aveia, flocos, crua" },
+        { nome: "arroz", quantidade_g: 90, correspondente: "Arroz cozido" },
+      ],
+    });
+    expect(itens.map((i) => i.nome)).toEqual(["arroz"]);
   });
 });

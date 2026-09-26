@@ -97,7 +97,7 @@ ALIMENTOS (lista "alimentos"):
 - "nome": o nome como está no PDF, em minúsculo, sem quantidade (ex.: "arroz branco", "pão francês").
 - "quantidade_g": a quantidade em gramas ou ml, se o PDF trouxer. Converta medidas caseiras só quando o PDF der o peso; senão null.
 - "refeicao": o nome da refeição (ex.: "Café da manhã", "Almoço").
-- "correspondente": o nome EXATO, copiado letra por letra, do item mais parecido da LISTA abaixo, respeitando o preparo (cru, cozido, grelhado). Se nenhum item for claramente o mesmo alimento, use null. Não force: verduras, legumes, temperos, bebidas sem caloria e preparações compostas quase sempre ficam null.
+- "correspondente": o nome EXATO, copiado letra por letra, do item mais parecido da LISTA abaixo, respeitando o preparo (cru, cozido, grelhado). Se nenhum item for claramente o mesmo alimento, use null. Não force: verduras, legumes, temperos, bebidas sem caloria e preparações compostas quase sempre ficam null. Versão diferente do mesmo alimento também fica null: light, desnatado, zero, integral, farelo, natural contra "com sabor", suco contra fruta, pasta de amendoim contra paçoca, peito de peru (frio) contra peru assado, chia contra linhaça.
 - NÃO inclua substituições sugeridas pelo PDF como alimentos do plano.
 
 LISTA:

@@ -110,11 +110,32 @@ export function itemDeAlimentoPlano(a: AlimentoPlanoLinha, refeicao: string | nu
   return { id: `plano:${nome}:${gramas}`, nome, categoria, kcal100g, gramas, refeicao };
 }
 
+// Variações que mudam muito a energia. A leitura do PDF às vezes liga
+// "farelo de aveia" a "Aveia, flocos" (246 contra 394 kcal) ou "iogurte
+// desnatado" a "Iogurte com sabor"; com a energia errada a troca sai errada.
+/** Se o PDF diz isto, o item da lista também precisa dizer. */
+const VARIACOES_DO_PDF = ["light", "desnatad", "zero", "diet", "farelo", "integral", "natural", "sem acucar", "proteic", "magro", "sem lactose", "pasta de", "peito de peru"];
+/** Se o item da lista diz isto, o PDF também precisa dizer. */
+const VARIACOES_DA_LISTA = ["aveia", "com sabor", "chocolate", "calda", "frit", "recheado", "condensado", "milanesa", "com pele", "com gordura", "enlatad", "em barra", "instantaneo", "doce", "pacoca", "pe-de-moleque", "linhaca", "extrato"];
+
+/**
+ * A ligação feita pela leitura do PDF é confiável? Recusa quando um lado
+ * tem uma variação que o outro não tem. Na dúvida o alimento fica de fora,
+ * melhor do que mostrar uma troca com a caloria errada.
+ */
+export function correspondenciaConfiavel(nomePdf: string, nomeLista: string): boolean {
+  const pdf = semAcento(nomePdf);
+  const lista = semAcento(nomeLista);
+  if (VARIACOES_DO_PDF.some((v) => pdf.includes(v) && !lista.includes(v))) return false;
+  if (VARIACOES_DA_LISTA.some((v) => lista.includes(v) && !pdf.includes(v))) return false;
+  return true;
+}
+
 /** Um alimento lido do PDF anexado usa a energia do item correspondente da lista. */
 export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] = LISTA_ALIMENTOS): ItemDoPlano | null {
   const nome = (r.nome || "").trim();
   const par = r.correspondente ? lista.find((a) => a.nome === r.correspondente) : undefined;
-  if (!nome || !par) return null;
+  if (!nome || !par || !correspondenciaConfiavel(nome, par.nome)) return null;
   const gramas = Number(r.quantidade_g);
   return {
     id: `pdf:${nome}:${par.id}`,
