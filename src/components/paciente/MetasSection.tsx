@@ -47,7 +47,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(empty);
@@ -65,7 +65,7 @@ export function MetasSection({ paciente }: { paciente: any }) {
     setLoading(false);
   };
 
-  const openNew = () => { setEditingId(null); setForm(empty); setAvisar(true); setDialogOpen(true); };
+  const openNew = () => { setEditingId(null); setForm(empty); setAvisar(false); setDialogOpen(true); };
 
   const openEdit = (m: any) => {
     setEditingId(m.id);

@@ -13,8 +13,9 @@ interface Props {
 
 /**
  * Caixa "Avisar a paciente por e-mail", colocada junto do botão de salvar
- * das ações que a paciente precisa saber. Vem marcada por padrão; desmarcar
- * serve para ajustes pequenos que não merecem e-mail.
+ * das ações que a paciente precisa saber. Vem sempre DESMARCADA: o e-mail só
+ * sai quando o nutri marca de propósito (já saiu aviso antes da hora quando
+ * vinha marcada). Para avisar depois, há o envelope de AvisarAgoraButton.
  */
 export function AvisarPacienteToggle({ checked, onCheckedChange, label, className }: Props) {
   const id = useId();

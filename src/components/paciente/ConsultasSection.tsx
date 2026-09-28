@@ -34,7 +34,7 @@ export function ConsultasSection({ paciente }: Props) {
   const { toast } = useToast();
   const { session } = useAuth();
 
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [form, setForm] = useState({
     data_hora: "",
     tipo: "retorno" as string,
@@ -75,7 +75,7 @@ export function ConsultasSection({ paciente }: Props) {
       // Registro de consulta que já aconteceu não é aviso para a paciente.
       if (podeAvisar && avisar) avisarPaciente(paciente.id, "consulta_agendada", { data: dataHoraISO });
       setModalOpen(false);
-      setAvisar(true);
+      setAvisar(false);
       setForm({ data_hora: "", tipo: "retorno", status: "agendado", anotacoes: "" });
       load();
     }

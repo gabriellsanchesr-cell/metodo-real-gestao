@@ -66,7 +66,7 @@ export function DiarioAlimentarSection({ paciente }: { paciente: any }) {
   const [dateFilter, setDateFilter] = useState<string>("");
   const [refeicaoFilter, setRefeicaoFilter] = useState<string>("todas");
   const [feedbackText, setFeedbackText] = useState<Record<string, string>>({});
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [sendingFeedback, setSendingFeedback] = useState<string | null>(null);
 
   useEffect(() => { loadData(); }, [paciente.id]);

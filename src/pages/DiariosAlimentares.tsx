@@ -55,7 +55,7 @@ export default function DiariosAlimentares() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedbackTarget, setFeedbackTarget] = useState<Registro | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [savingFb, setSavingFb] = useState(false);
 
   useEffect(() => {

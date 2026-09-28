@@ -66,7 +66,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
   const [search, setSearch] = useState("");
   const [selectedDetail, setSelectedDetail] = useState<Receita | null>(null);
   const [sendModal, setSendModal] = useState(false);
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [sendReceitaId, setSendReceitaId] = useState<string | null>(null);
 
   useEffect(() => { loadReceitas(); }, []);
@@ -460,7 +460,7 @@ export function ReceitaSection({ paciente }: { paciente: any }) {
                         <Button
                           variant="outline" size="sm"
                           className="h-8 text-xs rounded-lg"
-                          onClick={() => { setSendReceitaId(r.id); setAvisar(true); setSendModal(true); }}
+                          onClick={() => { setSendReceitaId(r.id); setAvisar(false); setSendModal(true); }}
                         >
                           <Send className="h-3 w-3 mr-1" /> Enviar
                         </Button>

@@ -111,12 +111,13 @@ export default function Agenda() {
   const [bloqueioDialogOpen, setBloqueioDialogOpen] = useState(false);
   const [view, setView] = useState<ViewType>("month");
   const [form, setForm] = useState<ConsultaForm>(defaultForm);
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [cancelando, setCancelando] = useState<any | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [faltando, setFaltando] = useState<any | null>(null);
-  const [avisarFalta, setAvisarFalta] = useState(true);
+  const [avisarFalta, setAvisarFalta] = useState(false);
+  const [avisarCancelamento, setAvisarCancelamento] = useState(false);
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
   const [retornosPendentes, setRetornosPendentes] = useState<any[]>([]);
 
@@ -237,7 +238,7 @@ export default function Agenda() {
       if (avisar) avisarPaciente(form.paciente_id, "consulta_agendada", { data: data_hora });
       setDialogOpen(false);
       setForm(defaultForm);
-      setAvisar(true);
+      setAvisar(false);
       loadConsultas();
       loadRetornosPendentes();
     }
@@ -293,7 +294,13 @@ export default function Agenda() {
     loadRetornosPendentes();
   };
 
-  const confirmarCancelamento = async (avisarPaciente_: boolean) => {
+  const pedirCancelamento = (c: { id: string }) => {
+    setAvisarCancelamento(false);
+    setCancelando(c);
+  };
+
+  const confirmarCancelamento = async () => {
+    const avisarPaciente_ = avisarCancelamento;
     const c = cancelando;
     setCancelando(null);
     if (!c) return;
@@ -303,7 +310,7 @@ export default function Agenda() {
   };
 
   const pedirFalta = (c: { id: string }) => {
-    setAvisarFalta(true);
+    setAvisarFalta(false);
     setFaltando(c);
   };
 
@@ -623,7 +630,7 @@ export default function Agenda() {
                                 {!isBloqueio && c.status === "agendado" && (
                                   <div className="flex gap-1">
                                     <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => updateStatus(c.id, "realizado")} aria-label="Marcar como realizada">✓</Button>
-                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setCancelando(c)} aria-label="Cancelar consulta">✗</Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => pedirCancelamento(c)} aria-label="Cancelar consulta">✗</Button>
                                     {/* Falta só faz sentido depois do horário marcado. */}
                                     {new Date(c.data_hora) <= new Date() && (
                                       <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => pedirFalta(c)} aria-label="Marcar falta" title="Paciente faltou">
@@ -759,13 +766,12 @@ export default function Agenda() {
             <AlertDialogDescription>
               {cancelando?.pacientes?.nome_completo ? `${cancelando.pacientes.nome_completo}, ` : ""}
               {cancelando ? format(new Date(cancelando.data_hora), "dd/MM 'às' HH:mm") : ""}.
-              Quer avisar a paciente por e-mail?
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <AvisarPacienteToggle checked={avisarCancelamento} onCheckedChange={setAvisarCancelamento} />
           <AlertDialogFooter>
             <AlertDialogCancel>Voltar</AlertDialogCancel>
-            <Button variant="outline" onClick={() => confirmarCancelamento(false)}>Cancelar sem avisar</Button>
-            <AlertDialogAction onClick={() => confirmarCancelamento(true)}>Cancelar e avisar</AlertDialogAction>
+            <AlertDialogAction onClick={confirmarCancelamento}>Cancelar consulta</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

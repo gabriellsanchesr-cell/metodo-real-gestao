@@ -184,7 +184,7 @@ export function PlanoAlimentarEditor({ pacienteId, planoId, onBack, paciente, in
   // Status que está gravado no banco, para saber se salvar ativou o plano
   // agora (aviso de plano novo) ou se ele já estava ativo (aviso de ajuste).
   const [statusSalvo, setStatusSalvo] = useState<string | null>(null);
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [importedBanner, setImportedBanner] = useState(!!initialData);
   const [plano, setPlano] = useState<PlanoData>({

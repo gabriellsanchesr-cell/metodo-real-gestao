@@ -52,7 +52,7 @@ export function PlanoAlimentarSection({ paciente }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [ativando, setAtivando] = useState<any | null>(null);
   const [lendoAlimentos, setLendoAlimentos] = useState<string | null>(null);
-  const [avisarAtivacao, setAvisarAtivacao] = useState(true);
+  const [avisarAtivacao, setAvisarAtivacao] = useState(false);
   const [exportPlano, setExportPlano] = useState<any>(null);
   const [exportType, setExportType] = useState<"plano_alimentar" | "plano_simplificado">("plano_alimentar");
   const [importOpen, setImportOpen] = useState(false);
@@ -212,7 +212,7 @@ export function PlanoAlimentarSection({ paciente }: Props) {
   // plano aparece para a paciente e em que faz sentido avisá-la.
   const pedirToggle = (plano: Parameters<typeof toggleStatus>[0]) => {
     if (plano.status === "ativo") { toggleStatus(plano); return; }
-    setAvisarAtivacao(true);
+    setAvisarAtivacao(false);
     setAtivando(plano);
   };
 

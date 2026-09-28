@@ -72,7 +72,7 @@ export default function ConteudoReal() {
   const [faseAtiva, setFaseAtiva] = useState("rotina");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [promovendo, setPromovendo] = useState<{ paciente: any; faseIdx: number } | null>(null);
-  const [avisarPromocao, setAvisarPromocao] = useState(true);
+  const [avisarPromocao, setAvisarPromocao] = useState(false);
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -369,7 +369,7 @@ export default function ConteudoReal() {
                         <TableCell>
                           {faseIdx < FASES.length - 1 && (
                             <Button size="sm" variant="outline" className="text-xs h-7"
-                              onClick={() => { setAvisarPromocao(true); setPromovendo({ paciente: p, faseIdx }); }}>
+                              onClick={() => { setAvisarPromocao(false); setPromovendo({ paciente: p, faseIdx }); }}>
                               Promover → {FASES[faseIdx + 1]?.label}
                             </Button>
                           )}

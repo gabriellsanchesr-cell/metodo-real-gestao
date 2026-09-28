@@ -89,7 +89,7 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
   const [nome, setNome] = useState("Plano (PDF anexado)");
   const [observacoes, setObservacoes] = useState("");
   const [status, setStatus] = useState<"ativo" | "rascunho">("ativo");
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
@@ -99,7 +99,7 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       setNome(planoExistente?.nome || "Plano (PDF anexado)");
       setObservacoes(planoExistente?.observacoes || "");
       setStatus((planoExistente?.status as any) || "ativo");
-      setAvisar(true);
+      setAvisar(false);
       setSaving(false);
       setProgress("");
     }

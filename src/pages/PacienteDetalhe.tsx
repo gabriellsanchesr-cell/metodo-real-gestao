@@ -55,7 +55,7 @@ export default function PacienteDetalhe() {
       const { data, error } = await supabase.functions.invoke("manage-patient-auth", { body: { action, paciente_id: id } });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      toast({ title: "Sucesso", description: action === "deactivate" ? "Acesso desativado." : "Acesso reativado." });
+      toast({ title: action === "deactivate" ? "Acesso ao portal bloqueado" : "Acesso ao portal liberado" });
       loadPaciente();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });

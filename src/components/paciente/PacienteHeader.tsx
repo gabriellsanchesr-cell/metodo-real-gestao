@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, KeyRound, UserX, UserCheck, Trash2, Pencil, MoreVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Pencil, MoreVertical } from "lucide-react";
+import { AcessoPortalControle } from "./AcessoPortalControle";
 import {
   Breadcrumb,
   BreadcrumbList,
@@ -25,16 +26,11 @@ const faseLabels: Record<string, { label: string; color: string }> = {
   liberdade: { label: "Liberdade", color: "bg-accent text-accent-foreground border-accent" },
 };
 
+// Selo do CADASTRO (arquivada ou não). O acesso ao portal tem controle
+// próprio ao lado; antes os dois diziam "Ativo/Inativo" e se confundiam.
 const statusLabels: Record<string, { label: string; color: string }> = {
-  ativo: { label: "Ativo", color: "bg-success/10 text-success border-success/20" },
-  desativado: { label: "Inativo", color: "bg-destructive/10 text-destructive border-destructive/20" },
-  sem_conta: { label: "Sem Conta", color: "bg-muted text-muted-foreground border-border" },
-};
-
-const accessLabels: Record<string, { label: string; color: string }> = {
-  ativo: { label: "Com Conta", color: "bg-primary/10 text-primary border-primary/20" },
-  desativado: { label: "Conta Inativa", color: "bg-warning/10 text-warning border-warning/20" },
-  sem_conta: { label: "Sem Conta", color: "bg-muted text-muted-foreground border-border" },
+  ativo: { label: "Em acompanhamento", color: "bg-success/10 text-success border-success/20" },
+  arquivada: { label: "Arquivada", color: "bg-muted text-muted-foreground border-border" },
 };
 
 function getInitials(name: string) {
@@ -74,8 +70,7 @@ export function PacienteHeader({
   const age = useMemo(() => calcAge(paciente.data_nascimento), [paciente.data_nascimento]);
   const faseCfg = faseLabels[fase] || faseLabels.rotina;
   const isAtivo = paciente.ativo !== false;
-  const statusCfg = isAtivo ? statusLabels.ativo : statusLabels.desativado;
-  const accessCfg = accessLabels[status] || accessLabels.sem_conta;
+  const statusCfg = isAtivo ? statusLabels.ativo : statusLabels.arquivada;
 
   return (
     <div className="bg-gradient-to-r from-card to-card/80 border-b border-border">
@@ -101,7 +96,7 @@ export function PacienteHeader({
         </Breadcrumb>
       </div>
 
-      <div className="px-4 md:px-6 pb-3 md:pb-4 flex items-center gap-3 md:gap-4">
+      <div className="px-4 md:px-6 pb-3 md:pb-4 flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/pacientes")} className="shrink-0 h-9 w-9">
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -119,13 +114,23 @@ export function PacienteHeader({
             <span className={`inline-flex items-center rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold transition-colors ${faseCfg.color}`}>
               {faseCfg.label}
             </span>
-            <span className={`inline-flex items-center rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold ${statusCfg.color}`}>
+            <span className={`inline-flex items-center whitespace-nowrap rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold ${statusCfg.color}`}>
               {statusCfg.label}
             </span>
-            <span className={`hidden sm:inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${accessCfg.color}`}>
-              {accessCfg.label}
-            </span>
           </div>
+        </div>
+
+        {/* Acesso ao portal: visível em qualquer tela, não só no menu. No
+            celular desce para uma linha própria, senão espreme o nome. */}
+        <div className="order-last basis-full pl-12 md:order-none md:basis-auto md:pl-0 shrink-0">
+          <AcessoPortalControle
+            nome={paciente.nome_completo}
+            status={status}
+            carregando={actionLoading}
+            onCriar={onCreateAccess}
+            onLiberar={onReactivate}
+            onBloquear={onDeactivate}
+          />
         </div>
 
         {/* Desktop actions */}
@@ -133,21 +138,6 @@ export function PacienteHeader({
           <Button size="sm" variant="outline" onClick={onEdit} className="rounded-lg">
             <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
           </Button>
-          {status === "sem_conta" && (
-            <Button size="sm" onClick={onCreateAccess} className="rounded-lg">
-              <KeyRound className="h-3.5 w-3.5 mr-1" /> Criar Acesso
-            </Button>
-          )}
-          {status === "ativo" && (
-            <Button size="sm" variant="outline" onClick={onDeactivate} disabled={actionLoading} className="rounded-lg">
-              <UserX className="h-3.5 w-3.5 mr-1" /> Desativar
-            </Button>
-          )}
-          {status === "desativado" && (
-            <Button size="sm" variant="outline" onClick={onReactivate} disabled={actionLoading} className="rounded-lg">
-              <UserCheck className="h-3.5 w-3.5 mr-1" /> Reativar
-            </Button>
-          )}
           <Button size="sm" variant="destructive" onClick={onDelete} className="rounded-lg">
             <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
           </Button>
@@ -165,21 +155,6 @@ export function PacienteHeader({
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
-              {status === "sem_conta" && (
-                <DropdownMenuItem onClick={onCreateAccess}>
-                  <KeyRound className="h-4 w-4 mr-2" /> Criar Acesso
-                </DropdownMenuItem>
-              )}
-              {status === "ativo" && (
-                <DropdownMenuItem onClick={onDeactivate} disabled={actionLoading}>
-                  <UserX className="h-4 w-4 mr-2" /> Desativar Acesso
-                </DropdownMenuItem>
-              )}
-              {status === "desativado" && (
-                <DropdownMenuItem onClick={onReactivate} disabled={actionLoading}>
-                  <UserCheck className="h-4 w-4 mr-2" /> Reativar Acesso
-                </DropdownMenuItem>
-              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" /> Excluir

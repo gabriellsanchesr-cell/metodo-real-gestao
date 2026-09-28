@@ -40,7 +40,7 @@ export function QuestionariosSection({ paciente }: Props) {
   const [loading, setLoading] = useState(true);
   const [sendOpen, setSendOpen] = useState(false);
   const [sendTipo, setSendTipo] = useState("checkin_semanal");
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [sending, setSending] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewData, setViewData] = useState<any>(null);

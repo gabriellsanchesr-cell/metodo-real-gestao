@@ -178,7 +178,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   const { toast } = useToast();
   const [avaliacoes, setAvaliacoes] = useState<any[]>([]);
   const [view, setView] = useState<"list" | "form">("list");
-  const [avisar, setAvisar] = useState(true);
+  const [avisar, setAvisar] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<Record<string, any>>({});
   const [saving, setSaving] = useState(false);
@@ -276,7 +276,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
       }
       toast({ title: "Avaliação salva!" });
       if (!editId && avisar) avisarPaciente(paciente.id, "avaliacao_registrada");
-      setAvisar(true);
+      setAvisar(false);
       loadAvaliacoes();
       setView("list");
     } catch (e: any) {
