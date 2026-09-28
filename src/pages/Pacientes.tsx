@@ -21,7 +21,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { TableSkeleton } from "@/components/Loading";
 import { format } from "date-fns";
-import { gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
+import { arquivarPaciente, descreverIgnoradas, gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
+import { ArquivarPacientesDialog } from "@/components/paciente/ArquivarPacientesDialog";
 import { AcessoPortalControle } from "@/components/paciente/AcessoPortalControle";
 
 
@@ -138,8 +139,7 @@ export default function Pacientes() {
   // pacientes sem conta e clicar em "Desativar acesso" não fazia nada, sem aviso.
   const acessoEmMassa = async (action: "deactivate" | "reactivate") => {
     const { aplicaveis, ignoradas } = separarPorAcesso(selectedPacientes, action);
-    const nomes = ignoradas.slice(0, 4).map((i) => `${i.paciente.nome_completo.trim()} (${i.motivo})`).join(", ")
-      + (ignoradas.length > 4 ? ` e mais ${ignoradas.length - 4}` : "");
+    const nomes = descreverIgnoradas(ignoradas);
     if (aplicaveis.length === 0) {
       toast({
         title: action === "deactivate" ? "Nenhum acesso para bloquear" : "Nenhum acesso para liberar",
@@ -168,6 +168,9 @@ export default function Pacientes() {
       if (error) throw error;
     });
   };
+
+  const bulkArquivar = (bloquear: boolean) =>
+    runBulk(bloquear ? "Arquivadas e com acesso bloqueado" : "Cadastros arquivados", (p) => arquivarPaciente(p, bloquear));
 
   const bulkSetAtivo = (ativo: boolean) =>
     runBulk(ativo ? "Cadastros reativados" : "Cadastros arquivados", async (p) => {
@@ -422,37 +425,12 @@ export default function Pacientes() {
       </div>
       )}
 
-      <AlertDialog open={confirmarArquivar} onOpenChange={setConfirmarArquivar}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Arquivar {selected.length} paciente{selected.length !== 1 ? "s" : ""}?
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2">
-                <p>{selectedPacientes.slice(0, 5).map((p) => p.nome_completo).join(", ")}
-                  {selectedPacientes.length > 5 ? ` e mais ${selectedPacientes.length - 5}.` : "."}</p>
-                <p>
-                  Elas saem da lista e passam a aparecer só no filtro "Arquivados". Nada é apagado, e
-                  dá para reativar depois.
-                </p>
-                {selectedPacientes.some((p) => p.account_status === "ativo") && (
-                  <p className="font-medium text-foreground">
-                    Atenção: arquivar não remove o acesso ao portal. Quem tem conta ativa continua
-                    conseguindo entrar.
-                  </p>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmarArquivar(false); bulkSetAtivo(false); }}>
-              Arquivar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArquivarPacientesDialog
+        open={confirmarArquivar}
+        onOpenChange={setConfirmarArquivar}
+        pacientes={selectedPacientes}
+        onConfirmar={bulkArquivar}
+      />
 
       {accessModal.paciente && (
         <PacienteAccessModal

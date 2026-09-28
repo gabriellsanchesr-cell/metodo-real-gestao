@@ -44,3 +44,29 @@ export function separarPorAcesso<T extends { account_status?: string | null }>(
   }
   return { aplicaveis, ignoradas };
 }
+
+/** "Anna Maria (não tem conta no portal), ..." para os avisos de ação em massa. */
+export function descreverIgnoradas(ignoradas: { paciente: { nome_completo: string }; motivo: string }[]): string {
+  return ignoradas.slice(0, 4).map((i) => `${i.paciente.nome_completo.trim()} (${i.motivo})`).join(", ")
+    + (ignoradas.length > 4 ? ` e mais ${ignoradas.length - 4}` : "");
+}
+
+/**
+ * Arquiva a paciente e, se pedido, bloqueia o portal de quem está liberada.
+ * O bloqueio vem depois: se ele falhar, o arquivamento já valeu e o erro diz
+ * que só o acesso ficou para trás.
+ */
+export async function arquivarPaciente(
+  p: { id: string; account_status?: string | null },
+  bloquear: boolean,
+): Promise<void> {
+  const { error } = await supabase.from("pacientes").update({ ativo: false }).eq("id", p.id);
+  if (error) throw error;
+  if (bloquear && p.account_status === "ativo") {
+    try {
+      await gerenciarAcesso("deactivate", p.id);
+    } catch (e) {
+      throw new Error(`arquivada, mas o acesso não foi bloqueado: ${(e as Error).message}`);
+    }
+  }
+}

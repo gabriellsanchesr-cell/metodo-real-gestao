@@ -18,6 +18,8 @@ import { PortalPermissoesModal } from "./PortalPermissoesModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
+import { arquivarPaciente, descreverIgnoradas, gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
+import { ArquivarPacientesDialog } from "@/components/paciente/ArquivarPacientesDialog";
 
 
 const statusBadge: Record<string, string> = {
@@ -46,6 +48,7 @@ export function PacientesTab() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkFase, setBulkFase] = useState("");
+  const [confirmarArquivar, setConfirmarArquivar] = useState(false);
 
 
   const load = async () => {
@@ -68,11 +71,8 @@ export function PacientesTab() {
     if (!pac.auth_user_id) return;
     const action = pac.account_status === "ativo" ? "deactivate" : "reactivate";
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-        body: { action, paciente_id: pac.id },
-      });
-      if (error || data?.error) throw new Error(data?.error || error?.message);
-      toast({ title: "Sucesso", description: action === "deactivate" ? "Acesso desativado." : "Acesso reativado." });
+      await gerenciarAcesso(action, pac.id);
+      toast({ title: action === "deactivate" ? "Acesso ao portal bloqueado" : "Acesso ao portal liberado", description: pac.nome_completo });
       load();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
@@ -82,10 +82,7 @@ export function PacientesTab() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-        body: { action: "delete", paciente_id: deleteTarget.id },
-      });
-      if (error || data?.error) throw new Error(data?.error || error?.message);
+      await gerenciarAcesso("delete", deleteTarget.id);
       toast({ title: "Sucesso", description: "Paciente excluído." });
       setDeleteTarget(null);
       load();
@@ -130,20 +127,26 @@ export function PacientesTab() {
     });
   };
 
-  const invokeAuth = async (action: string, paciente_id: string) => {
-    const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-      body: { action, paciente_id },
-    });
-    if (error || data?.error) throw new Error(data?.error || error?.message);
+  const invokeAuth = (action: "deactivate" | "reactivate" | "delete", paciente_id: string) =>
+    gerenciarAcesso(action, paciente_id);
+
+  // Quem não se encaixa (sem conta, já bloqueada) era descartado em silêncio.
+  const acessoEmMassa = async (action: "deactivate" | "reactivate") => {
+    const { aplicaveis, ignoradas } = separarPorAcesso(selectedPacientes, action);
+    if (aplicaveis.length === 0) {
+      toast({
+        title: action === "deactivate" ? "Nenhum acesso para bloquear" : "Nenhum acesso para liberar",
+        description: `${descreverIgnoradas(ignoradas)}.`,
+      });
+      return;
+    }
+    await runBulk(action === "deactivate" ? "Acessos bloqueados" : "Acessos liberados", p => invokeAuth(action, p.id), aplicaveis);
+    if (ignoradas.length) toast({ title: "Algumas ficaram de fora", description: `${descreverIgnoradas(ignoradas)}.` });
   };
-
-  const bulkDeactivate = () =>
-    runBulk("Acessos desativados", p => invokeAuth("deactivate", p.id),
-      selectedPacientes.filter(p => p.account_status === "ativo"));
-
-  const bulkReactivate = () =>
-    runBulk("Acessos reativados", p => invokeAuth("reactivate", p.id),
-      selectedPacientes.filter(p => p.account_status === "desativado"));
+  const bulkDeactivate = () => acessoEmMassa("deactivate");
+  const bulkReactivate = () => acessoEmMassa("reactivate");
+  const bulkArquivar = (bloquear: boolean) =>
+    runBulk(bloquear ? "Arquivadas e com acesso bloqueado" : "Pacientes arquivados", p => arquivarPaciente(p, bloquear));
 
   const bulkDelete = async () => {
     setBulkDeleteOpen(false);
@@ -212,9 +215,9 @@ export function PacientesTab() {
               <SelectItem value="liberdade">Liberdade</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={bulkDeactivate}>Desativar acesso</Button>
-          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={bulkReactivate}>Reativar acesso</Button>
-          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={() => bulkSetAtivo(false)}>Arquivar</Button>
+          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={bulkDeactivate}>Bloquear acesso</Button>
+          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={bulkReactivate}>Liberar acesso</Button>
+          <Button variant="outline" size="sm" disabled={bulkBusy} onClick={() => setConfirmarArquivar(true)}>Arquivar</Button>
           <Button variant="outline" size="sm" disabled={bulkBusy} onClick={() => bulkSetAtivo(true)}>Reativar cadastro</Button>
           <Button variant="destructive" size="sm" disabled={bulkBusy} onClick={() => setBulkDeleteOpen(true)} className="gap-1">
             <Trash2 className="h-4 w-4" /> Excluir
@@ -336,6 +339,12 @@ export function PacientesTab() {
         onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}
         pacienteNome={deleteTarget?.nome_completo || ""}
         onConfirm={handleDelete}
+      />
+      <ArquivarPacientesDialog
+        open={confirmarArquivar}
+        onOpenChange={setConfirmarArquivar}
+        pacientes={selectedPacientes}
+        onConfirmar={bulkArquivar}
       />
       <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
         <AlertDialogContent>
