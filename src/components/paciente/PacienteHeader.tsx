@@ -96,7 +96,7 @@ export function PacienteHeader({
         </Breadcrumb>
       </div>
 
-      <div className="px-4 md:px-6 pb-3 md:pb-4 flex flex-wrap md:flex-nowrap items-center gap-3 md:gap-4">
+      <div className="px-4 md:px-6 pb-3 md:pb-4 flex items-center gap-3 md:gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/pacientes")} className="shrink-0 h-9 w-9">
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -109,6 +109,16 @@ export function PacienteHeader({
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-base md:text-xl font-bold text-foreground truncate">{paciente.nome_completo}</h1>
             {age !== null && <span className="text-xs md:text-sm text-muted-foreground shrink-0">{age} anos</span>}
+            {/* Acesso ao portal colado ao nome, em qualquer tela. */}
+            <AcessoPortalControle
+              compacto
+              nome={paciente.nome_completo}
+              status={status}
+              carregando={actionLoading}
+              onCriar={onCreateAccess}
+              onLiberar={onReactivate}
+              onBloquear={onDeactivate}
+            />
           </div>
           <div className="flex gap-1.5 mt-1 md:mt-1.5 flex-wrap">
             <span className={`inline-flex items-center rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold transition-colors ${faseCfg.color}`}>
@@ -118,19 +128,6 @@ export function PacienteHeader({
               {statusCfg.label}
             </span>
           </div>
-        </div>
-
-        {/* Acesso ao portal: visível em qualquer tela, não só no menu. No
-            celular desce para uma linha própria, senão espreme o nome. */}
-        <div className="order-last basis-full pl-12 md:order-none md:basis-auto md:pl-0 shrink-0">
-          <AcessoPortalControle
-            nome={paciente.nome_completo}
-            status={status}
-            carregando={actionLoading}
-            onCriar={onCreateAccess}
-            onLiberar={onReactivate}
-            onBloquear={onDeactivate}
-          />
         </div>
 
         {/* Desktop actions */}

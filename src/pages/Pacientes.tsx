@@ -21,6 +21,8 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { TableSkeleton } from "@/components/Loading";
 import { format } from "date-fns";
+import { gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
+import { AcessoPortalControle } from "@/components/paciente/AcessoPortalControle";
 
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -106,12 +108,8 @@ export default function Pacientes() {
   const toggleAllFiltered = () =>
     setSelected(allFilteredSelected ? [] : filtered.map((p) => p.id));
 
-  const invokeAuth = async (action: string, paciente_id: string) => {
-    const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-      body: { action, paciente_id },
-    });
-    if (error || data?.error) throw new Error(data?.error || error?.message);
-  };
+  const invokeAuth = (action: "deactivate" | "reactivate" | "delete", paciente_id: string) =>
+    gerenciarAcesso(action, paciente_id);
 
   const runBulk = async (label: string, fn: (p: any) => Promise<void>, items: any[] = selectedPacientes) => {
     if (items.length === 0) return;
@@ -136,13 +134,27 @@ export default function Pacientes() {
     });
   };
 
-  const bulkDeactivate = () =>
-    runBulk("Acessos desativados", (p) => invokeAuth("deactivate", p.id),
-      selectedPacientes.filter((p) => p.account_status === "ativo"));
-
-  const bulkReactivate = () =>
-    runBulk("Acessos reativados", (p) => invokeAuth("reactivate", p.id),
-      selectedPacientes.filter((p) => p.account_status === "desativado"));
+  // Antes, quem não se encaixava era descartado em silêncio: selecionar só
+  // pacientes sem conta e clicar em "Desativar acesso" não fazia nada, sem aviso.
+  const acessoEmMassa = async (action: "deactivate" | "reactivate") => {
+    const { aplicaveis, ignoradas } = separarPorAcesso(selectedPacientes, action);
+    const nomes = ignoradas.slice(0, 4).map((i) => `${i.paciente.nome_completo.trim()} (${i.motivo})`).join(", ")
+      + (ignoradas.length > 4 ? ` e mais ${ignoradas.length - 4}` : "");
+    if (aplicaveis.length === 0) {
+      toast({
+        title: action === "deactivate" ? "Nenhum acesso para bloquear" : "Nenhum acesso para liberar",
+        description: `${nomes}. Para quem não tem conta, use "Criar acesso" ao lado do nome.`,
+      });
+      return;
+    }
+    await runBulk(action === "deactivate" ? "Acessos bloqueados" : "Acessos liberados",
+      (p) => invokeAuth(action, p.id), aplicaveis);
+    if (ignoradas.length) toast({ title: "Algumas ficaram de fora", description: `${nomes}.` });
+  };
+  const bulkDeactivate = () => acessoEmMassa("deactivate");
+  const bulkReactivate = () => acessoEmMassa("reactivate");
+  const podemBloquear = separarPorAcesso(selectedPacientes, "deactivate").aplicaveis.length;
+  const podemLiberar = separarPorAcesso(selectedPacientes, "reactivate").aplicaveis.length;
 
   const bulkDelete = async () => {
     setBulkDeleteOpen(false);
@@ -167,15 +179,14 @@ export default function Pacientes() {
   const handleAction = async (action: "deactivate" | "reactivate", paciente: any) => {
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-        body: { action, paciente_id: paciente.id },
+      await gerenciarAcesso(action, paciente.id);
+      toast({
+        title: action === "deactivate" ? "Acesso ao portal bloqueado" : "Acesso ao portal liberado",
+        description: paciente.nome_completo.trim(),
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: "Sucesso", description: action === "deactivate" ? "Acesso desativado." : "Acesso reativado." });
       loadPacientes();
     } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      toast({ title: "Não consegui alterar o acesso", description: err.message, variant: "destructive" });
     } finally {
       setActionLoading(false);
     }
@@ -185,11 +196,7 @@ export default function Pacientes() {
     if (!deleteModal.paciente) return;
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-        body: { action: "delete", paciente_id: deleteModal.paciente.id },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await gerenciarAcesso("delete", deleteModal.paciente.id);
       toast({ title: "Sucesso", description: "Paciente excluído permanentemente." });
       setDeleteModal({ open: false, paciente: null });
       loadPacientes();
@@ -252,11 +259,13 @@ export default function Pacientes() {
                 <SelectItem value="liberdade">Liberdade</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkDeactivate}>
-              <UserX className="h-4 w-4 mr-1.5" /> Desativar acesso
+            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkDeactivate}
+              title={podemBloquear ? undefined : "Nenhuma selecionada está com o portal liberado"}>
+              <UserX className="h-4 w-4 mr-1.5" /> Bloquear acesso{podemBloquear ? ` (${podemBloquear})` : ""}
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkReactivate}>
-              <UserCheck className="h-4 w-4 mr-1.5" /> Reativar acesso
+            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkReactivate}
+              title={podemLiberar ? undefined : "Nenhuma selecionada está com o portal bloqueado"}>
+              <UserCheck className="h-4 w-4 mr-1.5" /> Liberar acesso{podemLiberar ? ` (${podemLiberar})` : ""}
             </Button>
             <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => setConfirmarArquivar(true)}>
               <Archive className="h-4 w-4 mr-1.5" /> Arquivar
@@ -322,6 +331,18 @@ export default function Pacientes() {
                           {getInitials(p.nome_completo)}
                         </div>
                         <span className="font-medium text-foreground truncate">{p.nome_completo}</span>
+                        {/* A linha inteira abre a ficha; o controle (e o diálogo dele) não pode propagar o clique. */}
+                        <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <AcessoPortalControle
+                            compacto
+                            nome={p.nome_completo}
+                            status={status}
+                            carregando={actionLoading}
+                            onCriar={() => setAccessModal({ open: true, paciente: p, mode: "create" })}
+                            onLiberar={() => handleAction("reactivate", p)}
+                            onBloquear={() => handleAction("deactivate", p)}
+                          />
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground hidden xl:table-cell">{p.email || "—"}</TableCell>
@@ -361,13 +382,13 @@ export default function Pacientes() {
                               <Pencil className="h-4 w-4 mr-2" /> Editar Acesso
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleAction("deactivate", p)}>
-                              <UserX className="h-4 w-4 mr-2" /> Desativar
+                              <UserX className="h-4 w-4 mr-2" /> Bloquear acesso
                             </DropdownMenuItem>
                           </>
                         )}
                         {status === "desativado" && (
                           <DropdownMenuItem onClick={() => handleAction("reactivate", p)}>
-                            <UserCheck className="h-4 w-4 mr-2" /> Reativar
+                            <UserCheck className="h-4 w-4 mr-2" /> Liberar acesso
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteModal({ open: true, paciente: p })}>

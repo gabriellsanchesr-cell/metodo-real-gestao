@@ -28,6 +28,7 @@ import { ContratoSection } from "@/components/paciente/ContratoSection";
 import { EmailsSection } from "@/components/paciente/EmailsSection";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { gerenciarAcesso } from "@/lib/acessoPortal";
 
 export default function PacienteDetalhe() {
   const { id } = useParams();
@@ -52,22 +53,18 @@ export default function PacienteDetalhe() {
   const handleAction = async (action: "deactivate" | "reactivate") => {
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", { body: { action, paciente_id: id } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await gerenciarAcesso(action, id!);
       toast({ title: action === "deactivate" ? "Acesso ao portal bloqueado" : "Acesso ao portal liberado" });
       loadPaciente();
     } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      toast({ title: "Não consegui alterar o acesso", description: err.message, variant: "destructive" });
     } finally { setActionLoading(false); }
   };
 
   const handleDelete = async () => {
     setActionLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", { body: { action: "delete", paciente_id: id } });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      await gerenciarAcesso("delete", id!);
       toast({ title: "Sucesso", description: "Paciente excluído." });
       navigate("/pacientes");
     } catch (err: any) {

@@ -98,6 +98,9 @@ export default function PortalPaciente() {
       const { data: pac } = await supabase
         .from("pacientes").select("*").eq("auth_user_id", user!.id).maybeSingle();
       setPaciente(pac);
+      // Bloqueio feito pelo nutri: o login já é recusado, mas quem estava com
+      // o portal aberto seguia usando. Não carrega mais nada.
+      if (pac?.account_status === "desativado") return;
       if (pac) {
         const { data: planoData } = await supabase
           .from("planos_alimentares")
@@ -211,6 +214,24 @@ export default function PortalPaciente() {
           <CardContent className="py-8 text-center text-muted-foreground">
             <p>Seu perfil de paciente ainda não foi vinculado.</p>
             <p className="text-sm mt-2">Entre em contato com seu nutricionista.</p>
+            <Button variant="outline" className="mt-4" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" /> Sair
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (paciente.account_status === "desativado") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <Card className="max-w-sm w-full rounded-2xl glass-card">
+          <CardContent className="py-8 text-center">
+            <p className="font-semibold text-foreground">Seu acesso ao portal está pausado</p>
+            <p className="text-sm mt-2 text-muted-foreground">
+              Seus dados continuam guardados. Para voltar a acessar, fale com seu nutri.
+            </p>
             <Button variant="outline" className="mt-4" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" /> Sair
             </Button>
