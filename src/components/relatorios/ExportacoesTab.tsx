@@ -17,7 +17,12 @@ interface Props {
 }
 
 function downloadCSV(filename: string, headers: string[], rows: string[][]) {
-  const csv = [headers.join(","), ...rows.map(r => r.map(c => `"${(c || "").replace(/"/g, '""')}"`).join(","))].join("\n");
+  const escapeCell = (value: string) => {
+    const text = value || "";
+    const formulaSafe = /^[=+\-@]/.test(text.trimStart()) ? `'${text}` : text;
+    return `"${formulaSafe.replace(/"/g, '""')}"`;
+  };
+  const csv = [headers, ...rows].map(row => row.map(escapeCell).join(",")).join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
