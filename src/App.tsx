@@ -31,6 +31,7 @@ import Suplementos from "./pages/Suplementos";
 import Vencimentos from "./pages/Vencimentos";
 import Relatorios from "./pages/Relatorios";
 import Leads from "./pages/Leads";
+import CaptacaoHoje from "./pages/CaptacaoHoje";
 import Financeiro from "./pages/Financeiro";
 import Substituicoes from "./pages/Substituicoes";
 import NotFound from "./pages/NotFound";
@@ -105,6 +106,7 @@ const App = () => (
               <Route path="templates" element={<Templates />} />
               <Route path="relatorios" element={<Relatorios />} />
               <Route path="leads" element={<Leads />} />
+              <Route path="captacao" element={<CaptacaoHoje />} />
               <Route path="financeiro" element={<Financeiro />} />
 
               <Route path="vencimentos" element={<Vencimentos />} />

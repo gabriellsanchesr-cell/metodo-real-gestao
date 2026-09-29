@@ -51,6 +51,7 @@ export function AppSidebar() {
     "/suplementos": isAdmin || hasPermission("planos", "ver"),
     "/relatorios": isAdmin,
     "/templates": isAdmin || hasPermission("planos", "criar"),
+    "/captacao": isAdmin,
     "/leads": isAdmin,
     "/financeiro": isAdmin || hasPermission("financeiro", "ver"),
   };

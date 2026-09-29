@@ -12,7 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/PageHeader";
 import { formatBRL } from "@/lib/format";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Search, GripVertical, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Plus, Search, GripVertical, Pencil, Trash2, UserPlus, UserCheck, Upload, CalendarClock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ORIGENS_LEAD, lerCsvLeads } from "@/lib/captacao";
+import { converterLead, importarLeads, listarParceiros, type Parceiro } from "@/lib/captacaoApi";
+import { faltaMigration } from "@/lib/contratosApi";
+import { formatarData } from "@/lib/vencimento";
 
 type Lead = {
   id: string;
@@ -26,6 +31,10 @@ type Lead = {
   anotacoes: string | null;
   created_at: string;
   updated_at: string;
+  // Colunas da migration 20260929120000_captacao (ausentes antes de aplicá-la).
+  proximo_toque?: string | null;
+  parceiro_id?: string | null;
+  indicado_por_paciente_id?: string | null;
 };
 
 const STATUS_COLUMNS = [
@@ -36,14 +45,12 @@ const STATUS_COLUMNS = [
   { key: "perdido", label: "Perdido", color: "bg-red-500" },
 ];
 
-const ORIGENS = [
-  { value: "indicacao", label: "Indicação" },
-  { value: "instagram", label: "Instagram" },
-  { value: "site", label: "Site" },
-  { value: "outro", label: "Outro" },
-];
+const ORIGENS = ORIGENS_LEAD;
 
-const emptyLead = { nome: "", email: "", telefone: "", origem: "indicacao", valor_estimado: "", anotacoes: "" };
+const emptyLead = {
+  nome: "", email: "", telefone: "", origem: "indicacao", valor_estimado: "", anotacoes: "",
+  proximo_toque: "", parceiro_id: "", indicado_por_paciente_id: "",
+};
 
 export default function Leads() {
   const { user } = useAuth();
@@ -55,6 +62,11 @@ export default function Leads() {
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [form, setForm] = useState(emptyLead);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // Falso até a migration de captação ser aplicada: os campos novos ficam escondidos.
+  const [captacaoAtiva, setCaptacaoAtiva] = useState(false);
+  const [parceiros, setParceiros] = useState<Parceiro[]>([]);
+  const [pacientes, setPacientes] = useState<{ id: string; nome_completo: string }[]>([]);
 
   const fetchLeads = async () => {
     if (!user) return;
@@ -68,6 +80,42 @@ export default function Leads() {
   };
 
   useEffect(() => { fetchLeads(); }, [user]);
+
+  useEffect(() => {
+    listarParceiros()
+      .then((ps) => { setParceiros(ps); setCaptacaoAtiva(true); })
+      .catch((e) => { if (!faltaMigration(e)) console.warn("parceiros", e); });
+    supabase.from("pacientes").select("id, nome_completo").order("nome_completo")
+      .then(({ data }) => setPacientes(data ?? []));
+  }, [user]);
+
+  const converter = async (lead: Lead) => {
+    if (!user) return;
+    try {
+      const id = await converterLead(user.id, lead);
+      toast({ title: "Paciente criado a partir do lead" });
+      navigate(`/pacientes/${id}`);
+    } catch (e) {
+      console.warn(e);
+      toast({ title: "Não deu para converter", variant: "destructive" });
+    }
+  };
+
+  const importarCsv = async (arquivo: File | undefined) => {
+    if (!user || !arquivo) return;
+    const { leads: novos, ignoradas } = lerCsvLeads(await arquivo.text());
+    try {
+      await importarLeads(user.id, novos);
+      toast({
+        title: `${novos.length} lead(s) importado(s)`,
+        description: ignoradas ? `${ignoradas} linha(s) sem nome nem telefone ignorada(s).` : undefined,
+      });
+      fetchLeads();
+    } catch (e) {
+      console.warn(e);
+      toast({ title: "Erro ao importar", description: "Confira se o arquivo tem cabeçalho com nome e telefone.", variant: "destructive" });
+    }
+  };
 
   const openCreate = () => {
     setEditingLead(null);
@@ -84,6 +132,9 @@ export default function Leads() {
       origem: lead.origem,
       valor_estimado: lead.valor_estimado?.toString() || "",
       anotacoes: lead.anotacoes || "",
+      proximo_toque: lead.proximo_toque || "",
+      parceiro_id: lead.parceiro_id || "",
+      indicado_por_paciente_id: lead.indicado_por_paciente_id || "",
     });
     setModalOpen(true);
   };
@@ -101,14 +152,22 @@ export default function Leads() {
       origem: form.origem,
       valor_estimado: form.valor_estimado ? parseFloat(form.valor_estimado) : null,
       anotacoes: form.anotacoes || null,
+      ...(captacaoAtiva ? {
+        proximo_toque: form.proximo_toque || null,
+        parceiro_id: form.parceiro_id || null,
+        indicado_por_paciente_id: form.indicado_por_paciente_id || null,
+      } : {}),
     };
 
+    // Os tipos gerados só conhecem as colunas novas depois da migration de captação.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
     if (editingLead) {
-      const { error } = await supabase.from("leads").update(payload).eq("id", editingLead.id);
+      const { error } = await db.from("leads").update(payload).eq("id", editingLead.id);
       if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
       toast({ title: "Lead atualizado!" });
     } else {
-      const { error } = await supabase.from("leads").insert(payload);
+      const { error } = await db.from("leads").insert(payload);
       if (error) { toast({ title: "Erro ao criar lead", variant: "destructive" }); return; }
       toast({ title: "Lead criado!" });
     }
@@ -139,6 +198,15 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       <PageHeader title="Gestão de Leads" description="Pipeline de captação de pacientes" icon={UserPlus}>
+        {captacaoAtiva && (
+          <Button variant="outline" asChild>
+            <label className="cursor-pointer">
+              <Upload className="h-4 w-4 mr-2" />Importar CSV
+              <input type="file" accept=".csv,text/csv" className="hidden"
+                onChange={(e) => { importarCsv(e.target.files?.[0]); e.target.value = ""; }} />
+            </label>
+          </Button>
+        )}
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Novo Lead</Button>
       </PageHeader>
 
@@ -206,6 +274,16 @@ export default function Leads() {
                         <Badge variant="outline" className="text-[10px]">
                           {ORIGENS.find(o => o.value === lead.origem)?.label || lead.origem}
                         </Badge>
+                        {lead.proximo_toque && col.key !== "converteu" && col.key !== "perdido" && (
+                          <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <CalendarClock className="h-3 w-3" />Próximo toque {formatarData(lead.proximo_toque)}
+                          </p>
+                        )}
+                        {captacaoAtiva && col.key !== "converteu" && col.key !== "perdido" && (
+                          <Button size="sm" variant="ghost" className="h-7 w-full justify-start px-1 text-xs text-primary" onClick={() => converter(lead)}>
+                            <UserCheck className="h-3 w-3 mr-1" />Converter em paciente
+                          </Button>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -251,6 +329,36 @@ export default function Leads() {
                 <Input type="number" value={form.valor_estimado} onChange={e => setForm(p => ({ ...p, valor_estimado: e.target.value }))} />
               </div>
             </div>
+            {captacaoAtiva && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Parceiro que indicou</Label>
+                    <Select value={form.parceiro_id || "nenhum"} onValueChange={v => setForm(p => ({ ...p, parceiro_id: v === "nenhum" ? "" : v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Nenhum</SelectItem>
+                        {parceiros.map(pa => <SelectItem key={pa.id} value={pa.id}>{pa.nome}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label>Paciente que indicou</Label>
+                    <Select value={form.indicado_por_paciente_id || "nenhum"} onValueChange={v => setForm(p => ({ ...p, indicado_por_paciente_id: v === "nenhum" ? "" : v }))}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Nenhuma</SelectItem>
+                        {pacientes.map(pc => <SelectItem key={pc.id} value={pc.id}>{pc.nome_completo}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label>Próximo toque</Label>
+                  <Input type="date" value={form.proximo_toque} onChange={e => setForm(p => ({ ...p, proximo_toque: e.target.value }))} />
+                </div>
+              </>
+            )}
             <div>
               <Label>Anotações</Label>
               <Textarea value={form.anotacoes} onChange={e => setForm(p => ({ ...p, anotacoes: e.target.value }))} rows={3} />

@@ -36,6 +36,8 @@ const CATEGORIES = [
   "Recaída",
   "Bom resultado",
   "Geral",
+  // Título = nome do gatilho ("Renovação", "Pedir indicação"...): substitui o texto padrão da tela Captação.
+  "Captação",
 ];
 
 const DEFAULT_REPLIES: Omit<QuickReply, "id">[] = [
