@@ -738,6 +738,61 @@ export type Database = {
           },
         ]
       }
+      captacao_toques: {
+        Row: {
+          created_at: string
+          gatilho: string
+          id: string
+          lead_id: string | null
+          paciente_id: string | null
+          parceiro_id: string | null
+          resultado: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gatilho: string
+          id?: string
+          lead_id?: string | null
+          paciente_id?: string | null
+          parceiro_id?: string | null
+          resultado?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gatilho?: string
+          id?: string
+          lead_id?: string | null
+          paciente_id?: string | null
+          parceiro_id?: string | null
+          resultado?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "captacao_toques_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captacao_toques_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "captacao_toques_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_respostas: {
         Row: {
           aderencia_plano: number | null
@@ -1580,10 +1635,17 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          indicado_por_paciente_id: string | null
+          motivo_perda: string | null
           nome: string
           origem: string
+          paciente_id: string | null
+          parceiro_id: string | null
+          proximo_toque: string | null
           status: string
           telefone: string | null
+          tentativas: number
+          ultimo_toque: string | null
           updated_at: string
           user_id: string
           valor_estimado: number | null
@@ -1593,10 +1655,17 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          indicado_por_paciente_id?: string | null
+          motivo_perda?: string | null
           nome: string
           origem?: string
+          paciente_id?: string | null
+          parceiro_id?: string | null
+          proximo_toque?: string | null
           status?: string
           telefone?: string | null
+          tentativas?: number
+          ultimo_toque?: string | null
           updated_at?: string
           user_id: string
           valor_estimado?: number | null
@@ -1606,15 +1675,44 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          indicado_por_paciente_id?: string | null
+          motivo_perda?: string | null
           nome?: string
           origem?: string
+          paciente_id?: string | null
+          parceiro_id?: string | null
+          proximo_toque?: string | null
           status?: string
           telefone?: string | null
+          tentativas?: number
+          ultimo_toque?: string | null
           updated_at?: string
           user_id?: string
           valor_estimado?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "leads_indicado_por_paciente_id_fkey"
+            columns: ["indicado_por_paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_parceiro_id_fkey"
+            columns: ["parceiro_id"]
+            isOneToOne: false
+            referencedRelation: "parceiros"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       manipulado_ativos: {
         Row: {
@@ -2006,12 +2104,14 @@ export type Database = {
           fase_real: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias: string | null
           id: string
+          lead_id: string | null
           medicamentos: string | null
           nivel_atividade: Database["public"]["Enums"]["nivel_atividade"] | null
           nome_completo: string
           objetivo: Database["public"]["Enums"]["objetivo_principal"] | null
           objetivo_outro: string | null
           observacoes_comportamentais: string | null
+          origem: string | null
           peso_inicial: number | null
           receber_emails: boolean
           restricoes_alimentares: string | null
@@ -2034,6 +2134,7 @@ export type Database = {
           fase_real?: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias?: string | null
           id?: string
+          lead_id?: string | null
           medicamentos?: string | null
           nivel_atividade?:
             | Database["public"]["Enums"]["nivel_atividade"]
@@ -2042,6 +2143,7 @@ export type Database = {
           objetivo?: Database["public"]["Enums"]["objetivo_principal"] | null
           objetivo_outro?: string | null
           observacoes_comportamentais?: string | null
+          origem?: string | null
           peso_inicial?: number | null
           receber_emails?: boolean
           restricoes_alimentares?: string | null
@@ -2064,6 +2166,7 @@ export type Database = {
           fase_real?: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias?: string | null
           id?: string
+          lead_id?: string | null
           medicamentos?: string | null
           nivel_atividade?:
             | Database["public"]["Enums"]["nivel_atividade"]
@@ -2072,12 +2175,60 @@ export type Database = {
           objetivo?: Database["public"]["Enums"]["objetivo_principal"] | null
           objetivo_outro?: string | null
           observacoes_comportamentais?: string | null
+          origem?: string | null
           peso_inicial?: number | null
           receber_emails?: boolean
           restricoes_alimentares?: string | null
           rotina_sono?: string | null
           sexo?: string | null
           telefone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pacientes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parceiros: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          observacoes: string | null
+          slug: string | null
+          telefone: string | null
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          observacoes?: string | null
+          slug?: string | null
+          telefone?: string | null
+          tipo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          slug?: string | null
+          telefone?: string | null
+          tipo?: string
           updated_at?: string
           user_id?: string
         }
