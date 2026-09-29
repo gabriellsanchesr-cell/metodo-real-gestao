@@ -275,11 +275,16 @@ export function DiarioAlimentarSection({ paciente }: { paciente: any }) {
                         )}
                       </div>
 
-                      {reg.foto_path && (
+                      {reg.foto_path && (getPhotoUrl(reg.foto_path) ? (
                         <div className="rounded-lg overflow-hidden max-w-xs">
                           <img src={getPhotoUrl(reg.foto_path)} alt="Refeição" className="w-full h-auto rounded-lg" />
                         </div>
-                      )}
+                      ) : (
+                        // Sem link assinado a <img> aparecia quebrada, sem explicação.
+                        <div className="flex h-24 max-w-xs items-center justify-center rounded-lg bg-muted px-3 text-center text-xs text-muted-foreground">
+                          A paciente enviou foto, mas ela não pôde ser carregada.
+                        </div>
+                      ))}
 
                       <p className="text-sm text-foreground">{reg.descricao || <span className="text-muted-foreground italic">Sem descrição</span>}</p>
 
