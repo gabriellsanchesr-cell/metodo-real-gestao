@@ -13,6 +13,7 @@ import {
   Clock, MessageSquare, Image as ImageIcon, Send, X, AlertCircle,
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
+import { hojeLocal } from "@/lib/portal";
 import { ptBR } from "date-fns/locale";
 
 const tipoLabels: Record<string, string> = {
@@ -38,13 +39,17 @@ type DiarioRegistro = {
   created_at: string;
 };
 
-export function PortalDiario({ paciente }: { paciente: any }) {
+/**
+ * refeicoesNoPlano: quantas refeições o plano ativo tem, para o resumo do dia
+ * mostrar "2 de 5". Sem plano, mostra só quantas foram registradas.
+ */
+export function PortalDiario({ paciente, refeicoesNoPlano }: { paciente: any; refeicoesNoPlano?: number }) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [registros, setRegistros] = useState<DiarioRegistro[]>([]);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"home" | "form" | "history">("home");
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState(hojeLocal());
   const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -159,7 +164,7 @@ export function PortalDiario({ paciente }: { paciente: any }) {
       } as any);
       if (error) throw error;
 
-      toast({ title: "Refeição registrada! ✅" });
+      toast({ title: "Refeição registrada" });
       resetForm();
       await loadRegistros();
       setView("home");
@@ -221,7 +226,7 @@ export function PortalDiario({ paciente }: { paciente: any }) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">O que você comeu? 🍽️</Label>
+              <Label className="text-xs text-muted-foreground">O que você comeu?</Label>
               <Textarea
                 placeholder="Descreva com suas palavras..."
                 value={formDescricao}
@@ -328,7 +333,7 @@ export function PortalDiario({ paciente }: { paciente: any }) {
                         <img src={getPhotoUrl(reg.foto_path)} alt="Refeição" loading="lazy" className="rounded-xl w-full max-w-xs h-auto" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                       )}
                       <p className="text-sm text-foreground">{reg.descricao}</p>
-                      {reg.sentimento && <p className="text-xs text-muted-foreground">💭 {reg.sentimento}</p>}
+                      {reg.sentimento && <p className="text-xs italic text-muted-foreground">{reg.sentimento}</p>}
                       {reg.feedback_nutri && (
                         <div className="bg-primary/5 rounded-lg p-2.5 border border-primary/10">
                           <p className="text-xs font-medium text-primary flex items-center gap-1 mb-0.5">
@@ -349,20 +354,19 @@ export function PortalDiario({ paciente }: { paciente: any }) {
   }
 
   // ===== HOME VIEW =====
-  const totalExpected = 4; // simplified — ideally from config
   return (
     <div className="space-y-4">
       <h2 className="text-lg font-bold text-foreground">Diário Alimentar</h2>
 
       {/* Date navigation */}
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(subDays(parseISO(selectedDate), 1).toISOString().split("T")[0])}>
+        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(hojeLocal(subDays(parseISO(selectedDate), 1)))}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <p className="text-sm font-semibold text-foreground">
           {format(parseISO(selectedDate), "EEEE, dd/MM", { locale: ptBR })}
         </p>
-        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(addDays(parseISO(selectedDate), 1).toISOString().split("T")[0])}>
+        <Button variant="ghost" size="sm" onClick={() => setSelectedDate(hojeLocal(addDays(parseISO(selectedDate), 1)))}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -372,10 +376,17 @@ export function PortalDiario({ paciente }: { paciente: any }) {
         <CardContent className="p-4 flex items-center justify-between">
           <div>
             <p className="text-sm font-medium text-foreground">Refeições do dia</p>
-            <p className="text-xs text-muted-foreground">{todayRegistros.length} registrada{todayRegistros.length !== 1 ? "s" : ""}</p>
+            <p className="text-xs text-muted-foreground">
+              {refeicoesNoPlano
+                ? `${todayRegistros.length} de ${refeicoesNoPlano} do seu plano`
+                : `${todayRegistros.length} registrada${todayRegistros.length !== 1 ? "s" : ""}`}
+            </p>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold text-primary">{todayRegistros.length}</p>
+            <p className="text-2xl font-bold text-primary tabular-nums">
+              {todayRegistros.length}
+              {refeicoesNoPlano ? <span className="text-sm font-medium text-muted-foreground">/{refeicoesNoPlano}</span> : null}
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -403,7 +414,7 @@ export function PortalDiario({ paciente }: { paciente: any }) {
                   <img src={getPhotoUrl(reg.foto_path)} alt="Refeição" loading="lazy" className="rounded-xl w-full max-w-xs h-auto" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
                 )}
                 <p className="text-sm text-foreground">{reg.descricao}</p>
-                {reg.sentimento && <p className="text-xs text-muted-foreground">💭 {reg.sentimento}</p>}
+                {reg.sentimento && <p className="text-xs italic text-muted-foreground">{reg.sentimento}</p>}
                 {reg.feedback_nutri && (
                   <div className="bg-primary/5 rounded-lg p-2.5 border border-primary/10">
                     <p className="text-xs font-medium text-primary flex items-center gap-1 mb-0.5">

@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Edit, Trash2, Send, Eye, BookOpen } from "lucide-react";
 import { format } from "date-fns";
+import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 
 const CATEGORIAS = [
   { value: "alimentacao", label: "Alimentação" },
@@ -100,7 +101,7 @@ export function OrientacoesSection({ paciente }: Props) {
 
   const handleMarkSent = async (id: string) => {
     await supabase.from("orientacoes").update({ enviada: true, data_envio: new Date().toISOString() }).eq("id", id);
-    toast({ title: "Marcada como enviada" });
+    toast({ title: "Liberada no portal da paciente", description: "Para avisar por e-mail, use o envelope ao lado." });
     load();
   };
 
@@ -151,7 +152,7 @@ export function OrientacoesSection({ paciente }: Props) {
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <h4 className="font-semibold text-foreground">{item.titulo}</h4>
                       <Badge variant="secondary" className="text-xs">{catLabel(item.categoria)}</Badge>
-                      {item.enviada && <Badge className="text-xs bg-success text-success-foreground">Enviada</Badge>}
+                      {item.enviada && <Badge className="text-xs bg-success text-success-foreground">No portal</Badge>}
                       {item.visualizada && <Badge variant="outline" className="text-xs"><Eye className="h-3 w-3 mr-1" />Visualizada</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2 whitespace-pre-wrap">{item.conteudo}</p>
@@ -161,10 +162,18 @@ export function OrientacoesSection({ paciente }: Props) {
                     </p>
                   </div>
                   <div className="flex gap-1 shrink-0">
-                    {!item.enviada && (
-                      <Button variant="ghost" size="icon" onClick={() => handleMarkSent(item.id)} title="Marcar como enviada">
+                    {!item.enviada ? (
+                      <Button variant="ghost" size="icon" onClick={() => handleMarkSent(item.id)} title="Liberar no portal da paciente">
                         <Send className="h-4 w-4" />
                       </Button>
+                    ) : (
+                      <AvisarAgoraButton
+                        className="h-10 w-10"
+                        pacienteId={paciente.id}
+                        oQue={`a orientação "${item.titulo}"`}
+                        dados={{ titulo: item.titulo }}
+                        opcoes={[{ tipo: "orientacao_nova", rotulo: "Orientação nova" }]}
+                      />
                     )}
                     <Button variant="ghost" size="icon" onClick={() => openEdit(item)} title="Editar">
                       <Edit className="h-4 w-4" />
@@ -184,7 +193,7 @@ export function OrientacoesSection({ paciente }: Props) {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? "Editar Orientação" : "Nova Orientação"}</DialogTitle>
-            <DialogDescription>Crie orientações e materiais para o paciente.</DialogDescription>
+            <DialogDescription>A paciente só vê depois que você liberar no portal (botão de enviar na lista).</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">

@@ -30,7 +30,7 @@ export function PortalMetas({ paciente }: { paciente: any }) {
     await (supabase as any).from("metas_paciente").update({
       status: "concluida", concluida_em: new Date().toISOString(),
     }).eq("id", id);
-    toast({ title: "Parabéns! Meta concluída 🎉" });
+    toast({ title: "Meta concluída. Parabéns!" });
     load();
   };
 

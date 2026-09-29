@@ -282,10 +282,9 @@ export function PortalJornada({ paciente }: Props) {
           {pct >= 100 && totalFase > 0 && (
             <Card className="rounded-2xl border-2" style={{ borderColor: faseInfo.cor }}>
               <CardContent className="p-4 text-center">
-                <div className="text-3xl mb-2">🎉</div>
                 <p className="font-bold text-foreground">Você concluiu todos os conteúdos desta fase!</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Gabriel será notificado e avaliará sua promoção para a próxima fase.
+                  Seu progresso já aparece para o seu nutri, que avalia a passagem para a próxima fase.
                 </p>
               </CardContent>
             </Card>

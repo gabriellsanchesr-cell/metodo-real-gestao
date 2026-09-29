@@ -7,6 +7,8 @@ import { PortalChat } from "@/components/portal/PortalChat";
 import { PortalMetas } from "@/components/portal/PortalMetas";
 import { PortalMateriais } from "@/components/portal/PortalMateriais";
 import { PortalSubstituicoes } from "@/components/portal/PortalSubstituicoes";
+import { PortalOrientacoes } from "@/components/portal/PortalOrientacoes";
+import { pesoAtual, proximaRefeicao, rotuloFase, sequenciaDeDias } from "@/lib/portal";
 import { itensDoPlano } from "@/lib/substituicoes";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -20,7 +22,7 @@ import {
   ChevronDown, ChevronUp, Clock, User, Activity, Sparkles,
   UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical,
   Bell, Flame, Weight, Zap, CalendarDays, ChevronRight, Heart, Droplets, Moon, Sun, Sunrise, Sunset,
-  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft,
+  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -40,19 +42,22 @@ import {
 } from "recharts";
 
 type PortalTab = "inicio" | "plano" | "diario" | "metas" | "mais";
-type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes";
+type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
+
+/** O que chegou e a paciente ainda não abriu, por item do menu "Mais". */
+type Novidades = Partial<Record<MoreTab, number>>;
 
 const tipoRefeicaoLabels: Record<string, string> = {
   cafe_da_manha: "Café da Manhã", lanche_da_manha: "Lanche da Manhã", almoco: "Almoço",
   lanche_da_tarde: "Lanche da Tarde", jantar: "Jantar", ceia: "Ceia",
 };
 
-function getGreeting(): { text: string; icon: any; emoji: string } {
+function getGreeting(): { text: string; icon: any } {
   const h = new Date().getHours();
-  if (h < 6) return { text: "Boa noite", icon: Moon, emoji: "🌙" };
-  if (h < 12) return { text: "Bom dia", icon: Sunrise, emoji: "☀️" };
-  if (h < 18) return { text: "Boa tarde", icon: Sun, emoji: "🌤️" };
-  return { text: "Boa noite", icon: Sunset, emoji: "🌙" };
+  if (h < 6) return { text: "Boa noite", icon: Moon };
+  if (h < 12) return { text: "Bom dia", icon: Sunrise };
+  if (h < 18) return { text: "Boa tarde", icon: Sun };
+  return { text: "Boa noite", icon: Sunset };
 }
 
 function getInitials(name: string): string {
@@ -90,8 +95,36 @@ export default function PortalPaciente() {
   const [proximaConsulta, setProximaConsulta] = useState<any>(null);
   const [diaryStreak, setDiaryStreak] = useState(0);
   const [weeklyProgress, setWeeklyProgress] = useState({ done: 0, total: 7 });
+  const [novidades, setNovidades] = useState<Novidades>({});
+  const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => { if (user) loadData(); }, [user]);
+
+  // Recalcula ao voltar de uma seção: abrir as mensagens zera o contador delas.
+  useEffect(() => {
+    if (paciente?.id && paciente.account_status !== "desativado" && moreTab === null) carregarNovidades(paciente.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paciente?.id, moreTab]);
+
+  const carregarNovidades = async (pacienteId: string) => {
+    try {
+      const [conv, mat, rec] = await Promise.all([
+        supabase.from("conversas").select("nao_lidas_paciente").eq("paciente_id", pacienteId).maybeSingle(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("materiais_paciente").select("id", { count: "exact", head: true })
+          .eq("paciente_id", pacienteId).is("visto_em", null),
+        supabase.from("receitas_pacientes").select("receita_id", { count: "exact", head: true })
+          .eq("paciente_id", pacienteId).eq("visualizada", false),
+      ]);
+      setNovidades({
+        mensagens: conv.data?.nao_lidas_paciente || 0,
+        materiais: mat.count || 0,
+        receitas: rec.count || 0,
+      });
+    } catch {
+      // Contador é conforto, não pode quebrar o portal.
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -154,14 +187,8 @@ export default function PortalPaciente() {
           .limit(30);
         if (diarioData) {
           const uniqueDates = [...new Set(diarioData.map(d => d.data_registro))];
-          let streak = 0;
           const today = new Date();
-          for (let i = 0; i < uniqueDates.length; i++) {
-            const expected = format(addDays(today, -i), "yyyy-MM-dd");
-            if (uniqueDates.includes(expected)) streak++;
-            else break;
-          }
-          setDiaryStreak(streak);
+          setDiaryStreak(sequenciaDeDias(uniqueDates, today));
 
           // Weekly progress
           const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
@@ -296,7 +323,14 @@ export default function PortalPaciente() {
             )}
           </>
         );
-      case "diario": return <PortalDiario paciente={paciente} />;
+      case "diario": {
+        // Plano montado: refeições reais. Em PDF: refeições lidas do arquivo.
+        const n = plano?.tipo === "anexo"
+          ? new Set((Array.isArray(plano?.alimentos_referencia) ? plano.alimentos_referencia : [])
+              .map((a: { refeicao?: string | null }) => a.refeicao).filter(Boolean)).size
+          : (plano?.refeicoes || []).length;
+        return <PortalDiario paciente={paciente} refeicoesNoPlano={n || undefined} />;
+      }
       case "metas": return <PortalMetas paciente={paciente} />;
       case "mais": return renderMoreContent();
       default: return null;
@@ -304,6 +338,9 @@ export default function PortalPaciente() {
   };
 
   const renderInicio = () => {
+    const pesoInfo = pesoAtual(avaliacoes, paciente.peso_inicial);
+    type RefeicaoPortal = { id: string; tipo: string; nome_customizado?: string | null; horario_sugerido?: string | null; ordem?: number | null };
+    const proxima = plano && plano.tipo !== "anexo" ? proximaRefeicao((plano.refeicoes || []) as RefeicaoPortal[]) : null;
     const consultaDate = proximaConsulta ? new Date(proximaConsulta.data_hora) : null;
     const consultaLabel = consultaDate
       ? isToday(consultaDate) ? "Hoje" : isTomorrow(consultaDate) ? "Amanhã" : format(consultaDate, "dd 'de' MMM", { locale: ptBR })
@@ -319,7 +356,7 @@ export default function PortalPaciente() {
           <div className="relative flex items-center justify-between">
             <div>
               <p className="text-sm font-medium opacity-90 flex items-center gap-1.5">
-                {greeting.emoji} {greeting.text}
+                <greeting.icon className="h-4 w-4" /> {greeting.text}
               </p>
               <h2 className="text-xl font-bold mt-0.5">{firstName}</h2>
               <p className="text-xs mt-1.5 opacity-80">Acompanhe seu progresso nutricional</p>
@@ -361,9 +398,9 @@ export default function PortalPaciente() {
         {/* Metric cards - glassmorphism */}
         <div className="grid grid-cols-3 gap-3 animate-slide-up animate-stagger-2">
           {[
-            { icon: Weight, value: paciente.peso_inicial || "—", label: "Peso (kg)", color: "from-blue-500/20 to-blue-600/5", iconColor: "text-blue-600 bg-blue-100" },
-            { icon: Flame, value: Math.round(totalDiario), label: "Kcal/dia", color: "from-orange-500/20 to-orange-600/5", iconColor: "text-orange-600 bg-orange-100" },
-            { icon: Sparkles, value: paciente.fase_real || "—", label: "Fase R.E.A.L.", color: "from-violet-500/20 to-violet-600/5", iconColor: "text-violet-600 bg-violet-100" },
+            { icon: Weight, value: pesoInfo.peso != null ? pesoInfo.peso.toLocaleString("pt-BR") : "—", label: "Peso (kg)", sub: pesoInfo.variacao != null ? `${pesoInfo.variacao > 0 ? "+" : ""}${pesoInfo.variacao.toLocaleString("pt-BR")} kg desde o início` : null, color: "from-blue-500/20 to-blue-600/5", iconColor: "text-blue-600 bg-blue-100" },
+            { icon: Flame, value: Math.round(totalDiario), label: "Kcal/dia", sub: null, color: "from-orange-500/20 to-orange-600/5", iconColor: "text-orange-600 bg-orange-100" },
+            { icon: Sparkles, value: rotuloFase(paciente.fase_real), label: "Fase R.E.A.L.", sub: null, color: "from-violet-500/20 to-violet-600/5", iconColor: "text-violet-600 bg-violet-100" },
           ].map((metric, idx) => (
             <Card key={idx} className="rounded-2xl border-none shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300">
               <div className={`absolute inset-0 bg-gradient-to-br ${metric.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
@@ -371,8 +408,9 @@ export default function PortalPaciente() {
                 <div className={`mx-auto h-9 w-9 rounded-xl ${metric.iconColor} flex items-center justify-center mb-1.5 transition-transform duration-300 group-hover:scale-110`}>
                   <metric.icon className="h-4 w-4" />
                 </div>
-                <p className="text-lg font-bold text-foreground capitalize">{metric.value}</p>
+                <p className="text-lg font-bold text-foreground">{metric.value}</p>
                 <p className="text-[10px] text-muted-foreground">{metric.label}</p>
+                {metric.sub && <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{metric.sub}</p>}
               </CardContent>
             </Card>
           ))}
@@ -423,6 +461,52 @@ export default function PortalPaciente() {
             </CardContent>
           </Card>
         )}
+
+        {/* Próxima refeição: o que comer agora, sem abrir o plano inteiro */}
+        {proxima && (() => {
+          const ref = proxima.refeicao;
+          const nomeRef = ref.nome_customizado?.trim() || tipoRefeicaoLabels[ref.tipo] || ref.tipo;
+          type AlimentoCard = { id: string; nome_alimento?: string | null; quantidade?: number | null };
+          const alimentos = (getContabilizada(ref) as AlimentoCard[]).filter((a) => a.nome_alimento);
+          return (
+            <Card className="rounded-2xl border-primary/15 shadow-sm animate-slide-up animate-stagger-3">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {proxima.amanha ? "Primeira refeição de amanhã" : "Próxima refeição"}
+                  </p>
+                  {ref.horario_sugerido && (
+                    <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+                      <Clock className="h-3 w-3" /> {String(ref.horario_sugerido).slice(0, 5)}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 font-bold text-foreground">{nomeRef}</p>
+                {alimentos.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {alimentos.slice(0, 5).map((a) => (
+                      <li key={a.id} className="flex justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate text-foreground">{a.nome_alimento}</span>
+                        {a.quantidade ? <span className="shrink-0 text-muted-foreground">{a.quantidade} g</span> : null}
+                      </li>
+                    ))}
+                    {alimentos.length > 5 && <li className="text-xs text-muted-foreground">e mais {alimentos.length - 5}</li>}
+                  </ul>
+                )}
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" variant="outline" className="flex-1 rounded-xl"
+                    onClick={() => { setActiveTab("plano"); setMoreTab(null); setExpandedMeal(ref.id); }}>
+                    Ver refeição
+                  </Button>
+                  <Button size="sm" variant="outline" className="flex-1 rounded-xl"
+                    onClick={() => { setMoreTab("substituicoes"); setActiveTab("mais"); }}>
+                    <ArrowRightLeft className="mr-1.5 h-3.5 w-3.5" /> Trocar alimento
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Active plan card - premium */}
         <div className="animate-slide-up animate-stagger-4">
@@ -478,13 +562,27 @@ export default function PortalPaciente() {
               </div>
               <div>
                 <p className="font-bold text-foreground text-sm">{diaryStreak} dias seguidos!</p>
-                <p className="text-xs text-muted-foreground">Continue registrando seu diário 🔥</p>
+                <p className="text-xs text-muted-foreground">Continue registrando seu diário.</p>
               </div>
             </CardContent>
           </Card>
         )}
       </div>
     );
+  };
+
+  // O link guardado em planoPdfUrl expira em 1 h; com o portal aberto há mais
+  // tempo, "abrir em nova aba" dava erro. A aba abre já no clique (senão o
+  // celular bloqueia como pop-up) e recebe o endereço novo em seguida.
+  const abrirPdfEmNovaAba = async () => {
+    if (!plano?.pdf_path) return;
+    const aba = window.open("", "_blank");
+    const { data } = await supabase.storage.from("documentos-pdf").createSignedUrl(plano.pdf_path, 3600);
+    if (data?.signedUrl) {
+      setPlanoPdfUrl(data.signedUrl);
+      if (aba) aba.location.href = data.signedUrl;
+      else window.location.href = data.signedUrl;
+    } else aba?.close();
   };
 
   const renderPlano = () => {
@@ -548,14 +646,9 @@ export default function PortalPaciente() {
           </div>
           {planoPdfUrl && (
             <div className="flex justify-end">
-              <a
-                href={planoPdfUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs text-primary underline"
-              >
-                Abrir em nova aba
-              </a>
+              <button type="button" onClick={abrirPdfEmNovaAba} className="flex items-center gap-1 text-xs text-primary underline">
+                <ExternalLink className="h-3 w-3" /> Abrir em nova aba
+              </button>
             </div>
           )}
         </div>
@@ -613,7 +706,7 @@ export default function PortalPaciente() {
                   <div>
                     <p className="font-semibold text-sm text-foreground">{displayName}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                      {ref.horario_sugerido && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" /> {ref.horario_sugerido}</span>}
+                      {ref.horario_sugerido && <span className="flex items-center gap-0.5"><Clock className="h-3 w-3" /> {String(ref.horario_sugerido).slice(0, 5)}</span>}
                       <span>{Math.round(mealKcal)} kcal</span>
                       {opLetras.length > 1 && (
                         <>
@@ -636,7 +729,7 @@ export default function PortalPaciente() {
                         <div className="h-5 w-5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">✓</div>
                         <div className="flex-1">
                           <p className="text-xs font-semibold text-foreground">Qual opção você vai comer hoje?</p>
-                          <p className="text-[10px] text-muted-foreground">Marque uma — ela conta no total do dia (calorias e macros).</p>
+                          <p className="text-[10px] text-muted-foreground">Marque uma: ela conta no total do dia (calorias e macros).</p>
                         </div>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -687,7 +780,7 @@ export default function PortalPaciente() {
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">Substituições</p>
                             {subs.map((s: any) => (
                               <p key={s.id} className="text-xs text-muted-foreground">
-                                ↔ {s.nome}{s.quantidade ? ` — ${s.quantidade}g` : ""}{s.medida_caseira ? ` (${s.medida_caseira})` : ""}
+                                ↔ {s.nome}{s.quantidade ? `, ${s.quantidade}g` : ""}{s.medida_caseira ? ` (${s.medida_caseira})` : ""}
                               </p>
                             ))}
                           </div>
@@ -697,13 +790,13 @@ export default function PortalPaciente() {
                   })}
                   {ref.substituicoes_sugeridas && (
                     <div className="bg-muted/50 rounded-xl p-3 text-xs">
-                      <p className="font-medium text-foreground mb-1">🔄 Substituições gerais</p>
+                      <p className="font-medium text-foreground mb-1">Substituições gerais</p>
                       <p className="text-muted-foreground whitespace-pre-line">{ref.substituicoes_sugeridas}</p>
                     </div>
                   )}
                   {ref.observacoes && (
                     <div className="bg-primary/5 rounded-xl p-3 text-xs">
-                      <p className="font-medium text-foreground mb-1">📝 Observações</p>
+                      <p className="font-medium text-foreground mb-1">Observações</p>
                       <p className="text-muted-foreground">{ref.observacoes}</p>
                     </div>
                   )}
@@ -736,7 +829,7 @@ export default function PortalPaciente() {
             <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
           </Button>
           <h2 className="text-lg font-bold text-foreground">
-            Avaliação — {format(parseLocalDate(av.data_avaliacao), "dd/MM/yyyy")}
+            Avaliação de {format(parseLocalDate(av.data_avaliacao), "dd/MM/yyyy")}
           </h2>
 
           <Card className="rounded-2xl glass-card">
@@ -916,7 +1009,7 @@ export default function PortalPaciente() {
                   </div>
                   <span className="font-semibold text-foreground">{sup?.nome}</span>
                 </div>
-                <p className="text-sm font-medium text-foreground">{p.dose_prescrita} {p.unidade_dose} — {p.frequencia}</p>
+                <p className="text-sm font-medium text-foreground">{p.dose_prescrita} {p.unidade_dose}, {p.frequencia}</p>
                 <p className="text-sm text-muted-foreground">{p.momento_uso} • {p.duracao}</p>
                 {remaining != null && (
                   <div>
@@ -949,6 +1042,7 @@ export default function PortalPaciente() {
       case "jornada": return <PortalJornada paciente={paciente} />;
       case "suplementos": return renderPortalSuplemenos();
       case "materiais": return <PortalMateriais paciente={paciente} />;
+      case "orientacoes": return <PortalOrientacoes paciente={paciente} />;
       case "substituicoes":
         return (
           <PortalSubstituicoes itensPlano={itensDoPlano(plano)} />
@@ -978,7 +1072,7 @@ export default function PortalPaciente() {
         <div className="flex items-center justify-center gap-4 py-2">
           <div className="text-center">
             <p className="text-lg font-bold text-foreground">{diaryStreak}</p>
-            <p className="text-[10px] text-muted-foreground">Dias streak</p>
+            <p className="text-[10px] text-muted-foreground">Dias seguidos</p>
           </div>
           <div className="h-8 w-px bg-border" />
           <div className="text-center">
@@ -987,7 +1081,7 @@ export default function PortalPaciente() {
           </div>
           <div className="h-8 w-px bg-border" />
           <div className="text-center">
-            <p className="text-lg font-bold text-foreground capitalize">{paciente.fase_real || "—"}</p>
+            <p className="text-lg font-bold text-foreground">{rotuloFase(paciente.fase_real)}</p>
             <p className="text-[10px] text-muted-foreground">Fase</p>
           </div>
         </div>
@@ -1039,9 +1133,13 @@ export default function PortalPaciente() {
     </div>
   );
 
+  const totalNovidades = Object.values(novidades).reduce((a, b) => a + (b || 0), 0);
+
   const moreItems: { id: MoreTab; label: string; icon: any; desc: string; color: string; gradient: string }[] = [
     { id: "avaliacoes", label: "Avaliações", icon: Activity, desc: "Medidas e composição", color: "text-blue-600", gradient: "from-blue-100 to-blue-50" },
     { id: "substituicoes", label: "Substituições", icon: ArrowRightLeft, desc: "Trocar alimentos", color: "text-amber-600", gradient: "from-amber-100 to-amber-50" },
+    { id: "orientacoes", label: "Orientações", icon: BookOpen, desc: "Para o dia a dia", color: "text-teal-600", gradient: "from-teal-100 to-teal-50" },
+    { id: "materiais", label: "Materiais", icon: FolderOpen, desc: "Arquivos e links", color: "text-rose-600", gradient: "from-rose-100 to-rose-50" },
     { id: "receitas", label: "Receitas", icon: UtensilsCrossed, desc: "Receitas saudáveis", color: "text-orange-600", gradient: "from-orange-100 to-orange-50" },
     { id: "suplementos", label: "Suplementos", icon: Pill, desc: "Prescrições ativas", color: "text-violet-600", gradient: "from-violet-100 to-violet-50" },
     { id: "jornada", label: "Jornada", icon: Sparkles, desc: "Seu progresso", color: "text-emerald-600", gradient: "from-emerald-100 to-emerald-50" },
@@ -1086,11 +1184,12 @@ export default function PortalPaciente() {
           <NavBtn icon={Utensils} label="Plano" active={activeTab === "plano" && !moreTab} onClick={() => { setActiveTab("plano"); setMoreTab(null); }} />
           <NavBtn icon={BookMarked} label="Diário" active={activeTab === "diario" && !moreTab} onClick={() => { setActiveTab("diario"); setMoreTab(null); }} />
           <NavBtn icon={Target} label="Metas" active={activeTab === "metas" && !moreTab} onClick={() => { setActiveTab("metas"); setMoreTab(null); }} />
-          <Sheet>
+          <Sheet open={menuAberto} onOpenChange={setMenuAberto}>
             <SheetTrigger asChild>
-              <button className="flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[48px]">
+              <button className="relative flex flex-col items-center gap-0.5 px-3 py-1.5 min-w-[48px]" aria-label={totalNovidades ? `Mais, ${totalNovidades} novidades` : "Mais"}>
                 <MoreHorizontal className="h-[22px] w-[22px] text-muted-foreground transition-colors" />
                 <span className="text-[10px] text-muted-foreground">Mais</span>
+                {totalNovidades > 0 && <span className="absolute right-2.5 top-1 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card" />}
               </button>
             </SheetTrigger>
             <SheetContent side="bottom" className="rounded-t-3xl px-5 pb-8">
@@ -1103,15 +1202,20 @@ export default function PortalPaciente() {
                     key={item.id}
                     className="flex items-center gap-3 p-3.5 rounded-2xl hover:shadow-md transition-all duration-200 text-left active:scale-[0.97] bg-gradient-to-br dark:from-muted/40 dark:to-muted/20"
                     style={{ background: undefined }}
-                    onClick={() => { setMoreTab(item.id); setActiveTab("mais"); }}
+                    onClick={() => { setMoreTab(item.id); setActiveTab("mais"); setMenuAberto(false); }}
                   >
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-gradient-to-br ${item.gradient} ${item.color}`}>
                       <item.icon className="h-5 w-5" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground">{item.label}</p>
                       <p className="text-[10px] text-muted-foreground truncate">{item.desc}</p>
                     </div>
+                    {(novidades[item.id] ?? 0) > 0 && (
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground tabular-nums">
+                        {novidades[item.id]}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
