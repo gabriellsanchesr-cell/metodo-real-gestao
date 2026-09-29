@@ -48,6 +48,12 @@ CREATE POLICY "Equipe gerencia parceiros"
   USING (public.can_access_nutri_data(user_id) AND public.equipe_has_permission(user_id, 'pacientes', 'ver'))
   WITH CHECK (public.can_access_nutri_data(user_id) AND public.equipe_has_permission(user_id, 'pacientes', 'editar'));
 
+-- Acesso explícito: sem GRANT, a tabela nova fica fechada para o app mesmo
+-- com as políticas acima. anon não recebe nada; quem filtra linha é o RLS.
+REVOKE ALL ON public.parceiros FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.parceiros TO authenticated;
+GRANT ALL ON public.parceiros TO service_role;
+
 DROP TRIGGER IF EXISTS parceiros_touch ON public.parceiros;
 CREATE TRIGGER parceiros_touch
   BEFORE UPDATE ON public.parceiros
@@ -115,3 +121,7 @@ CREATE POLICY "Equipe gerencia toques"
   ON public.captacao_toques FOR ALL TO authenticated
   USING (public.can_access_nutri_data(user_id) AND public.equipe_has_permission(user_id, 'pacientes', 'ver'))
   WITH CHECK (public.can_access_nutri_data(user_id) AND public.equipe_has_permission(user_id, 'pacientes', 'editar'));
+
+REVOKE ALL ON public.captacao_toques FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.captacao_toques TO authenticated;
+GRANT ALL ON public.captacao_toques TO service_role;
