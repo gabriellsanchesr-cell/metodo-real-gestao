@@ -98,3 +98,13 @@ describe("utilitarios", () => {
     expect(e.html).toContain("https://wa.me/44999990000");
   });
 });
+
+describe("lembrete_peso", () => {
+  const base = { nomePaciente: "Maria Souza", nomeClinica: "Método R.E.A.L", urlApp: "https://app.exemplo.com.br/" };
+  it("cita o WhatsApp só quando a clínica tem número", () => {
+    expect(montarEmail("lembrete_peso", {}, { ...base, whatsapp: "(44) 99999-0000" }).texto).toContain("WhatsApp");
+    const sem = montarEmail("lembrete_peso", {}, { ...base, whatsapp: null });
+    expect(sem.texto).not.toContain("WhatsApp");
+    expect(sem.html).not.toContain("wa.me");
+  });
+});

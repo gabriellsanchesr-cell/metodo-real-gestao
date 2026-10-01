@@ -53,6 +53,8 @@ export default function ConfiguracaoClinica() {
   // Campos da migration 20260918120000. Ficam null se ela ainda nao foi
   // aplicada; nesse caso a tela funciona igual e so esconde estes campos.
   const [emailExtra, setEmailExtra] = useState<{ email_resposta: string; dias_alerta_vencimento: number } | null>(null);
+  // null: a migration do lembrete (20260930120000) ainda não foi aplicada.
+  const [lembretePeso, setLembretePeso] = useState<boolean | null>(null);
   const [provedorOk, setProvedorOk] = useState<boolean | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -80,6 +82,14 @@ export default function ConfiguracaoClinica() {
           dias_alerta_vencimento: data?.dias_alerta_vencimento || 7,
         });
       });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from("configuracoes_clinica")
+      .select("lembrete_peso_semanal")
+      .eq("user_id", user!.id)
+      .maybeSingle()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .then(({ data, error }: any) => setLembretePeso(error ? null : data?.lembrete_peso_semanal !== false));
     statusEmail().then((st) => setProvedorOk(st ? st.configurado : null));
     try {
       const { data } = await supabase
@@ -161,6 +171,15 @@ export default function ConfiguracaoClinica() {
           .update({ email_resposta: emailExtra.email_resposta.trim() || null, dias_alerta_vencimento: dias })
           .eq("user_id", user!.id);
         if (extraErr) throw extraErr;
+      }
+
+      if (lembretePeso !== null) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: lembErr } = await (supabase as any)
+          .from("configuracoes_clinica")
+          .update({ lembrete_peso_semanal: lembretePeso })
+          .eq("user_id", user!.id);
+        if (lembErr) throw lembErr;
       }
 
       toast({ title: "Configurações salvas com sucesso!" });
@@ -464,6 +483,26 @@ export default function ConfiguracaoClinica() {
                   <p className="text-sm text-muted-foreground">
                     O plano aparece em "Vencendo" no Dashboard, no sino e na página de Vencimentos. Os lembretes
                     ficam só no sistema: nenhum e-mail é enviado por causa do vencimento.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {lembretePeso !== null && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Lembrete semanal de peso</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <Label htmlFor="lembrete-peso" className="font-normal">
+                      Todo sábado às 9h, e-mail lembrando a paciente de registrar o peso no portal ou mandar pelo WhatsApp
+                    </Label>
+                    <Switch id="lembrete-peso" checked={lembretePeso} onCheckedChange={setLembretePeso} />
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Vai só para quem tem portal liberado e ainda não registrou o peso na semana. Ninguém recebe mais
+                    de um por semana. Paciente com avisos por e-mail desligados não recebe.
                   </p>
                 </CardContent>
               </Card>

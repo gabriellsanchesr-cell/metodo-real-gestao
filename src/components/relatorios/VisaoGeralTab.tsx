@@ -4,6 +4,7 @@ import { Users, UserPlus, UserMinus, ShieldCheck, ClipboardCheck, CalendarCheck,
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, differenceInWeeks, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { retornosPendentes as calcularRetornos } from "@/lib/painel";
 
 interface Props {
   pacientes: any[];
@@ -61,16 +62,9 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
     const temposAcomp = ativos.map(p => differenceInWeeks(new Date(), new Date(p.created_at)));
     const mediaAcomp = temposAcomp.length > 0 ? Math.round(temposAcomp.reduce((a, b) => a + b, 0) / temposAcomp.length) : 0;
 
-    const ultimaConsulta = new Map<string, Date>();
-    consultas.forEach(c => {
-      const d = new Date(c.data_hora);
-      const prev = ultimaConsulta.get(c.paciente_id);
-      if (!prev || d > prev) ultimaConsulta.set(c.paciente_id, d);
-    });
-    const retornosPendentes = ativos.filter(p => {
-      const last = ultimaConsulta.get(p.id);
-      return !last || differenceInDays(new Date(), last) > 30;
-    }).length;
+    // Mesmo critério do Dashboard (src/lib/painel.ts): ativa com portal
+    // liberado, 30 a 45 dias da última consulta, sem retorno marcado.
+    const retornosPendentes = calcularRetornos(pacientes, consultas).length;
 
     const taxaRetencao = pacientes.length > 0
       ? Math.round((ativos.length / pacientes.length) * 100)
@@ -144,7 +138,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
     { title: "Taxa de Check-in", value: `${stats.taxaCheckin}%`, icon: ClipboardCheck, sub: "Última semana", color: "text-amber-600" },
     { title: "Consultas Realizadas", value: stats.consultasPeriodo, icon: CalendarCheck, sub: `${stats.mediaConsultasSemana}/semana`, color: "text-[hsl(var(--primary))]" },
     { title: "Tempo Médio Acomp.", value: `${stats.mediaAcomp} sem`, icon: Clock, sub: "Pacientes ativos", color: "text-muted-foreground" },
-    { title: "Retornos Pendentes", value: stats.retornosPendentes, icon: AlertTriangle, sub: "> 30 dias sem consulta", color: "text-destructive" },
+    { title: "Retornos Pendentes", value: stats.retornosPendentes, icon: AlertTriangle, sub: "30 a 45 dias, sem retorno marcado", color: "text-destructive" },
   ];
 
   return (

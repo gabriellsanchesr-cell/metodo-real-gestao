@@ -8,6 +8,7 @@ import { PortalMetas } from "@/components/portal/PortalMetas";
 import { PortalMateriais } from "@/components/portal/PortalMateriais";
 import { PortalSubstituicoes } from "@/components/portal/PortalSubstituicoes";
 import { PortalOrientacoes } from "@/components/portal/PortalOrientacoes";
+import { PortalPeso } from "@/components/portal/PortalPeso";
 import { pesoAtual, proximaRefeicao, rotuloFase, sequenciaDeDias } from "@/lib/portal";
 import { itensDoPlano } from "@/lib/substituicoes";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,6 +83,11 @@ export default function PortalPaciente() {
   const { user, signOut } = useAuth();
   const [paciente, setPaciente] = useState<any>(null);
   const [plano, setPlano] = useState<any>(null);
+  // Alguns pacientes têm mais de um plano ativo de propósito (semana e fim
+  // de semana, "corrido"). Antes só o mais recente aparecia.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [planosAtivos, setPlanosAtivos] = useState<any[]>([]);
+  const [pesosAcomp, setPesosAcomp] = useState<{ data_registro: string; peso: number | null }[]>([]);
   const [planoPdfUrl, setPlanoPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PortalTab>("inicio");
@@ -126,6 +132,34 @@ export default function PortalPaciente() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const escolherPlano = async (p: any | null) => {
+    setPlano(p);
+    setPlanoPdfUrl(null);
+    setActiveOption({});
+    if (!p) return;
+    try { localStorage.setItem(`planoSel:${p.paciente_id}`, p.id); } catch { /* opcional */ }
+    if (p.tipo === "anexo" && p.pdf_path) {
+      const { data: signed } = await supabase.storage.from("documentos-pdf").createSignedUrl(p.pdf_path, 3600);
+      if (signed?.signedUrl) setPlanoPdfUrl(signed.signedUrl);
+    }
+    try {
+      const saved = localStorage.getItem(`opcaoSel:${p.id}`);
+      if (saved) setActiveOption(JSON.parse(saved));
+    } catch { /* opcional */ }
+  };
+
+  const carregarPesos = async (pacienteId: string) => {
+    const { data } = await supabase
+      .from("acompanhamentos")
+      .select("data_registro, peso")
+      .eq("paciente_id", pacienteId)
+      .not("peso", "is", null)
+      .order("data_registro", { ascending: false })
+      .limit(20);
+    setPesosAcomp(data || []);
+  };
+
   const loadData = async () => {
     try {
       const { data: pac } = await supabase
@@ -135,29 +169,22 @@ export default function PortalPaciente() {
       // o portal aberto seguia usando. Não carrega mais nada.
       if (pac?.account_status === "desativado") return;
       if (pac) {
-        const { data: planoData } = await supabase
+        const { data: planosData } = await supabase
           .from("planos_alimentares")
           .select("*, refeicoes(*, alimentos_plano(*, alimento_substituicoes(*)))")
           .eq("paciente_id", pac.id)
           .eq("status", "ativo")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        setPlano(planoData);
-        if (planoData?.tipo === "anexo" && planoData?.pdf_path) {
-          try {
-            const { data: signed } = await supabase.storage
-              .from("documentos-pdf")
-              .createSignedUrl(planoData.pdf_path, 3600);
-            if (signed?.signedUrl) setPlanoPdfUrl(signed.signedUrl);
-          } catch {}
-        }
-        if (planoData?.id) {
-          try {
-            const saved = localStorage.getItem(`opcaoSel:${planoData.id}`);
-            if (saved) setActiveOption(JSON.parse(saved));
-          } catch {}
-        }
+          .order("created_at", { ascending: false });
+        const lista = planosData || [];
+        setPlanosAtivos(lista);
+        let escolhido = lista[0] ?? null;
+        try {
+          const salvo = localStorage.getItem(`planoSel:${pac.id}`);
+          escolhido = lista.find((x) => x.id === salvo) ?? escolhido;
+        } catch { /* sem armazenamento local, fica o mais recente */ }
+        await escolherPlano(escolhido);
+
+        carregarPesos(pac.id);
 
         const { data: avData } = await supabase
           .from("avaliacoes_fisicas")
@@ -305,6 +332,23 @@ export default function PortalPaciente() {
       case "plano":
         return (
           <>
+            {planosAtivos.length > 1 && (
+              <div className="-mx-1 mb-4 flex gap-1.5 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Seus planos">
+                {planosAtivos.map((p) => (
+                  <button
+                    key={p.id}
+                    role="tab"
+                    aria-selected={plano?.id === p.id}
+                    onClick={() => escolherPlano(p)}
+                    className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      plano?.id === p.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+                    }`}
+                  >
+                    {p.nome}
+                  </button>
+                ))}
+              </div>
+            )}
             {renderPlano()}
             {plano && (
               <button
@@ -338,7 +382,13 @@ export default function PortalPaciente() {
   };
 
   const renderInicio = () => {
-    const pesoInfo = pesoAtual(avaliacoes, paciente.peso_inicial);
+    // Avaliações e pesos lançados no portal, do mais recente para o mais antigo.
+    const pesosOrdenados = [
+      ...avaliacoes.map((a) => ({ data: String(a.data_avaliacao).slice(0, 10), peso: a.peso })),
+      ...pesosAcomp.map((a) => ({ data: a.data_registro.slice(0, 10), peso: a.peso })),
+    ].sort((a, b) => b.data.localeCompare(a.data));
+    const pesoInfo = pesoAtual(pesosOrdenados, paciente.peso_inicial);
+    const ultimoLancado = pesosAcomp[0]?.peso != null ? { peso: Number(pesosAcomp[0].peso), data: pesosAcomp[0].data_registro } : null;
     type RefeicaoPortal = { id: string; tipo: string; nome_customizado?: string | null; horario_sugerido?: string | null; ordem?: number | null };
     const proxima = plano && plano.tipo !== "anexo" ? proximaRefeicao((plano.refeicoes || []) as RefeicaoPortal[]) : null;
     const consultaDate = proximaConsulta ? new Date(proximaConsulta.data_hora) : null;
@@ -366,7 +416,7 @@ export default function PortalPaciente() {
                 <Trophy className="h-6 w-6" />
               </div>
               {diaryStreak > 0 && (
-                <span className="text-[10px] font-bold opacity-90">{diaryStreak} dias</span>
+                <span className="text-[10px] font-bold opacity-90">{diaryStreak} {diaryStreak === 1 ? "dia" : "dias"}</span>
               )}
             </div>
           </div>
@@ -415,6 +465,9 @@ export default function PortalPaciente() {
             </Card>
           ))}
         </div>
+
+        {/* Peso da semana: o lembrete de sábado por e-mail aponta para cá */}
+        <PortalPeso paciente={paciente} ultimo={ultimoLancado} onSalvo={() => carregarPesos(paciente.id)} />
 
         {/* Quick actions - pill style */}
         <div className="flex gap-2.5 overflow-x-auto pb-1 animate-slide-up animate-stagger-3 scrollbar-hide">
@@ -561,7 +614,7 @@ export default function PortalPaciente() {
                 <Flame className="h-5 w-5 text-white" />
               </div>
               <div>
-                <p className="font-bold text-foreground text-sm">{diaryStreak} dias seguidos!</p>
+                <p className="font-bold text-foreground text-sm">{diaryStreak} {diaryStreak === 1 ? "dia seguido" : "dias seguidos"}!</p>
                 <p className="text-xs text-muted-foreground">Continue registrando seu diário.</p>
               </div>
             </CardContent>

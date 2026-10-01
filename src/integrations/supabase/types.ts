@@ -29,6 +29,7 @@ export type Database = {
           paciente_id: string
           peso: number | null
           qualidade_sono: number | null
+          registrado_pela_paciente: boolean
           user_id: string
         }
         Insert: {
@@ -45,6 +46,7 @@ export type Database = {
           paciente_id: string
           peso?: number | null
           qualidade_sono?: number | null
+          registrado_pela_paciente?: boolean
           user_id: string
         }
         Update: {
@@ -61,6 +63,7 @@ export type Database = {
           paciente_id?: string
           peso?: number | null
           qualidade_sono?: number | null
+          registrado_pela_paciente?: boolean
           user_id?: string
         }
         Relationships: [
@@ -856,6 +859,7 @@ export type Database = {
           id: string
           incluir_capa: boolean | null
           instagram: string | null
+          lembrete_peso_semanal: boolean
           logo_url: string | null
           marca_dagua: boolean | null
           mensagem_boas_vindas: string | null
@@ -883,6 +887,7 @@ export type Database = {
           id?: string
           incluir_capa?: boolean | null
           instagram?: string | null
+          lembrete_peso_semanal?: boolean
           logo_url?: string | null
           marca_dagua?: boolean | null
           mensagem_boas_vindas?: string | null
@@ -910,6 +915,7 @@ export type Database = {
           id?: string
           incluir_capa?: boolean | null
           instagram?: string | null
+          lembrete_peso_semanal?: boolean
           logo_url?: string | null
           marca_dagua?: boolean | null
           mensagem_boas_vindas?: string | null

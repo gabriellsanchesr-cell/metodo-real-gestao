@@ -11,16 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { ESTILO_SITUACAO } from "@/components/paciente/estiloVencimento";
 import { useVencimentos } from "@/hooks/useVencimentos";
 import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
-import { Users, AlertTriangle, Scale, Calendar, Utensils, TrendingUp, CalendarClock, UserPlus } from "lucide-react";
-import { format, subDays, isToday, isTomorrow } from "date-fns";
+import { Users, AlertTriangle, Scale, Calendar, TrendingUp, CalendarClock, UserPlus, Undo2 } from "lucide-react";
+import { ehAtiva, retornosPendentes, semPesoNaSemana } from "@/lib/painel";
+import { addDays, format, subDays, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface DashboardData {
   totalPacientes: number;
-  retornoPendente: number;
+  retornos: Array<{ id: string; nome: string; dias: number }>;
   semPesoSemana: number;
-  proximasConsultas: Array<{ id: string; paciente_nome: string; data_hora: string; tipo: string }>;
-  ultimosAcompanhamentos: Array<{ id: string; paciente_nome: string; data_registro: string; peso: number | null }>;
+  consultasSeteDias: number;
+  proximasConsultas: Array<{ id: string; paciente_id: string; paciente_nome: string; data_hora: string; tipo: string }>;
+  ultimosAcompanhamentos: Array<{ id: string; paciente_id: string; paciente_nome: string; data_registro: string; peso: number | null; daPaciente: boolean }>;
 }
 
 /** Data curta a partir de "2026-09-17", sem passar por fuso. */
@@ -44,8 +46,9 @@ export default function Dashboard() {
   const [diariosSemRetorno, setDiariosSemRetorno] = useState(0);
   const [data, setData] = useState<DashboardData>({
     totalPacientes: 0,
-    retornoPendente: 0,
+    retornos: [],
     semPesoSemana: 0,
+    consultasSeteDias: 0,
     proximasConsultas: [],
     ultimosAcompanhamentos: [],
   });
@@ -66,61 +69,61 @@ export default function Dashboard() {
       .gte("data_registro", format(subDays(new Date(), 7), "yyyy-MM-dd"))
       .then(({ count }) => setDiariosSemRetorno(count ?? 0));
 
-    const [pacientesRes, consultasRes, acompRes] = await Promise.all([
-      supabase.from("pacientes").select("id, nome_completo").eq("ativo", true),
-      supabase.from("consultas").select("id, data_hora, tipo, paciente_id, pacientes(nome_completo)").gte("data_hora", new Date().toISOString()).eq("status", "agendado").order("data_hora").limit(5),
-      supabase.from("acompanhamentos").select("id, data_registro, peso, paciente_id, pacientes(nome_completo)").order("created_at", { ascending: false }).limit(5),
+    // Critérios em src/lib/painel.ts, os mesmos dos Relatórios. "Ativa" é quem
+    // tem o portal liberado e não está arquivada.
+    const agora = new Date();
+    const [pacientesRes, consultasRes, acompRes, pesosSemanaRes] = await Promise.all([
+      supabase.from("pacientes").select("id, nome_completo, ativo, account_status"),
+      supabase.from("consultas").select("id, data_hora, tipo, status, paciente_id, pacientes(nome_completo)").order("data_hora"),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("acompanhamentos").select("id, data_registro, peso, paciente_id, registrado_pela_paciente, pacientes(nome_completo)").order("created_at", { ascending: false }).limit(5),
+      // format() usa a data local; toISOString() encurtaria a janela depois das 21h.
+      supabase.from("acompanhamentos").select("paciente_id, data_registro, peso").gte("data_registro", format(subDays(agora, 7), "yyyy-MM-dd")),
     ]);
 
     const pacientes = pacientesRes.data || [];
     const consultas = consultasRes.data || [];
-    const acompanhamentos = acompRes.data || [];
-
-    const trintaDias = subDays(new Date(), 30).toISOString();
-    const { data: consultasRecentes } = await supabase
-      .from("consultas")
-      .select("paciente_id")
-      .gte("data_hora", trintaDias)
-      .eq("status", "realizado");
-
-    const idsComConsulta = new Set((consultasRecentes || []).map((c: any) => c.paciente_id));
-    const retornoPendente = pacientes.filter((p) => !idsComConsulta.has(p.id)).length;
-
-    // format() usa a data local. toISOString() usaria UTC e, depois das 21h
-    // no horário de Brasília, encurtaria a janela para 6 dias.
-    const inicioSemana = format(subDays(new Date(), 7), "yyyy-MM-dd");
-    const { data: pesosRecentes } = await supabase
-      .from("acompanhamentos")
-      .select("paciente_id")
-      .gte("data_registro", inicioSemana);
-    const idsComPeso = new Set((pesosRecentes || []).map((a: any) => a.paciente_id));
-    const semPesoSemana = pacientes.filter((p) => !idsComPeso.has(p.id)).length;
+    // Antes da migration de 30/09 a coluna registrado_pela_paciente não existe;
+    // aí a busca falha e repete sem ela.
+    let acompanhamentos = acompRes.data || [];
+    if (acompRes.error) {
+      const { data } = await supabase.from("acompanhamentos").select("id, data_registro, peso, paciente_id, pacientes(nome_completo)").order("created_at", { ascending: false }).limit(5);
+      acompanhamentos = data || [];
+    }
+    const nomePorId = new Map(pacientes.map((p) => [p.id, p.nome_completo]));
+    const futuras = consultas.filter((c) => c.status === "agendado" && new Date(c.data_hora) > agora);
 
     setData({
-      totalPacientes: pacientes.length,
-      retornoPendente,
-      semPesoSemana,
-      proximasConsultas: consultas.map((c: any) => ({
+      totalPacientes: pacientes.filter(ehAtiva).length,
+      retornos: retornosPendentes(pacientes, consultas, agora).map((r) => ({ id: r.paciente.id, nome: nomePorId.get(r.paciente.id) || "—", dias: r.dias })),
+      semPesoSemana: semPesoNaSemana(pacientes, pesosSemanaRes.data || [], agora).length,
+      consultasSeteDias: futuras.filter((c) => new Date(c.data_hora) <= addDays(agora, 7)).length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      proximasConsultas: futuras.slice(0, 5).map((c: any) => ({
         id: c.id,
+        paciente_id: c.paciente_id,
         paciente_nome: c.pacientes?.nome_completo || "—",
         data_hora: c.data_hora,
         tipo: c.tipo,
       })),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ultimosAcompanhamentos: acompanhamentos.map((a: any) => ({
         id: a.id,
+        paciente_id: a.paciente_id,
         paciente_nome: a.pacientes?.nome_completo || "—",
         data_registro: a.data_registro,
         peso: a.peso,
+        daPaciente: a.registrado_pela_paciente === true,
       })),
     });
     setCarregando(false);
   };
 
-  const cards: { label: string; value: number; icon: typeof Users; tone: StatTone }[] = [
-    { label: "Pacientes Ativos", value: data.totalPacientes, icon: Users, tone: "primary" },
-    { label: "Retorno Pendente", value: data.retornoPendente, icon: AlertTriangle, tone: "warning" },
-    { label: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale, tone: "destructive" },
-    { label: "Próximas Consultas", value: data.proximasConsultas.length, icon: Calendar, tone: "success" },
+  const cards: { label: string; value: number; icon: typeof Users; tone: StatTone; hint: string; destino: string }[] = [
+    { label: "Pacientes Ativos", value: data.totalPacientes, icon: Users, tone: "primary", hint: "com portal liberado", destino: "/pacientes" },
+    { label: "Retorno Pendente", value: data.retornos.length, icon: AlertTriangle, tone: "warning", hint: "30 a 45 dias da última consulta", destino: "#retornos" },
+    { label: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale, tone: "destructive", hint: "ativas, últimos 7 dias", destino: "/pacientes" },
+    { label: "Consultas em 7 dias", value: data.consultasSeteDias, icon: Calendar, tone: "success", hint: "agendadas", destino: "/agenda" },
   ];
 
   const consultasHoje = data.proximasConsultas.filter((c) => isToday(new Date(c.data_hora))).length;
@@ -188,7 +191,10 @@ export default function Dashboard() {
               value={card.value}
               icon={card.icon}
               tone={card.tone}
-              onClick={() => navigate(card.label === "Próximas Consultas" ? "/agenda" : "/pacientes")}
+              hint={card.hint}
+              onClick={() => card.destino.startsWith("#")
+                ? document.getElementById(card.destino.slice(1))?.scrollIntoView({ behavior: "smooth", block: "center" })
+                : navigate(card.destino)}
             />
           ))}
         </StatGrid>
@@ -235,6 +241,34 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {!carregando && data.retornos.length > 0 && (
+        <Card id="retornos" className="border-border/60 shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <div className="flex items-center gap-2">
+              <Undo2 className="h-4 w-4 text-warning" />
+              <CardTitle className="text-base font-semibold">Retornos pendentes</CardTitle>
+            </div>
+            <span className="text-xs text-muted-foreground">30 a 45 dias, sem consulta marcada</span>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-1">
+              {data.retornos.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => navigate(`/pacientes/${r.id}?secao=consultas`)}
+                  className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50"
+                >
+                  <p className="truncate text-sm font-medium text-foreground">{r.nome}</p>
+                  <Badge variant="outline" className="shrink-0 rounded-full border-warning/40 bg-warning/10 text-warning">
+                    há {r.dias} dias
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
@@ -254,7 +288,7 @@ export default function Dashboard() {
             ) : (
               <div className="space-y-1">
                 {data.proximasConsultas.map((c) => (
-                  <div key={c.id} className="flex justify-between items-center py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <button key={c.id} onClick={() => navigate(`/pacientes/${c.paciente_id}`)} className="flex w-full justify-between items-center py-2.5 px-3 rounded-lg text-left hover:bg-muted/50 transition-colors">
                     <div>
                       <p className="font-medium text-sm text-foreground">{c.paciente_nome}</p>
                       <p className="text-xs text-muted-foreground capitalize">{c.tipo.replace("_", " ")}</p>
@@ -262,7 +296,7 @@ export default function Dashboard() {
                     <span className="text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md">
                       {formatRelativeDate(c.data_hora)}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -282,22 +316,24 @@ export default function Dashboard() {
                 compact
                 icon={TrendingUp}
                 title="Nenhum acompanhamento registrado"
-                description="Pesos e medidas registrados pelas pacientes aparecem aqui."
+                description="Pesos registrados por você ou lançados pelas pacientes no portal aparecem aqui."
               />
             ) : (
               <div className="space-y-1">
                 {data.ultimosAcompanhamentos.map((a) => (
-                  <div key={a.id} className="flex justify-between items-center py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
+                  <button key={a.id} onClick={() => navigate(`/pacientes/${a.paciente_id}?secao=acompanhamento`)} className="flex w-full justify-between items-center py-2.5 px-3 rounded-lg text-left hover:bg-muted/50 transition-colors">
                     <div>
                       <p className="font-medium text-sm text-foreground">{a.paciente_nome}</p>
-                      <p className="text-xs text-muted-foreground">{formatarData(a.data_registro)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatarData(a.data_registro)}{a.daPaciente ? " · lançado pela paciente" : ""}
+                      </p>
                     </div>
                     {a.peso && (
                       <span className="text-sm font-semibold text-foreground bg-primary/10 px-2 py-1 rounded-md">
-                        {a.peso} kg
+                        {Number(a.peso).toLocaleString("pt-BR")} kg
                       </span>
                     )}
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

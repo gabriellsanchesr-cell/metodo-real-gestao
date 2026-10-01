@@ -288,6 +288,13 @@ export function PlanoAlimentarSection({ paciente }: Props) {
         </div>
       </div>
 
+      {planos.filter((p) => p.status === "ativo").length > 1 && (
+        <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-foreground">
+          {planos.filter((p) => p.status === "ativo").length} planos ativos: a paciente vê todos no portal e escolhe qual
+          abrir. Se algum é antigo, desative para ele sair da lista dela.
+        </p>
+      )}
+
       {planos.length === 0 ? (
         <Card className="border-border rounded-xl">
           <CardContent className="py-8 text-center text-muted-foreground">

@@ -22,7 +22,8 @@ export type TipoAviso =
   | "feedback_diario"
   | "questionario_enviado"
   | "avaliacao_registrada"
-  | "exame_registrado";
+  | "exame_registrado"
+  | "lembrete_peso";
 
 export const ROTULO_TIPO: Record<TipoAviso, string> = {
   plano_novo: "Plano novo",
@@ -40,6 +41,7 @@ export const ROTULO_TIPO: Record<TipoAviso, string> = {
   questionario_enviado: "Questionário",
   avaliacao_registrada: "Avaliação física",
   exame_registrado: "Exames",
+  lembrete_peso: "Lembrete de peso",
 };
 
 export interface DadosAviso {

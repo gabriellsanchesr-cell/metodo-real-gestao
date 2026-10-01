@@ -5,6 +5,7 @@ import { ContratoSection } from "@/components/paciente/ContratoSection";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, CalendarDays, Utensils, Activity, AlertTriangle, Minus } from "lucide-react";
 import type { SectionId } from "./PacienteSidebar";
+import { ultimoPeso } from "@/lib/painel";
 
 interface Props {
   paciente: any;
@@ -24,21 +25,18 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
     const fourWeeksAgo = new Date();
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
-    const [acomp, consultas, planos, checklists] = await Promise.all([
-      supabase.from("acompanhamentos").select("*").eq("paciente_id", paciente.id).order("data_registro", { ascending: false }).limit(10),
-      supabase.from("consultas").select("*").eq("paciente_id", paciente.id).order("data_hora", { ascending: false }).limit(5),
-      supabase.from("planos_alimentares").select("id").eq("paciente_id", paciente.id).limit(1),
+    const agora = new Date().toISOString();
+    const [acomp, avaliacoes, ultimaRealizada, proximaAgendada, planos, checklists] = await Promise.all([
+      supabase.from("acompanhamentos").select("data_registro, peso").eq("paciente_id", paciente.id).order("data_registro", { ascending: false }).limit(10),
+      supabase.from("avaliacoes_fisicas").select("data_avaliacao, peso").eq("paciente_id", paciente.id).order("data_avaliacao", { ascending: false }).limit(10),
+      // Só consulta que aconteceu conta como "última"; cancelada e falta não.
+      supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "realizado").lte("data_hora", agora).order("data_hora", { ascending: false }).limit(1),
+      supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "agendado").gt("data_hora", agora).order("data_hora", { ascending: true }).limit(1),
+      supabase.from("planos_alimentares").select("id").eq("paciente_id", paciente.id).eq("status", "ativo").eq("is_template", false).limit(1),
       supabase.from("checklist_respostas").select("*").eq("paciente_id", paciente.id).gte("semana", fourWeeksAgo.toISOString().split("T")[0]).order("semana", { ascending: false }),
     ]);
 
-    const records = acomp.data || [];
-    const lastRecord = records[0];
-    const prevRecord = records[1];
-    const weightChange = lastRecord?.peso && prevRecord?.peso ? lastRecord.peso - prevRecord.peso : null;
-
-    const allConsultas = consultas.data || [];
-    const pastConsultas = allConsultas.filter(c => new Date(c.data_hora) <= new Date());
-    const futureConsultas = allConsultas.filter(c => new Date(c.data_hora) > new Date());
+    const peso = ultimoPeso(avaliacoes.data || [], acomp.data || []);
 
     const recentCheckins = (checklists.data || []).filter(c => c.respondido);
     const avgAderencia = recentCheckins.length > 0
@@ -50,10 +48,10 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
     const hasRecentCheckin = recentCheckins.some(c => new Date(c.semana) >= lastWeek);
 
     setStats({
-      lastWeight: lastRecord?.peso || null,
-      weightChange,
-      lastConsulta: pastConsultas[0] || null,
-      nextConsulta: futureConsultas[futureConsultas.length - 1] || null,
+      lastWeight: peso?.peso ?? null,
+      weightChange: peso?.variacao ?? null,
+      lastConsulta: ultimaRealizada.data?.[0] || null,
+      nextConsulta: proximaAgendada.data?.[0] || null,
       hasPlano: (planos.data || []).length > 0,
       avgAderencia,
       hasRecentCheckin,

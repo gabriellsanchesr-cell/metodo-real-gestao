@@ -1,219 +1,195 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Bell, X, CheckCheck, MessageSquare, ClipboardCheck, TrendingUp, AlertTriangle, Calendar, FileText, Eye, CalendarClock } from "lucide-react";
+import { Bell, MessageSquare, BookMarked, CalendarClock, CalendarCheck, Scale, type LucideIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format, subDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useVencimentos } from "@/hooks/useVencimentos";
 import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
+import { consultasParaFechar } from "@/lib/painel";
 
-interface Notificacao {
-  id: string;
-  tipo: string;
+/**
+ * O que pede atenção agora, montado a partir dos dados que já existem.
+ *
+ * Antes o sino lia a tabela `notificacoes`, que nada no sistema preenchia:
+ * o número dele era só vencimento, e as abas "check-ins" e "mensagens"
+ * ficavam sempre vazias.
+ */
+
+interface Item {
+  chave: string;
   titulo: string;
-  descricao: string;
-  cor: string;
-  lida: boolean;
-  link: string | null;
-  created_at: string;
+  detalhe: string;
+  link: string;
 }
 
-const ICON_MAP: Record<string, any> = {
-  check_in: ClipboardCheck,
-  evolucao: TrendingUp,
-  sem_checkin: AlertTriangle,
-  retorno_pendente: Calendar,
-  mensagem: MessageSquare,
-  questionario: FileText,
-  plano_visualizado: Eye,
-  consulta_hoje: Calendar,
-};
+interface Grupo {
+  id: "mensagens" | "diario" | "agenda" | "pesos" | "vencimentos";
+  rotulo: string;
+  icone: LucideIcon;
+  cor: string;
+  /** Conta no número do sino. Pesos lançados são novidade, não pendência. */
+  pendencia: boolean;
+  itens: Item[];
+  verTodos?: string;
+}
 
-const COR_MAP: Record<string, string> = {
-  azul: "border-l-blue-500 bg-blue-50/50",
-  verde: "border-l-emerald-500 bg-emerald-50/50",
-  vermelho: "border-l-red-500 bg-red-50/50",
-  amarelo: "border-l-amber-500 bg-amber-50/50",
-};
+type Filtro = "todas" | Grupo["id"];
 
-const COR_ICON: Record<string, string> = {
-  azul: "text-blue-500",
-  verde: "text-emerald-500",
-  vermelho: "text-red-500",
-  amarelo: "text-amber-500",
-};
-
-type FilterType = "todas" | "nao_lidas" | "checkins" | "mensagens" | "alertas";
+const plural = (n: number, s: string, p: string) => `${n} ${n === 1 ? s : p}`;
 
 export function NotificationCenter() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [filter, setFilter] = useState<FilterType>("todas");
-  const [open, setOpen] = useState(false);
   const venc = useVencimentos();
-  const vencimentosUrgentes = venc.urgentes;
-  const totalBadge = unreadCount + vencimentosUrgentes.length;
+  const [grupos, setGrupos] = useState<Grupo[]>([]);
+  const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [open, setOpen] = useState(false);
 
-  const loadNotificacoes = async () => {
+  const carregar = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("notificacoes")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    const notifs = (data as Notificacao[]) || [];
-    setNotificacoes(notifs);
-    setUnreadCount(notifs.filter(n => !n.lida).length);
-  };
+    const agora = new Date();
+    const semana = format(subDays(agora, 7), "yyyy-MM-dd");
+    const [conv, diario, consultas, pesos] = await Promise.all([
+      supabase.from("conversas").select("id, nao_lidas_nutri, pacientes(nome_completo)").gt("nao_lidas_nutri", 0),
+      supabase.from("diario_registros").select("paciente_id, pacientes(nome_completo)").eq("visto_nutri", false).gte("data_registro", semana),
+      supabase.from("consultas").select("id, data_hora, status, paciente_id, pacientes(nome_completo)").eq("status", "agendado").lt("data_hora", agora.toISOString()),
+      // Coluna da migration de 30/09: antes dela a busca falha e o grupo some.
+      supabase.from("acompanhamentos").select("id, paciente_id, peso, data_registro, pacientes(nome_completo)")
+        .eq("registrado_pela_paciente", true).gte("data_registro", semana).order("data_registro", { ascending: false }),
+    ]);
 
-  useEffect(() => { loadNotificacoes(); }, [user]);
+    const nome = (x: { pacientes?: { nome_completo?: string } | null }) => x.pacientes?.nome_completo?.trim() || "Paciente";
 
-  // Realtime
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("notificacoes-realtime")
-      .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "notificacoes",
-        filter: `user_id=eq.${user.id}`,
-      }, () => { loadNotificacoes(); })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const diarioPorPaciente = new Map<string, { nome: string; n: number }>();
+    for (const r of diario.data || []) {
+      const atual = diarioPorPaciente.get(r.paciente_id) ?? { nome: nome(r), n: 0 };
+      atual.n++;
+      diarioPorPaciente.set(r.paciente_id, atual);
+    }
+
+    setGrupos([
+      {
+        id: "mensagens", rotulo: "Mensagens", icone: MessageSquare, cor: "text-sky-600", pendencia: true, verTodos: "/chat",
+        itens: (conv.data || []).map((c) => ({
+          chave: c.id, titulo: nome(c), detalhe: plural(c.nao_lidas_nutri || 0, "mensagem nova", "mensagens novas"), link: "/chat",
+        })),
+      },
+      {
+        id: "diario", rotulo: "Diário", icone: BookMarked, cor: "text-violet-600", pendencia: true, verTodos: "/diarios",
+        itens: [...diarioPorPaciente.entries()].map(([id, v]) => ({
+          chave: id, titulo: v.nome, detalhe: `${plural(v.n, "registro", "registros")} para ver`, link: "/diarios",
+        })),
+      },
+      {
+        id: "agenda", rotulo: "Consultas para fechar", icone: CalendarCheck, cor: "text-amber-600", pendencia: true, verTodos: "/agenda",
+        itens: consultasParaFechar(consultas.data || [], agora).map((c) => ({
+          chave: c.id, titulo: nome(c),
+          detalhe: `${format(new Date(c.data_hora), "dd/MM 'às' HH:mm")}: marcar realizada ou falta`, link: "/agenda",
+        })),
+      },
+      {
+        id: "pesos", rotulo: "Pesos lançados no portal", icone: Scale, cor: "text-emerald-600", pendencia: false,
+        itens: pesos.error ? [] : (pesos.data || []).map((a) => ({
+          chave: a.id, titulo: nome(a),
+          detalhe: `${Number(a.peso).toLocaleString("pt-BR")} kg em ${a.data_registro.split("-").reverse().slice(0, 2).join("/")}`,
+          link: `/pacientes/${a.paciente_id}?secao=acompanhamento`,
+        })),
+      },
+    ]);
   }, [user]);
 
-  const markAllRead = async () => {
+  useEffect(() => { carregar(); }, [carregar]);
+
+  // Mensagem ou registro de diário novo atualiza o sino na hora.
+  useEffect(() => {
     if (!user) return;
-    await supabase.from("notificacoes").update({ lida: true }).eq("user_id", user.id).eq("lida", false);
-    loadNotificacoes();
-  };
+    const canal = supabase
+      .channel("notificacoes-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "diario_registros" }, () => carregar())
+      .on("postgres_changes", { event: "*", schema: "public", table: "conversas" }, () => carregar())
+      .subscribe();
+    return () => { supabase.removeChannel(canal); };
+  }, [user, carregar]);
 
-  const handleClick = async (notif: Notificacao) => {
-    if (!notif.lida) {
-      await supabase.from("notificacoes").update({ lida: true }).eq("id", notif.id);
-      loadNotificacoes();
-    }
-    if (notif.link) {
-      navigate(notif.link);
-      setOpen(false);
-    }
+  const grupoVenc: Grupo = {
+    id: "vencimentos", rotulo: "Planos vencendo", icone: CalendarClock, cor: "text-amber-600", pendencia: true, verTodos: "/vencimentos",
+    itens: venc.urgentes.slice(0, 8).map((v) => ({
+      chave: v.contrato.id, titulo: v.nome,
+      detalhe: `${rotuloPrazo(v.dias)} · ${formatarDataVenc(v.contrato.data_vencimento)}`,
+      link: `/pacientes/${v.pacienteId}?secao=contrato`,
+    })),
   };
+  const todos = [...grupos, grupoVenc].filter((g) => g.itens.length > 0);
+  const total = todos.filter((g) => g.pendencia).reduce((a, g) => a + (g.id === "vencimentos" ? venc.urgentes.length : g.itens.length), 0);
+  const visiveis = filtro === "todas" ? todos : todos.filter((g) => g.id === filtro);
 
-  const filtered = notificacoes.filter(n => {
-    if (filter === "nao_lidas") return !n.lida;
-    if (filter === "checkins") return n.tipo === "check_in" || n.tipo === "sem_checkin";
-    if (filter === "mensagens") return n.tipo === "mensagem";
-    if (filter === "alertas") return n.cor === "vermelho" || n.cor === "amarelo";
-    return true;
-  });
+  const ir = (link: string) => { navigate(link); setOpen(false); };
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) venc.recarregar(); }}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) { carregar(); venc.recarregar(); } }}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative" aria-label={total ? `Notificações, ${total} pendências` : "Notificações"}>
           <Bell className="h-5 w-5" />
-          {totalBadge > 0 && (
+          {total > 0 && (
             <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center px-1">
-              {totalBadge > 99 ? "99+" : totalBadge}
+              {total > 99 ? "99+" : total}
             </span>
           )}
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-full p-0 sm:w-[380px] sm:max-w-[380px]">
         <SheetHeader className="px-4 py-3 border-b border-border">
-          <div className="flex items-center justify-between">
-            <SheetTitle className="text-sm">Notificações</SheetTitle>
-            {unreadCount > 0 && (
-              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={markAllRead}>
-                <CheckCheck className="h-3 w-3 mr-1" /> Marcar todas como lidas
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-1 mt-2">
-            {(["todas", "nao_lidas", "checkins", "mensagens", "alertas"] as FilterType[]).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`text-[10px] px-2 py-1 rounded-full transition-colors ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
-              >
-                {f === "todas" ? "Todas" : f === "nao_lidas" ? "Não lidas" : f === "checkins" ? "Check-ins" : f === "mensagens" ? "Mensagens" : "Alertas"}
-              </button>
-            ))}
-          </div>
-        </SheetHeader>
-
-        <ScrollArea className="h-[calc(100vh-120px)]">
-          {(filter === "todas" || filter === "alertas") && vencimentosUrgentes.length > 0 && (
-            <div className="border-b border-border bg-amber-50/40 dark:bg-amber-500/5">
-              <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
-                  Planos vencendo
-                </p>
+          <SheetTitle className="text-sm">O que pede atenção</SheetTitle>
+          {todos.length > 1 && (
+            <div className="flex flex-wrap gap-1 pt-1">
+              {[{ id: "todas" as Filtro, rotulo: "Tudo" }, ...todos.map((g) => ({ id: g.id as Filtro, rotulo: g.rotulo }))].map((f) => (
                 <button
-                  className="text-[11px] font-medium text-primary hover:underline"
-                  onClick={() => { navigate("/vencimentos"); setOpen(false); }}
+                  key={f.id}
+                  onClick={() => setFiltro(f.id)}
+                  className={`text-[10px] px-2 py-1 rounded-full transition-colors ${filtro === f.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
                 >
-                  Ver todos
-                </button>
-              </div>
-              {vencimentosUrgentes.slice(0, 8).map((v) => (
-                <button
-                  key={v.contrato.id}
-                  onClick={() => { navigate(`/pacientes/${v.pacienteId}?secao=contrato`); setOpen(false); }}
-                  className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted/30"
-                >
-                  <CalendarClock className={`h-4 w-4 mt-0.5 shrink-0 ${v.dias < 0 ? "text-red-500" : "text-amber-500"}`} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-semibold text-foreground">{v.nome}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {rotuloPrazo(v.dias)} · {formatarDataVenc(v.contrato.data_vencimento)}
-                    </p>
-                  </div>
+                  {f.rotulo}
                 </button>
               ))}
-              <p className="px-4 pb-2.5 text-[10px] text-muted-foreground">Saem daqui quando o plano é renovado ou encerrado.</p>
             </div>
           )}
-          {filtered.length === 0 && vencimentosUrgentes.length === 0 ? (
+        </SheetHeader>
+
+        <ScrollArea className="h-[calc(100vh-110px)]">
+          {visiveis.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground text-sm">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p>Nenhuma notificação</p>
+              <p>Nada pendente agora.</p>
             </div>
-          ) : filtered.length === 0 ? null : (
-            filtered.map(notif => {
-              const Icon = ICON_MAP[notif.tipo] || Bell;
-              return (
+          ) : visiveis.map((g) => (
+            <div key={g.id} className="border-b border-border">
+              <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                <p className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${g.cor}`}>
+                  <g.icone className="h-3.5 w-3.5" /> {g.rotulo}
+                </p>
+                {g.verTodos && (
+                  <button className="text-[11px] font-medium text-primary hover:underline" onClick={() => ir(g.verTodos!)}>
+                    Abrir
+                  </button>
+                )}
+              </div>
+              {g.itens.map((i) => (
                 <button
-                  key={notif.id}
-                  onClick={() => handleClick(notif)}
-                  className={`w-full text-left px-4 py-3 border-b border-border/50 border-l-[3px] transition-colors hover:bg-muted/30 ${
-                    COR_MAP[notif.cor] || ""
-                  } ${!notif.lida ? "" : "opacity-60"}`}
+                  key={i.chave}
+                  onClick={() => ir(i.link)}
+                  className="flex w-full flex-col items-start px-4 py-2 text-left transition-colors hover:bg-muted/40"
                 >
-                  <div className="flex items-start gap-2.5">
-                    <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${COR_ICON[notif.cor] || "text-muted-foreground"}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs ${!notif.lida ? "font-semibold" : "font-medium"} text-foreground`}>{notif.titulo}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{notif.descricao}</p>
-                      <p className="text-[9px] text-muted-foreground mt-1">
-                        {format(new Date(notif.created_at), "dd/MM HH:mm", { locale: ptBR })}
-                      </p>
-                    </div>
-                    {!notif.lida && (
-                      <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1" />
-                    )}
-                  </div>
+                  <span className="truncate text-xs font-semibold text-foreground">{i.titulo}</span>
+                  <span className="text-[11px] text-muted-foreground">{i.detalhe}</span>
                 </button>
-              );
-            })
-          )}
+              ))}
+              <div className="pb-2" />
+            </div>
+          ))}
         </ScrollArea>
       </SheetContent>
     </Sheet>

@@ -29,6 +29,7 @@ export const TIPOS = [
   "questionario_enviado",
   "avaliacao_registrada",
   "exame_registrado",
+  "lembrete_peso",
 ] as const;
 
 export type TipoAviso = (typeof TIPOS)[number];
@@ -109,7 +110,7 @@ interface Conteudo {
   caminho: string;
 }
 
-function conteudo(tipo: TipoAviso, d: DadosAviso): Conteudo {
+function conteudo(tipo: TipoAviso, d: DadosAviso, temWhatsapp = false): Conteudo {
   const titulo = limparTitulo(d.titulo);
   const quando = formatarDataHora(d.data);
   const token = typeof d.token === "string" && /^[A-Za-z0-9_-]{8,128}$/.test(d.token) ? d.token : null;
@@ -284,6 +285,21 @@ function conteudo(tipo: TipoAviso, d: DadosAviso): Conteudo {
         botao: "Ver exames",
         caminho: "/portal",
       };
+    case "lembrete_peso":
+      // Enviado aos sábados, automático. Lembrete, não cobrança.
+      return {
+        assunto: "Hora de atualizar seu peso",
+        titulo: "Seu peso da semana",
+        paragrafos: [
+          "Sábado é dia de registrar o peso. Leva menos de um minuto e me ajuda a acompanhar sua evolução de perto.",
+          temWhatsapp
+            ? "Registre no portal ou, se preferir, me mande pelo WhatsApp (o link está aqui embaixo)."
+            : "É só registrar no portal, pelo botão abaixo.",
+          "Uma dica para o número ser comparável: pese logo depois de acordar e ir ao banheiro, antes de comer, de preferência na mesma balança.",
+        ],
+        botao: "Registrar meu peso",
+        caminho: "/portal",
+      };
   }
 }
 
@@ -295,7 +311,7 @@ function paraTexto(html: string): string {
 }
 
 export function montarEmail(tipo: TipoAviso, dados: DadosAviso, ctx: ContextoEmail): EmailMontado {
-  const c = conteudo(tipo, dados);
+  const c = conteudo(tipo, dados, Boolean(ctx.whatsapp && ctx.whatsapp.replace(/\D/g, "")));
   const base = ctx.urlApp.replace(/\/+$/, "");
   const link = `${base}${c.caminho}`;
   const nome = escapar(primeiroNome(ctx.nomePaciente));
