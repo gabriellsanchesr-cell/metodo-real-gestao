@@ -310,6 +310,21 @@ function paraTexto(html: string): string {
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
 
+/** Imagens da marca, servidas pelo próprio app (pasta public/email). */
+export const LOGO_EMAIL = "/email/logo-gabriel-sanches-branca.png";
+export const ICONE_EMAIL = "/email/icone-gabriel-sanches.png";
+
+const FONTE = "Montserrat,'Helvetica Neue',Helvetica,Arial,sans-serif";
+const COR = {
+  navy: "#06101f",
+  azul: "#004AAD",
+  dourado: "#b8973a",
+  texto: "#2f3547",
+  suave: "#5b6273",
+  fundo: "#f2f4f8",
+  linha: "#e6e9f2",
+};
+
 export function montarEmail(tipo: TipoAviso, dados: DadosAviso, ctx: ContextoEmail): EmailMontado {
   const c = conteudo(tipo, dados, Boolean(ctx.whatsapp && ctx.whatsapp.replace(/\D/g, "")));
   const base = ctx.urlApp.replace(/\/+$/, "");
@@ -317,30 +332,50 @@ export function montarEmail(tipo: TipoAviso, dados: DadosAviso, ctx: ContextoEma
   const nome = escapar(primeiroNome(ctx.nomePaciente));
   const clinica = escapar(ctx.nomeClinica);
   const zap = ctx.whatsapp ? ctx.whatsapp.replace(/\D/g, "") : "";
+  // Logo fixa da marca, hospedada no app. A logo das configurações da
+  // clínica não entra mais: era ela que saía errada nos e-mails.
+  const temImagens = /^https:\/\//.test(base);
+  // Texto que aparece ao lado do assunto na caixa de entrada.
+  const previa = escapar(paraTexto(c.paragrafos[0] ?? "").slice(0, 120));
 
-  const logo = ctx.logoUrl && /^https:\/\//.test(ctx.logoUrl)
-    ? `<img src="${escapar(ctx.logoUrl)}" alt="${clinica}" height="40" style="display:block;height:40px;margin:0 auto 8px">`
-    : "";
+  const cabecalho = temImagens
+    ? `<img src="${escapar(base + LOGO_EMAIL)}" width="200" alt="Gabriel Sanches · Nutrição individualizada" style="display:block;width:200px;max-width:70%;height:auto;margin:0 auto;border:0">`
+    : `<div style="font-family:${FONTE};font-size:20px;letter-spacing:2px;color:#ffffff">Gabriel Sanches</div>`;
+
+  const assinatura = `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+${temImagens ? `<td style="padding-right:12px;vertical-align:middle"><img src="${escapar(base + ICONE_EMAIL)}" width="40" height="40" alt="" style="display:block;width:40px;height:40px;border:0"></td>` : ""}
+<td style="vertical-align:middle;font-family:${FONTE}">
+<div style="font-size:14px;font-weight:bold;color:${COR.navy}">Gabriel Sanches</div>
+<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:${COR.azul}">Nutrição individualizada</div>
+</td></tr></table>`;
 
   const html = `<!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapar(c.assunto)}</title></head>
-<body style="margin:0;padding:0;background:#f3f5fb;font-family:Arial,Helvetica,sans-serif;color:#1f2544">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f5fb;padding:24px 12px">
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light">
+<title>${escapar(c.assunto)}</title></head>
+<body style="margin:0;padding:0;background:${COR.fundo};font-family:${FONTE};color:${COR.texto}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${previa}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COR.fundo};padding:28px 12px">
 <tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden">
-<tr><td style="background:#2b3a8f;padding:24px;text-align:center">
-${logo}<div style="color:#ffffff;font-size:13px;letter-spacing:1px;text-transform:uppercase">${clinica}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid ${COR.linha};border-radius:18px;overflow:hidden">
+<tr><td style="background:${COR.navy};padding:28px 24px;text-align:center">${cabecalho}</td></tr>
+<tr><td style="background:${COR.dourado};height:3px;line-height:3px;font-size:0">&nbsp;</td></tr>
+<tr><td style="padding:36px 32px 8px">
+<p style="margin:0 0 8px;font-size:14px;color:${COR.suave}">Olá, ${nome}.</p>
+<h1 style="margin:0 0 20px;font-family:${FONTE};font-size:24px;line-height:1.3;font-weight:bold;color:${COR.navy}">${escapar(c.titulo)}</h1>
+${c.paragrafos.map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.65;color:${COR.texto}">${p}</p>`).join("\n")}
 </td></tr>
-<tr><td style="padding:32px 28px 8px">
-<p style="margin:0 0 6px;font-size:15px;color:#5b6283">Olá, ${nome}.</p>
-<h1 style="margin:0 0 18px;font-size:22px;line-height:1.3;color:#1f2544">${escapar(c.titulo)}</h1>
-${c.paragrafos.map((p) => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#343a5c">${p}</p>`).join("\n")}
+<tr><td style="padding:8px 32px 8px">
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:999px;background:${COR.azul}">
+<a href="${escapar(link)}" style="display:inline-block;padding:14px 30px;font-family:${FONTE};font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;border-radius:999px">${escapar(c.botao)}</a>
+</td></tr></table>
+<p style="margin:12px 0 0;font-size:12px;line-height:1.5;color:${COR.suave}">Se o botão não abrir, copie este endereço no navegador:<br><a href="${escapar(link)}" style="color:${COR.azul};word-break:break-all">${escapar(link)}</a></p>
 </td></tr>
-<tr><td style="padding:8px 28px 32px" align="left">
-<a href="${escapar(link)}" style="display:inline-block;background:#2b3a8f;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px;padding:13px 26px;border-radius:999px">${escapar(c.botao)}</a>
-</td></tr>
-<tr><td style="padding:18px 28px 26px;border-top:1px solid #eceef6;font-size:12px;line-height:1.6;color:#8a90ad">
-${zap ? `Dúvidas? Me chame no WhatsApp: <a href="https://wa.me/${zap}" style="color:#2b3a8f">clique aqui</a>.<br>` : ""}
+<tr><td style="padding:28px 32px 32px"><div style="border-top:1px solid ${COR.linha};padding-top:24px">${assinatura}</div></td></tr>
+</table>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
+<tr><td style="padding:20px 24px 0;text-align:center;font-size:12px;line-height:1.6;color:${COR.suave}">
+${zap ? `Dúvidas? <a href="https://wa.me/${zap}" style="color:${COR.azul};font-weight:bold">Fale comigo no WhatsApp</a><br>` : ""}
 Você recebe este e-mail porque faz acompanhamento com ${clinica}. Se preferir não receber estes avisos, é só responder pedindo.
 </td></tr>
 </table>

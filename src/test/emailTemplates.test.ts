@@ -52,11 +52,17 @@ describe("seguranca", () => {
     expect(ruim.texto).toContain("/portal");
   });
 
-  it("so usa logo servido por https", () => {
-    const http = montarEmail("plano_novo", {}, { ...ctx, logoUrl: "http://inseguro/logo.png" });
-    expect(http.html).not.toContain("inseguro");
-    const https = montarEmail("plano_novo", {}, { ...ctx, logoUrl: "https://cdn.exemplo/logo.png" });
-    expect(https.html).toContain("https://cdn.exemplo/logo.png");
+  it("usa a logo da marca servida pelo app, nunca a das configurações", () => {
+    const e = montarEmail("plano_novo", {}, { ...ctx, logoUrl: "https://cdn.exemplo/logo-antiga.png" });
+    expect(e.html).toContain("https://app.exemplo.com.br/email/logo-gabriel-sanches-branca.png");
+    expect(e.html).toContain("https://app.exemplo.com.br/email/icone-gabriel-sanches.png");
+    expect(e.html).not.toContain("logo-antiga");
+  });
+
+  it("sem endereço https do app, troca as imagens por texto", () => {
+    const e = montarEmail("plano_novo", {}, { ...ctx, urlApp: "" });
+    expect(e.html).not.toContain("<img");
+    expect(e.html).toContain("Gabriel Sanches");
   });
 
   it("reconhece somente os tipos conhecidos", () => {
