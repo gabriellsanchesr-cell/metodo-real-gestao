@@ -21,7 +21,10 @@
  * EMAIL_FROM, APP_URL).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { montarEmail } from "../notificar-paciente/templates.ts";
+// Cópia de notificar-paciente/templates.ts: o empacotador do Lovable não
+// aceita import de outra pasta de função. src/test/emailTemplates.test.ts
+// falha se as duas cópias ficarem diferentes.
+import { montarEmail } from "./templates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

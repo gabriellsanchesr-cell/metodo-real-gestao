@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   TIPOS, montarEmail, escapar, limparTitulo, primeiroNome, formatarDataHora, isTipoAviso,
@@ -106,5 +107,16 @@ describe("lembrete_peso", () => {
     const sem = montarEmail("lembrete_peso", {}, { ...base, whatsapp: null });
     expect(sem.texto).not.toContain("WhatsApp");
     expect(sem.html).not.toContain("wa.me");
+  });
+});
+
+
+describe("cópia dos modelos na função de lembrete", () => {
+  // O Lovable não empacota import entre pastas de função, então
+  // lembrete-peso-semanal tem a própria cópia. Elas não podem divergir.
+  it("é idêntica à de notificar-paciente", () => {
+    const original = readFileSync("supabase/functions/notificar-paciente/templates.ts", "utf8");
+    const copia = readFileSync("supabase/functions/lembrete-peso-semanal/templates.ts", "utf8");
+    expect(copia).toBe(original);
   });
 });
