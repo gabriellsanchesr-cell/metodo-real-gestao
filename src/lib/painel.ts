@@ -8,6 +8,8 @@ import { differenceInCalendarDays, format, subDays } from "date-fns";
 export interface PacienteBasico {
   id: string;
   ativo?: boolean | null;
+  /** Parou o acompanhamento sem ser arquivada (migration de 02/10). */
+  inativo?: boolean | null;
   account_status?: string | null;
 }
 
@@ -45,11 +47,12 @@ export function pacientesVencidos(
 
 /**
  * Ativa, na definição do Gabriel: em acompanhamento, com ou sem portal.
- * Cadastro não arquivado e acompanhamento não vencido. Quem não usa o
- * portal (atendimento só presencial ou pelo WhatsApp) também conta.
+ * Cadastro não arquivado, não marcado como inativo e acompanhamento não
+ * vencido. Quem não usa o portal (atendimento só presencial ou pelo
+ * WhatsApp) também conta.
  */
 export function emAcompanhamento(p: PacienteBasico, vencidos: Set<string>): boolean {
-  return p.ativo !== false && !vencidos.has(p.id);
+  return p.ativo !== false && p.inativo !== true && !vencidos.has(p.id);
 }
 
 /** Janela do retorno pendente, em dias desde a última consulta. */
@@ -105,7 +108,7 @@ export function semPesoNaSemana<P extends PacienteBasico>(
   const comPeso = new Set(
     acompanhamentos.filter((a) => a.peso != null && a.data_registro >= desde).map((a) => a.paciente_id),
   );
-  return pacientes.filter((p) => usaPortal(p) && !vencidos.has(p.id) && !comPeso.has(p.id));
+  return pacientes.filter((p) => usaPortal(p) && p.inativo !== true && !vencidos.has(p.id) && !comPeso.has(p.id));
 }
 
 /** Consultas que já passaram e continuam "agendado": falta marcar realizada ou falta. */

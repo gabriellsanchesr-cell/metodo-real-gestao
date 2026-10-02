@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2, Pencil, MoreVertical } from "lucide-react";
+import { ArrowLeft, Trash2, Pencil, MoreVertical, PauseCircle, PlayCircle } from "lucide-react";
 import { AcessoPortalControle } from "./AcessoPortalControle";
 import {
   Breadcrumb,
@@ -30,6 +30,7 @@ const faseLabels: Record<string, { label: string; color: string }> = {
 // próprio ao lado; antes os dois diziam "Ativo/Inativo" e se confundiam.
 const statusLabels: Record<string, { label: string; color: string }> = {
   ativo: { label: "Em acompanhamento", color: "bg-success/10 text-success border-success/20" },
+  inativa: { label: "Inativa", color: "bg-muted text-muted-foreground border-border" },
   arquivada: { label: "Arquivada", color: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -56,12 +57,13 @@ interface PacienteHeaderProps {
   onReactivate: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onAlternarInativo: () => void;
   actionLoading: boolean;
 }
 
 export function PacienteHeader({
   paciente, activeSection, sectionLabel,
-  onCreateAccess, onDeactivate, onReactivate, onDelete, onEdit,
+  onCreateAccess, onDeactivate, onReactivate, onDelete, onEdit, onAlternarInativo,
   actionLoading,
 }: PacienteHeaderProps) {
   const navigate = useNavigate();
@@ -70,7 +72,10 @@ export function PacienteHeader({
   const age = useMemo(() => calcAge(paciente.data_nascimento), [paciente.data_nascimento]);
   const faseCfg = faseLabels[fase] || faseLabels.rotina;
   const isAtivo = paciente.ativo !== false;
-  const statusCfg = isAtivo ? statusLabels.ativo : statusLabels.arquivada;
+  const inativa = paciente.inativo === true;
+  const statusCfg = !isAtivo ? statusLabels.arquivada : inativa ? statusLabels.inativa : statusLabels.ativo;
+  const BotaoInativo = inativa ? PlayCircle : PauseCircle;
+  const rotuloInativo = inativa ? "Tornar ativo" : "Tornar inativo";
 
   return (
     <div className="bg-gradient-to-r from-card to-card/80 border-b border-border">
@@ -132,6 +137,11 @@ export function PacienteHeader({
 
         {/* Desktop actions */}
         <div className="hidden md:flex gap-2 flex-wrap shrink-0">
+          {isAtivo && (
+            <Button size="sm" variant="outline" onClick={onAlternarInativo} disabled={actionLoading} className="rounded-lg">
+              <BotaoInativo className="h-3.5 w-3.5 mr-1" /> {rotuloInativo}
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={onEdit} className="rounded-lg">
             <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
           </Button>
@@ -152,6 +162,11 @@ export function PacienteHeader({
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>
+              {isAtivo && (
+                <DropdownMenuItem onClick={onAlternarInativo} disabled={actionLoading}>
+                  <BotaoInativo className="h-4 w-4 mr-2" /> {rotuloInativo}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
                 <Trash2 className="h-4 w-4 mr-2" /> Excluir

@@ -28,7 +28,7 @@ import { ContratoSection } from "@/components/paciente/ContratoSection";
 import { EmailsSection } from "@/components/paciente/EmailsSection";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
-import { gerenciarAcesso } from "@/lib/acessoPortal";
+import { definirInativo, gerenciarAcesso } from "@/lib/acessoPortal";
 
 export default function PacienteDetalhe() {
   const { id } = useParams();
@@ -58,6 +58,18 @@ export default function PacienteDetalhe() {
       loadPaciente();
     } catch (err: any) {
       toast({ title: "Não consegui alterar o acesso", description: err.message, variant: "destructive" });
+    } finally { setActionLoading(false); }
+  };
+
+  const alternarInativo = async () => {
+    const inativo = paciente.inativo !== true;
+    setActionLoading(true);
+    try {
+      await definirInativo(id!, inativo);
+      toast({ title: inativo ? "Paciente inativa" : "Paciente ativa de novo" });
+      loadPaciente();
+    } catch (err) {
+      toast({ title: "Não consegui alterar", description: (err as Error).message, variant: "destructive" });
     } finally { setActionLoading(false); }
   };
 
@@ -133,6 +145,7 @@ export default function PacienteDetalhe() {
         onReactivate={() => handleAction("reactivate")}
         onDelete={() => setDeleteModal(true)}
         onEdit={() => navigate(`/pacientes/novo?edit=${paciente.id}`)}
+        onAlternarInativo={alternarInativo}
         actionLoading={actionLoading}
       />
 

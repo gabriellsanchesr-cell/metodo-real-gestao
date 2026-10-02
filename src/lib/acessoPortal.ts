@@ -70,3 +70,18 @@ export async function arquivarPaciente(
     }
   }
 }
+
+/**
+ * Marca a paciente como inativa (parou o acompanhamento) ou ativa de novo.
+ * Não arquiva e não mexe no portal. A coluna vem da migration de 02/10;
+ * antes dela o erro do banco vira uma frase que diz o que falta.
+ */
+export async function definirInativo(pacienteId: string, inativo: boolean): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from("pacientes").update({ inativo }).eq("id", pacienteId);
+  if (!error) return;
+  if (/inativo/.test(error.message ?? "")) {
+    throw new Error("Falta aplicar no Lovable a migration 20261002120000_paciente_inativo.sql.");
+  }
+  throw error;
+}

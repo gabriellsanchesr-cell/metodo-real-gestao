@@ -12,7 +12,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Search, Users, MoreHorizontal, UserCheck, UserX, Pencil, Trash2, KeyRound, Loader2, X, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Search, Users, MoreHorizontal, UserCheck, UserX, Pencil, Trash2, KeyRound, Loader2, X, Archive, ArchiveRestore, PauseCircle, PlayCircle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
@@ -21,7 +21,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { TableSkeleton } from "@/components/Loading";
 import { format } from "date-fns";
-import { arquivarPaciente, descreverIgnoradas, gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
+import { arquivarPaciente, definirInativo, descreverIgnoradas, gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
 import { ArquivarPacientesDialog } from "@/components/paciente/ArquivarPacientesDialog";
 import { AcessoPortalControle } from "@/components/paciente/AcessoPortalControle";
 import { listarContratosAtivos } from "@/lib/contratosApi";
@@ -45,6 +45,7 @@ const FILTROS = [
   { id: "ativos", rotulo: "Ativos" },
   { id: "portal", rotulo: "Usam o portal" },
   { id: "vencidos", rotulo: "Vencidos" },
+  { id: "inativos", rotulo: "Inativos" },
   { id: "desativado", rotulo: "Portal bloqueado" },
   { id: "sem_conta", rotulo: "Sem portal" },
   { id: "arquivados", rotulo: "Arquivados" },
@@ -95,13 +96,15 @@ export default function Pacientes() {
     setCarregando(false);
   };
 
-  const passaNoFiltro = (p: { id: string; ativo?: boolean | null; account_status?: string | null }, filtro: string) => {
+  const passaNoFiltro = (p: { id: string; ativo?: boolean | null; inativo?: boolean | null; account_status?: string | null }, filtro: string) => {
     if (filtro === "arquivados") return p.ativo === false;
     if (p.ativo === false) return false;
     if (filtro === "todos") return true;
     if (filtro === "ativos") return emAcompanhamento(p, vencidos);
     if (filtro === "portal") return usaPortal(p);
-    if (filtro === "vencidos") return vencidos.has(p.id);
+    if (filtro === "inativos") return p.inativo === true;
+    // Inativa já parou: o vencimento dela não pede mais ação.
+    if (filtro === "vencidos") return vencidos.has(p.id) && p.inativo !== true;
     return (p.account_status || "sem_conta") === filtro;
   };
 
@@ -194,6 +197,23 @@ export default function Pacientes() {
 
   const bulkArquivar = (bloquear: boolean) =>
     runBulk(bloquear ? "Arquivadas e com acesso bloqueado" : "Cadastros arquivados", (p) => arquivarPaciente(p, bloquear));
+
+  const bulkInativo = (inativo: boolean) =>
+    runBulk(inativo ? "Marcadas como inativas" : "Marcadas como ativas", (p) => definirInativo(p.id, inativo));
+
+  const alternarInativo = async (p: { id: string; nome_completo: string; inativo?: boolean | null }) => {
+    const inativo = p.inativo !== true;
+    setActionLoading(true);
+    try {
+      await definirInativo(p.id, inativo);
+      toast({ title: inativo ? "Paciente inativa" : "Paciente ativa de novo", description: p.nome_completo.trim() });
+      loadPacientes();
+    } catch (err) {
+      toast({ title: "Não consegui alterar", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const bulkSetAtivo = (ativo: boolean) =>
     runBulk(ativo ? "Cadastros reativados" : "Cadastros arquivados", async (p) => {
@@ -293,6 +313,12 @@ export default function Pacientes() {
               title={podemLiberar ? undefined : "Nenhuma selecionada está com o portal bloqueado"}>
               <UserCheck className="h-4 w-4 mr-1.5" /> Liberar acesso{podemLiberar ? ` (${podemLiberar})` : ""}
             </Button>
+            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => bulkInativo(true)}>
+              <PauseCircle className="h-4 w-4 mr-1.5" /> Tornar inativo
+            </Button>
+            <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => bulkInativo(false)}>
+              <PlayCircle className="h-4 w-4 mr-1.5" /> Tornar ativo
+            </Button>
             <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={() => setConfirmarArquivar(true)}>
               <Archive className="h-4 w-4 mr-1.5" /> Arquivar
             </Button>
@@ -375,7 +401,12 @@ export default function Pacientes() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={cfg.variant} className="rounded-full whitespace-nowrap">{cfg.label}</Badge>
-                        {p.ativo !== false && vencidos.has(p.id) && (
+                        {p.ativo !== false && p.inativo === true && (
+                          <Badge variant="secondary" className="rounded-full whitespace-nowrap" title="Parou o acompanhamento. Continua na lista, fora de Ativos.">
+                            Inativo
+                          </Badge>
+                        )}
+                        {p.ativo !== false && p.inativo !== true && vencidos.has(p.id) && (
                           <Badge
                             variant="outline"
                             className="rounded-full whitespace-nowrap border-destructive/40 bg-destructive/10 text-destructive"
@@ -426,6 +457,11 @@ export default function Pacientes() {
                             <UserCheck className="h-4 w-4 mr-2" /> Liberar acesso
                           </DropdownMenuItem>
                         )}
+                        <DropdownMenuItem onClick={() => alternarInativo(p)}>
+                          {p.inativo === true
+                            ? <><PlayCircle className="h-4 w-4 mr-2" /> Tornar ativo</>
+                            : <><PauseCircle className="h-4 w-4 mr-2" /> Tornar inativo</>}
+                        </DropdownMenuItem>
                         <DropdownMenuItem className="text-destructive" onClick={() => setDeleteModal({ open: true, paciente: p })}>
                           <Trash2 className="h-4 w-4 mr-2" /> Excluir
                         </DropdownMenuItem>

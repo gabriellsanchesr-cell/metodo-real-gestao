@@ -39,6 +39,7 @@ describe("emAcompanhamento", () => {
     expect(emAcompanhamento(p("c", "desativado"), vencidos)).toBe(true);
     expect(emAcompanhamento(p("v"), vencidos)).toBe(false);
     expect(emAcompanhamento(p("e", "ativo", false), vencidos)).toBe(false);
+    expect(emAcompanhamento({ ...p("i"), inativo: true }, vencidos)).toBe(false);
   });
 });
 

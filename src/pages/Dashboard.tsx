@@ -74,7 +74,8 @@ export default function Dashboard() {
     // está em acompanhamento (não arquivada, não vencida), com ou sem portal.
     const agora = new Date();
     const [pacientesRes, consultasRes, acompRes, pesosSemanaRes, contratos] = await Promise.all([
-      supabase.from("pacientes").select("id, nome_completo, ativo, account_status"),
+      // "*" e não a lista de colunas: antes da migration de 02/10 pedir "inativo" daria erro.
+      supabase.from("pacientes").select("*"),
       supabase.from("consultas").select("id, data_hora, tipo, status, paciente_id, pacientes(nome_completo)").order("data_hora"),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("acompanhamentos").select("id, data_registro, peso, paciente_id, registrado_pela_paciente, pacientes(nome_completo)").order("created_at", { ascending: false }).limit(5),
