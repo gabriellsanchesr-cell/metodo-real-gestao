@@ -12,7 +12,7 @@ const json = (data: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
-Deno.serve(async (req) => {
+Deno.serve(async (req): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -176,6 +176,8 @@ Deno.serve(async (req) => {
       default:
         return json({ error: "Ação inválida" }, 400);
     }
+
+    return json({ error: "Ação inválida" }, 400);
   } catch (error) {
     console.error('Unexpected error:', error);
     return json({ error: 'Erro interno do servidor' }, 500);
