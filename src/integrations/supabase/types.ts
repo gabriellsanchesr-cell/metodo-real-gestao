@@ -2110,6 +2110,7 @@ export type Database = {
           fase_real: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias: string | null
           id: string
+          inativo: boolean
           lead_id: string | null
           medicamentos: string | null
           nivel_atividade: Database["public"]["Enums"]["nivel_atividade"] | null
@@ -2140,6 +2141,7 @@ export type Database = {
           fase_real?: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias?: string | null
           id?: string
+          inativo?: boolean
           lead_id?: string | null
           medicamentos?: string | null
           nivel_atividade?:
@@ -2172,6 +2174,7 @@ export type Database = {
           fase_real?: Database["public"]["Enums"]["fase_real"] | null
           historico_patologias?: string | null
           id?: string
+          inativo?: boolean
           lead_id?: string | null
           medicamentos?: string | null
           nivel_atividade?:
