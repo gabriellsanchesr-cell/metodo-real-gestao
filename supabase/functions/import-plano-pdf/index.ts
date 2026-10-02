@@ -135,7 +135,7 @@ async function extractStructuredText(bytes: Uint8Array): Promise<string> {
         y: it.transform?.[5] ?? 0,
         h: it.height ?? (it.transform?.[3] ?? 10),
       }))
-      .filter((it) => it.str.length > 0);
+      .filter((it: { str: string; x: number; y: number; h: number }) => it.str.length > 0);
 
     // Agrupa por linha usando tolerância baseada na altura média do texto
     const avgH = items.length ? items.reduce((s, i) => s + i.h, 0) / items.length : 10;
