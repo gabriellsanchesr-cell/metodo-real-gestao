@@ -13,7 +13,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Users, MoreHorizontal, UserCheck, UserX, Pencil, Trash2, KeyRound, Loader2, X, Archive, ArchiveRestore } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { PacienteAccessModal } from "@/components/PacienteAccessModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
@@ -24,13 +24,31 @@ import { format } from "date-fns";
 import { arquivarPaciente, descreverIgnoradas, gerenciarAcesso, separarPorAcesso } from "@/lib/acessoPortal";
 import { ArquivarPacientesDialog } from "@/components/paciente/ArquivarPacientesDialog";
 import { AcessoPortalControle } from "@/components/paciente/AcessoPortalControle";
+import { listarContratosAtivos } from "@/lib/contratosApi";
+import { emAcompanhamento, pacientesVencidos, usaPortal } from "@/lib/painel";
 
 
+/** Situação do acesso ao portal. "Ativo" na clínica é outra coisa: ver FILTROS. */
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  ativo: { label: "Ativo", variant: "default" },
-  desativado: { label: "Inativo", variant: "destructive" },
-  sem_conta: { label: "Sem conta", variant: "outline" },
+  ativo: { label: "Usa o portal", variant: "default" },
+  desativado: { label: "Portal bloqueado", variant: "destructive" },
+  sem_conta: { label: "Sem portal", variant: "outline" },
 };
+
+/**
+ * Filtros da lista. "Ativos" é quem está em acompanhamento, com ou sem
+ * portal (não arquivada e não vencida); "Usam o portal" é só o acesso.
+ * Antes eram a mesma coisa, e quem é atendida sem portal sumia de "Ativo".
+ */
+const FILTROS = [
+  { id: "todos", rotulo: "Todos" },
+  { id: "ativos", rotulo: "Ativos" },
+  { id: "portal", rotulo: "Usam o portal" },
+  { id: "vencidos", rotulo: "Vencidos" },
+  { id: "desativado", rotulo: "Portal bloqueado" },
+  { id: "sem_conta", rotulo: "Sem portal" },
+  { id: "arquivados", rotulo: "Arquivados" },
+] as const;
 
 function getInitials(name: string) {
   return name.split(" ").filter(Boolean).map(n => n[0]).slice(0, 2).join("").toUpperCase();
@@ -44,7 +62,12 @@ export default function Pacientes() {
   const [carregando, setCarregando] = useState(true);
   const [confirmarArquivar, setConfirmarArquivar] = useState(false);
   const [busca, setBusca] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [searchParams] = useSearchParams();
+  const [filtroStatus, setFiltroStatus] = useState<string>(() => {
+    const f = searchParams.get("filtro");
+    return FILTROS.some((x) => x.id === f) ? f! : "todos";
+  });
+  const [vencidos, setVencidos] = useState<Set<string>>(new Set());
 
   const [accessModal, setAccessModal] = useState<{ open: boolean; paciente: any; mode: "create" | "edit" }>({
     open: false, paciente: null, mode: "create",
@@ -63,23 +86,27 @@ export default function Pacientes() {
   }, [user]);
 
   const loadPacientes = async () => {
-    const { data } = await supabase
-      .from("pacientes")
-      .select("*")
-      .order("nome_completo");
+    const [{ data }, contratos] = await Promise.all([
+      supabase.from("pacientes").select("*").order("nome_completo"),
+      listarContratosAtivos().catch(() => []),
+    ]);
     setPacientes(data || []);
+    setVencidos(pacientesVencidos(contratos));
     setCarregando(false);
   };
 
-  const filtered = pacientes.filter((p) => {
-    const matchBusca = p.nome_completo.toLowerCase().includes(busca.toLowerCase());
-    const arquivado = p.ativo === false;
-    if (filtroStatus === "arquivados") return matchBusca && arquivado;
-    if (arquivado) return false;
-    const status = p.account_status || "sem_conta";
-    const matchStatus = filtroStatus === "todos" || status === filtroStatus;
-    return matchBusca && matchStatus;
-  });
+  const passaNoFiltro = (p: { id: string; ativo?: boolean | null; account_status?: string | null }, filtro: string) => {
+    if (filtro === "arquivados") return p.ativo === false;
+    if (p.ativo === false) return false;
+    if (filtro === "todos") return true;
+    if (filtro === "ativos") return emAcompanhamento(p, vencidos);
+    if (filtro === "portal") return usaPortal(p);
+    if (filtro === "vencidos") return vencidos.has(p.id);
+    return (p.account_status || "sem_conta") === filtro;
+  };
+
+  const filtered = pacientes.filter((p) =>
+    p.nome_completo.toLowerCase().includes(busca.toLowerCase()) && passaNoFiltro(p, filtroStatus));
 
 
   /**
@@ -92,13 +119,9 @@ export default function Pacientes() {
     : [];
 
   /** Quantos pacientes cada filtro traria, ignorando a busca por nome. */
-  const contagens: Record<string, number> = {
-    todos: pacientes.filter((p) => p.ativo !== false).length,
-    ativo: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "ativo").length,
-    desativado: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "desativado").length,
-    sem_conta: pacientes.filter((p) => p.ativo !== false && (p.account_status || "sem_conta") === "sem_conta").length,
-    arquivados: pacientes.filter((p) => p.ativo === false).length,
-  };
+  const contagens: Record<string, number> = Object.fromEntries(
+    FILTROS.map((f) => [f.id, pacientes.filter((p) => passaNoFiltro(p, f.id)).length]),
+  );
   const selectedPacientes = pacientes.filter((p) => selected.includes(p.id));
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selected.includes(p.id));
@@ -228,16 +251,16 @@ export default function Pacientes() {
           <Input placeholder="Buscar paciente..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-10 rounded-xl" />
         </div>
         <div className="flex gap-1.5 flex-wrap">
-          {["todos", "ativo", "desativado", "sem_conta", "arquivados"].map((s) => (
+          {FILTROS.map((f) => (
             <Button
-              key={s}
-              variant={filtroStatus === s ? "default" : "outline"}
+              key={f.id}
+              variant={filtroStatus === f.id ? "default" : "outline"}
               size="sm"
-              onClick={() => { setFiltroStatus(s); setSelected([]); }}
+              onClick={() => { setFiltroStatus(f.id); setSelected([]); }}
               className="rounded-full px-4 text-xs"
             >
-              {s === "todos" ? "Todos" : s === "arquivados" ? "Arquivados" : statusConfig[s]?.label || s}
-              <span className="ml-1.5 tabular-nums opacity-70">{contagens[s] ?? 0}</span>
+              {f.rotulo}
+              <span className="ml-1.5 tabular-nums opacity-70">{contagens[f.id] ?? 0}</span>
             </Button>
           ))}
         </div>
@@ -313,7 +336,7 @@ export default function Pacientes() {
                 </TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead className="hidden xl:table-cell">E-mail</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Situação</TableHead>
                 <TableHead className="hidden sm:table-cell">Cadastro</TableHead>
                 <TableHead className="w-[60px]">Ações</TableHead>
               </TableRow>
@@ -352,6 +375,15 @@ export default function Pacientes() {
                     <TableCell>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge variant={cfg.variant} className="rounded-full whitespace-nowrap">{cfg.label}</Badge>
+                        {p.ativo !== false && vencidos.has(p.id) && (
+                          <Badge
+                            variant="outline"
+                            className="rounded-full whitespace-nowrap border-destructive/40 bg-destructive/10 text-destructive"
+                            title="O acompanhamento venceu e não foi renovado."
+                          >
+                            Vencido
+                          </Badge>
+                        )}
                         {p.ativo === false && status === "ativo" && (
                           <Badge
                             variant="outline"

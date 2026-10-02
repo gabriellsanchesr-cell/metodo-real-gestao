@@ -18,11 +18,38 @@ export interface ConsultaBasica {
 }
 
 /**
- * Paciente ativa, na definição do Gabriel: tem o portal liberado e o
- * cadastro não está arquivado. É o filtro "Ativo" da lista de pacientes.
+ * Usa o portal: acesso liberado e cadastro não arquivado. É o filtro
+ * "Usam o portal" da lista de pacientes e quem recebe o lembrete de peso.
  */
-export function ehAtiva(p: PacienteBasico): boolean {
+export function usaPortal(p: PacienteBasico): boolean {
   return p.account_status === "ativo" && p.ativo !== false;
+}
+
+/**
+ * Pacientes com o acompanhamento vencido: o contrato vigente (o ativo de
+ * vencimento mais distante) terminou antes de hoje. Renovado em dia, sai daqui.
+ */
+export function pacientesVencidos(
+  contratos: { paciente_id: string; status?: string | null; data_vencimento: string }[],
+  agora: Date = new Date(),
+): Set<string> {
+  const hoje = format(agora, "yyyy-MM-dd");
+  const vigente = new Map<string, string>();
+  for (const c of contratos) {
+    if (c.status && c.status !== "ativo") continue;
+    const atual = vigente.get(c.paciente_id);
+    if (!atual || c.data_vencimento > atual) vigente.set(c.paciente_id, c.data_vencimento);
+  }
+  return new Set([...vigente].filter(([, venc]) => venc.slice(0, 10) < hoje).map(([id]) => id));
+}
+
+/**
+ * Ativa, na definição do Gabriel: em acompanhamento, com ou sem portal.
+ * Cadastro não arquivado e acompanhamento não vencido. Quem não usa o
+ * portal (atendimento só presencial ou pelo WhatsApp) também conta.
+ */
+export function emAcompanhamento(p: PacienteBasico, vencidos: Set<string>): boolean {
+  return p.ativo !== false && !vencidos.has(p.id);
 }
 
 /** Janela do retorno pendente, em dias desde a última consulta. */
@@ -30,14 +57,15 @@ export const RETORNO_MIN_DIAS = 30;
 export const RETORNO_MAX_DIAS = 45;
 
 /**
- * Ativas que estão na hora de voltar: a última consulta (que não foi
+ * Pacientes que estão na hora de voltar: a última consulta (que não foi
  * cancelada) aconteceu há 30 a 45 dias e não há consulta futura marcada.
  * Mais recentes primeiro na fila: quem está há mais tempo aparece antes.
  */
 export function retornosPendentes<P extends PacienteBasico>(
   pacientes: P[],
   consultas: ConsultaBasica[],
-  agora: Date = new Date(),
+  agora: Date,
+  ehAtiva: (p: P) => boolean,
 ): { paciente: P; dias: number }[] {
   const ultima = new Map<string, Date>();
   const comFutura = new Set<string>();
@@ -63,17 +91,21 @@ export function retornosPendentes<P extends PacienteBasico>(
   return lista.sort((a, b) => b.dias - a.dias);
 }
 
-/** Ativas sem peso lançado nos últimos 7 dias (data local, não UTC). */
+/**
+ * Quem usa o portal e não lançou peso nos últimos 7 dias (data local, não
+ * UTC). Quem não usa o portal fica de fora: não tem onde lançar.
+ */
 export function semPesoNaSemana<P extends PacienteBasico>(
   pacientes: P[],
   acompanhamentos: { paciente_id: string; data_registro: string; peso?: number | null }[],
   agora: Date = new Date(),
+  vencidos: Set<string> = new Set(),
 ): P[] {
   const desde = format(subDays(agora, 7), "yyyy-MM-dd");
   const comPeso = new Set(
     acompanhamentos.filter((a) => a.peso != null && a.data_registro >= desde).map((a) => a.paciente_id),
   );
-  return pacientes.filter((p) => ehAtiva(p) && !comPeso.has(p.id));
+  return pacientes.filter((p) => usaPortal(p) && !vencidos.has(p.id) && !comPeso.has(p.id));
 }
 
 /** Consultas que já passaram e continuam "agendado": falta marcar realizada ou falta. */

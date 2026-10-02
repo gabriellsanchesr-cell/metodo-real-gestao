@@ -4,12 +4,14 @@ import { Users, UserPlus, UserMinus, ShieldCheck, ClipboardCheck, CalendarCheck,
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, differenceInWeeks, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { retornosPendentes as calcularRetornos } from "@/lib/painel";
+import { emAcompanhamento, retornosPendentes as calcularRetornos } from "@/lib/painel";
 
 interface Props {
   pacientes: any[];
   consultas: any[];
   checklists: any[];
+  /** Pacientes com o acompanhamento vencido (src/lib/painel.ts). */
+  vencidos?: Set<string>;
   periodoInicio: Date;
   periodoFim: Date;
   periodoAnteriorInicio: Date;
@@ -24,7 +26,7 @@ const FASE_LABELS: Record<string, string> = {
   liberdade: "Liberdade",
 };
 
-export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim }: Props) {
+export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim }: Props) {
   const stats = useMemo(() => {
     const ativos = pacientes.filter(p => p.ativo !== false);
     const inativos = pacientes.filter(p => p.ativo === false);
@@ -62,9 +64,10 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
     const temposAcomp = ativos.map(p => differenceInWeeks(new Date(), new Date(p.created_at)));
     const mediaAcomp = temposAcomp.length > 0 ? Math.round(temposAcomp.reduce((a, b) => a + b, 0) / temposAcomp.length) : 0;
 
-    // Mesmo critério do Dashboard (src/lib/painel.ts): ativa com portal
-    // liberado, 30 a 45 dias da última consulta, sem retorno marcado.
-    const retornosPendentes = calcularRetornos(pacientes, consultas).length;
+    // Mesmo critério do Dashboard (src/lib/painel.ts): em acompanhamento, com
+    // ou sem portal, 30 a 45 dias da última consulta, sem retorno marcado.
+    const semVencidos = vencidos ?? new Set<string>();
+    const retornosPendentes = calcularRetornos(pacientes, consultas, new Date(), (p) => emAcompanhamento(p, semVencidos)).length;
 
     const taxaRetencao = pacientes.length > 0
       ? Math.round((ativos.length / pacientes.length) * 100)
@@ -83,7 +86,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio,
       retornosPendentes,
       taxaRetencao,
     };
-  }, [pacientes, consultas, checklists, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim]);
+  }, [pacientes, consultas, checklists, vencidos, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim]);
 
   const growthData = useMemo(() => {
     const months: { month: string; total: number }[] = [];

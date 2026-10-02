@@ -6,6 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { BarChart3 } from "lucide-react";
 import { VisaoGeralTab } from "@/components/relatorios/VisaoGeralTab";
+import { listarContratosAtivos } from "@/lib/contratosApi";
+import { pacientesVencidos } from "@/lib/painel";
 import { PacientesTab } from "@/components/relatorios/PacientesTab";
 import { EvolucaoClinicaTab } from "@/components/relatorios/EvolucaoClinicaTab";
 import { EngajamentoTab } from "@/components/relatorios/EngajamentoTab";
@@ -56,12 +58,13 @@ export default function Relatorios() {
   const [diarioRegistros, setDiarioRegistros] = useState<any[]>([]);
   const [conteudoVis, setConteudoVis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vencidos, setVencidos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       setLoading(true);
-      const [pRes, cRes, aRes, acRes, chRes, dRes, cvRes] = await Promise.all([
+      const [pRes, cRes, aRes, acRes, chRes, dRes, cvRes, contratos] = await Promise.all([
         supabase.from("pacientes").select("*").eq("user_id", user.id),
         supabase.from("consultas").select("*").eq("user_id", user.id),
         supabase.from("avaliacoes_fisicas").select("*").eq("user_id", user.id),
@@ -69,7 +72,9 @@ export default function Relatorios() {
         supabase.from("checklist_respostas").select("*"),
         supabase.from("diario_registros").select("*"),
         supabase.from("conteudo_visualizacoes").select("*"),
+        listarContratosAtivos().catch(() => []),
       ]);
+      setVencidos(pacientesVencidos(contratos));
       setPacientes(pRes.data || []);
       setConsultas(cRes.data || []);
       setAvaliacoes(aRes.data || []);
@@ -121,6 +126,7 @@ export default function Relatorios() {
 
         <TabsContent value="geral">
           <VisaoGeralTab
+            vencidos={vencidos}
             pacientes={pacientes}
             consultas={consultas}
             checklists={checklists}

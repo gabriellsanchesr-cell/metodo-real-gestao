@@ -1,18 +1,44 @@
 import { describe, it, expect } from "vitest";
 import { addDays, subDays } from "date-fns";
-import { ehAtiva, retornosPendentes, semPesoNaSemana, consultasParaFechar, ultimoPeso } from "@/lib/painel";
+import { usaPortal, emAcompanhamento, pacientesVencidos, retornosPendentes, semPesoNaSemana, consultasParaFechar, ultimoPeso } from "@/lib/painel";
 
 const agora = new Date(2026, 8, 30, 10, 0);
 const ha = (dias: number) => subDays(agora, dias).toISOString();
 const p = (id: string, account_status = "ativo", ativo: boolean | null = true) => ({ id, account_status, ativo });
 
-describe("ehAtiva", () => {
+const naoArquivada = (x: { ativo?: boolean | null }) => x.ativo !== false;
+
+describe("usaPortal", () => {
   it("só portal liberado e cadastro não arquivado", () => {
-    expect(ehAtiva(p("a"))).toBe(true);
-    expect(ehAtiva(p("b", "ativo", null))).toBe(true);
-    expect(ehAtiva(p("c", "sem_conta"))).toBe(false);
-    expect(ehAtiva(p("d", "desativado"))).toBe(false);
-    expect(ehAtiva(p("e", "ativo", false))).toBe(false);
+    expect(usaPortal(p("a"))).toBe(true);
+    expect(usaPortal(p("b", "ativo", null))).toBe(true);
+    expect(usaPortal(p("c", "sem_conta"))).toBe(false);
+    expect(usaPortal(p("d", "desativado"))).toBe(false);
+    expect(usaPortal(p("e", "ativo", false))).toBe(false);
+  });
+});
+
+describe("pacientesVencidos", () => {
+  it("vale o contrato ativo de vencimento mais distante, vencido antes de hoje", () => {
+    const v = pacientesVencidos([
+      { paciente_id: "venceu", status: "ativo", data_vencimento: "2026-09-29" },
+      { paciente_id: "hoje", status: "ativo", data_vencimento: "2026-09-30" },
+      { paciente_id: "renovou", status: "ativo", data_vencimento: "2026-09-01" },
+      { paciente_id: "renovou", status: "ativo", data_vencimento: "2026-10-30" },
+      { paciente_id: "antigo", status: "renovado", data_vencimento: "2026-08-01" },
+    ], agora);
+    expect([...v]).toEqual(["venceu"]);
+  });
+});
+
+describe("emAcompanhamento", () => {
+  it("conta quem não usa o portal e deixa de fora arquivadas e vencidas", () => {
+    const vencidos = new Set(["v"]);
+    expect(emAcompanhamento(p("a"), vencidos)).toBe(true);
+    expect(emAcompanhamento(p("b", "sem_conta"), vencidos)).toBe(true);
+    expect(emAcompanhamento(p("c", "desativado"), vencidos)).toBe(true);
+    expect(emAcompanhamento(p("v"), vencidos)).toBe(false);
+    expect(emAcompanhamento(p("e", "ativo", false), vencidos)).toBe(false);
   });
 });
 
@@ -26,29 +52,31 @@ describe("retornosPendentes", () => {
   ];
 
   it("conta de 30 a 45 dias, inclusive, mais antigas primeiro", () => {
-    expect(retornosPendentes(pacs, cons, agora).map((r) => [r.paciente.id, r.dias])).toEqual([["d45", 45], ["d30", 30]]);
+    expect(retornosPendentes(pacs, cons, agora, naoArquivada).map((r) => [r.paciente.id, r.dias])).toEqual([["d45", 45], ["d30", 30]]);
   });
 
   it("quem já tem retorno marcado não conta", () => {
     const comFutura = [...cons, { paciente_id: "d30", data_hora: addDays(agora, 3).toISOString(), status: "agendado" }];
-    expect(retornosPendentes(pacs, comFutura, agora).map((r) => r.paciente.id)).toEqual(["d45"]);
+    expect(retornosPendentes(pacs, comFutura, agora, naoArquivada).map((r) => r.paciente.id)).toEqual(["d45"]);
   });
 
   it("consulta futura cancelada não segura o retorno", () => {
     const futuraCancelada = [...cons, { paciente_id: "d30", data_hora: addDays(agora, 3).toISOString(), status: "cancelado" }];
-    expect(retornosPendentes(pacs, futuraCancelada, agora).map((r) => r.paciente.id)).toContain("d30");
+    expect(retornosPendentes(pacs, futuraCancelada, agora, naoArquivada).map((r) => r.paciente.id)).toContain("d30");
   });
 
   it("ignora consulta cancelada como última consulta", () => {
     const r = retornosPendentes([p("x")], [
       { paciente_id: "x", data_hora: ha(35), status: "realizado" },
       { paciente_id: "x", data_hora: ha(5), status: "cancelado" },
-    ], agora);
+    ], agora, naoArquivada);
     expect(r.map((i) => i.dias)).toEqual([35]);
   });
 
-  it("só pacientes ativas", () => {
-    expect(retornosPendentes([p("s", "sem_conta")], [{ paciente_id: "s", data_hora: ha(35), status: "realizado" }], agora)).toEqual([]);
+  it("só quem passa no critério de ativa", () => {
+    const cons35 = [{ paciente_id: "s", data_hora: ha(35), status: "realizado" }];
+    expect(retornosPendentes([p("s", "sem_conta")], cons35, agora, naoArquivada)).toHaveLength(1);
+    expect(retornosPendentes([p("s", "sem_conta", false)], cons35, agora, naoArquivada)).toEqual([]);
   });
 });
 
@@ -61,6 +89,7 @@ describe("semPesoNaSemana", () => {
       { paciente_id: "sem", data_registro: "2026-09-29", peso: null },
     ];
     expect(semPesoNaSemana(pacs, acomp, agora).map((x) => x.id)).toEqual(["sem", "antigo"]);
+    expect(semPesoNaSemana(pacs, acomp, agora, new Set(["sem"])).map((x) => x.id)).toEqual(["antigo"]);
   });
 });
 
