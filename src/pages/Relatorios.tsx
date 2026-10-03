@@ -7,7 +7,7 @@ import { subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { BarChart3 } from "lucide-react";
 import { VisaoGeralTab } from "@/components/relatorios/VisaoGeralTab";
 import { listarContratosAtivos } from "@/lib/contratosApi";
-import { pacientesVencidos } from "@/lib/painel";
+import { pacientesVencidos, situacaoPaciente } from "@/lib/painel";
 import { PacientesTab } from "@/components/relatorios/PacientesTab";
 import { EvolucaoClinicaTab } from "@/components/relatorios/EvolucaoClinicaTab";
 import { EngajamentoTab } from "@/components/relatorios/EngajamentoTab";
@@ -58,7 +58,6 @@ export default function Relatorios() {
   const [diarioRegistros, setDiarioRegistros] = useState<any[]>([]);
   const [conteudoVis, setConteudoVis] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [vencidos, setVencidos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!user) return;
@@ -74,8 +73,11 @@ export default function Relatorios() {
         supabase.from("conteudo_visualizacoes").select("*"),
         listarContratosAtivos().catch(() => []),
       ]);
-      setVencidos(pacientesVencidos(contratos));
-      setPacientes(pRes.data || []);
+      // Cada paciente leva a situação (ativo, vencido, inativo, arquivado),
+      // calculada como na lista de pacientes e no Dashboard. Antes os
+      // relatórios chamavam de "ativo" todo cadastro não arquivado.
+      const vencidosAgora = pacientesVencidos(contratos);
+      setPacientes((pRes.data || []).map((p) => ({ ...p, situacao: situacaoPaciente(p, vencidosAgora) })));
       setConsultas(cRes.data || []);
       setAvaliacoes(aRes.data || []);
       setAcompanhamentos(acRes.data || []);
@@ -126,7 +128,6 @@ export default function Relatorios() {
 
         <TabsContent value="geral">
           <VisaoGeralTab
-            vencidos={vencidos}
             pacientes={pacientes}
             consultas={consultas}
             checklists={checklists}

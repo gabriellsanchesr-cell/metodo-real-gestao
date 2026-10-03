@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { usaPortal } from "@/lib/painel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { differenceInDays } from "date-fns";
@@ -12,7 +13,8 @@ interface Props {
 }
 
 export function EngajamentoTab({ pacientes, checklists, diarioRegistros, conteudoVis }: Props) {
-  const ativos = useMemo(() => pacientes.filter(p => p.ativo !== false), [pacientes]);
+  // Engajamento é uso do portal: quem é atendida sem portal não entra na conta.
+  const ativos = useMemo(() => pacientes.filter(p => p.situacao === "ativo" && usaPortal(p)), [pacientes]);
 
   const checkinStats = useMemo(() => {
     const now = new Date();

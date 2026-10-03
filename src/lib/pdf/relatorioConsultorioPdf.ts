@@ -23,8 +23,9 @@ export async function generateRelatorioConsultorioPdf(
   let y = 28;
   y = sectionTitle(doc, y, "1. Carteira de Pacientes");
 
-  const ativos = pacientes.filter(p => p.ativo !== false);
-  const inativos = pacientes.filter(p => p.ativo === false);
+  // Situação vem de Relatorios.tsx (src/lib/painel.ts); sem ela, cai no cadastro.
+  const ativos = pacientes.filter(p => (p.situacao ?? (p.ativo === false ? "arquivado" : "ativo")) === "ativo");
+  const inativos = pacientes.filter(p => !ativos.includes(p));
   const retencao = pacientes.length > 0 ? Math.round((ativos.length / pacientes.length) * 100) : 0;
 
   y = labelText(doc, y, "Total de pacientes ativos: ", String(ativos.length));

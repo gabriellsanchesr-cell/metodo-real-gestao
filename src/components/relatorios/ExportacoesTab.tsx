@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ROTULO_SITUACAO, usaPortal, type SituacaoPaciente } from "@/lib/painel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -46,14 +47,14 @@ export function ExportacoesTab({ pacientes, consultas, avaliacoes, acompanhament
       if (modal === "geral" && formato === "pdf") {
         await generateRelatorioConsultorioPdf(pacientes, consultas, avaliacoes, acompanhamentos, checklists, user?.id);
       } else if (modal === "pacientes" && formato === "csv") {
-        const headers = ["Nome", "Email", "Telefone", "Objetivo", "Fase", "Sexo", "Status"];
+        const headers = ["Nome", "Email", "Telefone", "Objetivo", "Fase", "Sexo", "Situação", "Usa o portal"];
         const rows = pacientes.map(p => [
-          p.nome_completo, p.email || "", p.telefone || "", p.objetivo || "", p.fase_real || "", p.sexo || "", p.ativo !== false ? "Ativo" : "Inativo",
+          p.nome_completo, p.email || "", p.telefone || "", p.objetivo || "", p.fase_real || "", p.sexo || "", ROTULO_SITUACAO[p.situacao as SituacaoPaciente] ?? "Ativo", usaPortal(p) ? "Sim" : "Não",
         ]);
         downloadCSV("pacientes.csv", headers, rows);
       } else if (modal === "evolucao" && formato === "csv") {
         const headers = ["Paciente", "Peso Inicial", "Peso Atual", "Variação Peso", "Abd. Inicial", "Abd. Atual", "Variação Abd."];
-        const rows = pacientes.filter(p => p.ativo !== false).map(p => {
+        const rows = pacientes.filter(p => p.situacao === "ativo").map(p => {
           const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
           if (avals.length < 2) return null;
           const first = avals[0];

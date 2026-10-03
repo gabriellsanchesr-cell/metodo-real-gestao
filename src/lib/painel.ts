@@ -55,6 +55,27 @@ export function emAcompanhamento(p: PacienteBasico, vencidos: Set<string>): bool
   return p.ativo !== false && p.inativo !== true && !vencidos.has(p.id);
 }
 
+export type SituacaoPaciente = "ativo" | "vencido" | "inativo" | "arquivado";
+
+export const ROTULO_SITUACAO: Record<SituacaoPaciente, string> = {
+  ativo: "Ativo",
+  vencido: "Vencido",
+  inativo: "Inativo",
+  arquivado: "Arquivado",
+};
+
+/**
+ * Onde a paciente está, na ordem em que uma situação vence a outra:
+ * arquivada, depois inativa (marcada à mão), depois vencida; o resto é ativa.
+ * É o mesmo critério dos filtros da lista de pacientes e do Dashboard.
+ */
+export function situacaoPaciente(p: PacienteBasico, vencidos: Set<string>): SituacaoPaciente {
+  if (p.ativo === false) return "arquivado";
+  if (p.inativo === true) return "inativo";
+  if (vencidos.has(p.id)) return "vencido";
+  return "ativo";
+}
+
 /** Janela do retorno pendente, em dias desde a última consulta. */
 export const RETORNO_MIN_DIAS = 30;
 export const RETORNO_MAX_DIAS = 45;

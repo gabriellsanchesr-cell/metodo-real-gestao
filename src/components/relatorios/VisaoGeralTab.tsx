@@ -4,14 +4,12 @@ import { Users, UserPlus, UserMinus, ShieldCheck, ClipboardCheck, CalendarCheck,
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth, differenceInWeeks, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { emAcompanhamento, retornosPendentes as calcularRetornos } from "@/lib/painel";
+import { retornosPendentes as calcularRetornos, usaPortal } from "@/lib/painel";
 
 interface Props {
   pacientes: any[];
   consultas: any[];
   checklists: any[];
-  /** Pacientes com o acompanhamento vencido (src/lib/painel.ts). */
-  vencidos?: Set<string>;
   periodoInicio: Date;
   periodoFim: Date;
   periodoAnteriorInicio: Date;
@@ -26,10 +24,12 @@ const FASE_LABELS: Record<string, string> = {
   liberdade: "Liberdade",
 };
 
-export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim }: Props) {
+export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim }: Props) {
   const stats = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
-    const inativos = pacientes.filter(p => p.ativo === false);
+    // Situação vem pronta de Relatorios.tsx (src/lib/painel.ts).
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
+    const inativos = pacientes.filter(p => p.situacao !== "ativo");
+    const porSituacao = (s: string) => pacientes.filter(p => p.situacao === s).length;
 
     const novosNoPeriodo = pacientes.filter(p => {
       const d = new Date(p.created_at);
@@ -56,7 +56,9 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
     // Conta PACIENTES distintos, não registros: dois check-ins da mesma
     // paciente são uma pessoa. Contando registros a taxa passava de 100%.
     const pacientesComCheckin = new Set(checkinsUltimaSemana.map(c => c.paciente_id)).size;
-    const taxaCheckin = ativos.length > 0 ? Math.round((pacientesComCheckin / ativos.length) * 100) : 0;
+    // Check-in é pelo portal: a base são as ativas que usam o portal.
+    const comPortal = ativos.filter(usaPortal).length;
+    const taxaCheckin = comPortal > 0 ? Math.round((pacientesComCheckin / comPortal) * 100) : 0;
 
     const semanasPeriodo = Math.max(1, differenceInWeeks(periodoFim, periodoInicio));
     const mediaConsultasSemana = Math.round((consultasPeriodo.length / semanasPeriodo) * 10) / 10;
@@ -66,8 +68,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
 
     // Mesmo critério do Dashboard (src/lib/painel.ts): em acompanhamento, com
     // ou sem portal, 30 a 45 dias da última consulta, sem retorno marcado.
-    const semVencidos = vencidos ?? new Set<string>();
-    const retornosPendentes = calcularRetornos(pacientes, consultas, new Date(), (p) => emAcompanhamento(p, semVencidos)).length;
+    const retornosPendentes = calcularRetornos(pacientes, consultas, new Date(), (p) => p.situacao === "ativo").length;
 
     const taxaRetencao = pacientes.length > 0
       ? Math.round((ativos.length / pacientes.length) * 100)
@@ -76,6 +77,10 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
     return {
       totalAtivos: ativos.length,
       totalInativos: inativos.length,
+      usamPortal: ativos.filter(usaPortal).length,
+      vencidos: porSituacao("vencido"),
+      marcadosInativos: porSituacao("inativo"),
+      arquivados: porSituacao("arquivado"),
       novos: novosNoPeriodo.length,
       novosAnterior: novosAnterior.length,
       consultasPeriodo: consultasPeriodo.length,
@@ -86,7 +91,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
       retornosPendentes,
       taxaRetencao,
     };
-  }, [pacientes, consultas, checklists, vencidos, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim]);
+  }, [pacientes, consultas, checklists, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim]);
 
   const growthData = useMemo(() => {
     const months: { month: string; total: number }[] = [];
@@ -119,7 +124,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
   }, [consultas]);
 
   const faseData = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
     const fases = ["rotina", "estrategia", "autonomia", "liberdade"];
     return fases.map(f => ({
       name: FASE_LABELS[f] || f,
@@ -134,11 +139,11 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
   }
 
   const cards = [
-    { title: "Pacientes Ativos", value: stats.totalAtivos, icon: Users, sub: `${variacao(stats.totalAtivos, stats.totalAtivos - stats.novos + stats.novosAnterior)} vs período anterior`, color: "text-[hsl(var(--primary))]" },
+    { title: "Pacientes Ativos", value: stats.totalAtivos, icon: Users, sub: `em acompanhamento · ${stats.usamPortal} usam o portal`, color: "text-[hsl(var(--primary))]" },
     { title: "Novos no Período", value: stats.novos, icon: UserPlus, sub: `${variacao(stats.novos, stats.novosAnterior)} vs anterior`, color: "text-green-600" },
-    { title: "Inativos", value: stats.totalInativos, icon: UserMinus, sub: `Churn: ${pacientes.length > 0 ? Math.round((stats.totalInativos / pacientes.length) * 100) : 0}%`, color: "text-destructive" },
-    { title: "Taxa de Retenção", value: `${stats.taxaRetencao}%`, icon: ShieldCheck, sub: "Pacientes ativos / total", color: "text-[hsl(var(--primary))]" },
-    { title: "Taxa de Check-in", value: `${stats.taxaCheckin}%`, icon: ClipboardCheck, sub: "Última semana", color: "text-amber-600" },
+    { title: "Fora de acompanhamento", value: stats.totalInativos, icon: UserMinus, sub: `${stats.vencidos} vencidos · ${stats.marcadosInativos} inativos · ${stats.arquivados} arquivados`, color: "text-destructive" },
+    { title: "Taxa de Retenção", value: `${stats.taxaRetencao}%`, icon: ShieldCheck, sub: "Ativos / todos os cadastros", color: "text-[hsl(var(--primary))]" },
+    { title: "Taxa de Check-in", value: `${stats.taxaCheckin}%`, icon: ClipboardCheck, sub: "Última semana, quem usa o portal", color: "text-amber-600" },
     { title: "Consultas Realizadas", value: stats.consultasPeriodo, icon: CalendarCheck, sub: `${stats.mediaConsultasSemana}/semana`, color: "text-[hsl(var(--primary))]" },
     { title: "Tempo Médio Acomp.", value: `${stats.mediaAcomp} sem`, icon: Clock, sub: "Pacientes ativos", color: "text-muted-foreground" },
     { title: "Retornos Pendentes", value: stats.retornosPendentes, icon: AlertTriangle, sub: "30 a 45 dias, sem retorno marcado", color: "text-destructive" },
@@ -173,7 +178,7 @@ export function VisaoGeralTab({ pacientes, consultas, checklists, vencidos, peri
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 11 }} />
                 <Tooltip />
-                <Line type="monotone" dataKey="total" stroke="#004AAD" strokeWidth={2} dot={{ r: 3 }} name="Pacientes ativos" />
+                <Line type="monotone" dataKey="total" stroke="#004AAD" strokeWidth={2} dot={{ r: 3 }} name="Cadastros não arquivados" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>

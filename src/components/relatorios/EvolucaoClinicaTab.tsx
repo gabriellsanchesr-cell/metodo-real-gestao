@@ -16,7 +16,7 @@ interface Props {
 
 export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, checklists, periodoInicio, periodoFim }: Props) {
   const stats = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
 
     // Variação média de peso
     const variacoesPeso = ativos.map(p => {
@@ -45,7 +45,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
 
   // Histograma de variação de peso
   const histogramData = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
     const faixas = [
       { label: "< -4kg", min: -Infinity, max: -4 },
       { label: "-4 a -2kg", min: -4, max: -2 },
@@ -105,7 +105,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
 
   // Individual evolution table
   const tabelaEvolucao = useMemo(() => {
-    return pacientes.filter(p => p.ativo !== false).map(p => {
+    return pacientes.filter(p => p.situacao === "ativo").map(p => {
       const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
       if (avals.length < 2) return null;
       const primeiro = avals[0];

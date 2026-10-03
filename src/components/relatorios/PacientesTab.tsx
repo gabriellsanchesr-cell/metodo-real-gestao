@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { differenceInWeeks, differenceInDays, differenceInYears } from "date-fns";
 import { Trophy, TrendingUp, AlertCircle } from "lucide-react";
+import { ROTULO_SITUACAO, usaPortal, type SituacaoPaciente } from "@/lib/painel";
 
 interface Props {
   pacientes: any[];
@@ -42,7 +43,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
 
   const objetivoData = useMemo(() => {
     const map: Record<string, number> = {};
-    pacientes.filter(p => p.ativo !== false).forEach(p => {
+    pacientes.filter(p => p.situacao === "ativo").forEach(p => {
       const obj = p.objetivo || "outro";
       map[obj] = (map[obj] || 0) + 1;
     });
@@ -50,7 +51,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
   }, [pacientes]);
 
   const faseData = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
     return ["rotina", "estrategia", "autonomia", "liberdade"].map(f => ({
       name: FASE_LABELS[f],
       value: ativos.filter(p => p.fase_real === f).length,
@@ -58,7 +59,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
   }, [pacientes]);
 
   const sexoData = useMemo(() => {
-    const ativos = pacientes.filter(p => p.ativo !== false);
+    const ativos = pacientes.filter(p => p.situacao === "ativo");
     const m = ativos.filter(p => p.sexo === "masculino").length;
     const f = ativos.filter(p => p.sexo === "feminino").length;
     const o = ativos.length - m - f;
@@ -100,8 +101,8 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
     return pacientes.filter(p => {
       if (busca && !p.nome_completo.toLowerCase().includes(busca.toLowerCase())) return false;
       if (filtroFase !== "todos" && p.fase_real !== filtroFase) return false;
-      if (filtroStatus === "ativo" && p.ativo === false) return false;
-      if (filtroStatus === "inativo" && p.ativo !== false) return false;
+      if (filtroStatus === "portal") { if (!usaPortal(p)) return false; }
+      else if (filtroStatus !== "todos" && p.situacao !== filtroStatus) return false;
       return true;
     });
   }, [pacientes, busca, filtroFase, filtroStatus]);
@@ -110,7 +111,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
     const agora = new Date();
 
     // Maior evolução (perda de peso no período)
-    const evolucao = pacientes.filter(p => p.ativo !== false).map(p => {
+    const evolucao = pacientes.filter(p => p.situacao === "ativo").map(p => {
       const acomp = acompanhamentos.filter(a => a.paciente_id === p.id).sort((a: any, b: any) => new Date(a.data_registro).getTime() - new Date(b.data_registro).getTime());
       if (acomp.length < 2) return null;
       const primeiro = acomp[0].peso;
@@ -120,7 +121,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
     }).filter(Boolean).sort((a: any, b: any) => a.variacao - b.variacao).slice(0, 5);
 
     // Maior aderência
-    const aderencia = pacientes.filter(p => p.ativo !== false).map(p => {
+    const aderencia = pacientes.filter(p => p.situacao === "ativo").map(p => {
       const checks = checklists.filter((c: any) => c.paciente_id === p.id && c.respondido && c.aderencia_plano != null);
       if (checks.length === 0) return null;
       const media = checks.reduce((sum: number, c: any) => sum + c.aderencia_plano, 0) / checks.length;
@@ -128,7 +129,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
     }).filter(Boolean).sort((a: any, b: any) => b.media - a.media).slice(0, 5);
 
     // Mais tempo sem contato
-    const semContato = pacientes.filter(p => p.ativo !== false).map(p => {
+    const semContato = pacientes.filter(p => p.situacao === "ativo").map(p => {
       const last = ultimaConsulta.get(p.id);
       const dias = last ? differenceInDays(agora, new Date(last)) : 999;
       return { nome: p.nome_completo, dias };
@@ -198,7 +199,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold">{f.value}</span>
                     <span className="text-xs text-muted-foreground">
-                      ({pacientes.filter(p => p.ativo !== false).length > 0 ? Math.round((f.value / pacientes.filter(p => p.ativo !== false).length) * 100) : 0}%)
+                      ({pacientes.filter(p => p.situacao === "ativo").length > 0 ? Math.round((f.value / pacientes.filter(p => p.situacao === "ativo").length) * 100) : 0}%)
                     </span>
                   </div>
                 </div>
@@ -225,11 +226,14 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[120px] h-8 text-sm"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[150px] h-8 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos</SelectItem>
                 <SelectItem value="ativo">Ativos</SelectItem>
+                <SelectItem value="portal">Usam o portal</SelectItem>
+                <SelectItem value="vencido">Vencidos</SelectItem>
                 <SelectItem value="inativo">Inativos</SelectItem>
+                <SelectItem value="arquivado">Arquivados</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -259,8 +263,8 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
                       <td className="p-2">{semanas} sem</td>
                       <td className="p-2">{last ? new Date(last).toLocaleDateString("pt-BR") : "—"}</td>
                       <td className="p-2">
-                        <Badge variant={p.ativo !== false ? "default" : "secondary"}>
-                          {p.ativo !== false ? "Ativo" : "Inativo"}
+                        <Badge variant={p.situacao === "ativo" ? "default" : p.situacao === "vencido" ? "destructive" : "secondary"}>
+                          {ROTULO_SITUACAO[p.situacao as SituacaoPaciente] ?? "Ativo"}
                         </Badge>
                       </td>
                     </tr>
