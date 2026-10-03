@@ -14,11 +14,13 @@ import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
 import { ImportarPlanoPdfModal } from "./ImportarPlanoPdfModal";
 import { AnexarPlanoPdfModal } from "./AnexarPlanoPdfModal";
 import { PdfViewer } from "./PdfViewer";
+import { PlanoHtmlViewer } from "./PlanoHtmlViewer";
 import { FileUp } from "lucide-react";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
 import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
-import { lerAlimentosDoPdfAnexado } from "@/lib/planoPdfAlimentos";
+import { lerAlimentosDoPdfAnexado, salvarAlimentosReferencia } from "@/lib/planoPdfAlimentos";
+import { alimentosReferenciaDoPlanoHtml, ehPlanoHtml, extrairDadosPlanoHtml } from "@/lib/planoHtml";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -108,7 +110,8 @@ export function PlanoAlimentarSection({ paciente }: Props) {
     if (expanded === planoId) { setExpanded(null); return; }
     setExpanded(planoId);
     if (plano.tipo === "anexo") {
-      if (!pdfUrls[planoId] && plano.pdf_path) {
+      // HTML não usa link assinado: o visualizador baixa o arquivo e roda isolado.
+      if (!pdfUrls[planoId] && plano.pdf_path && !ehPlanoHtml(plano.pdf_path)) {
         const { data } = await supabase.storage.from("documentos-pdf").createSignedUrl(plano.pdf_path, 3600);
         if (data?.signedUrl) setPdfUrls(prev => ({ ...prev, [planoId]: data.signedUrl }));
       }
@@ -146,7 +149,9 @@ export function PlanoAlimentarSection({ paciente }: Props) {
           const { data: file } = await supabase.storage.from("documentos-pdf").download(plano.pdf_path);
           if (file) {
             newPath = `planos/${paciente.id}/${Date.now()}_copia_${(plano.pdf_nome || "plano.pdf").replace(/[^\w.\-]+/g, "_")}`;
-            await supabase.storage.from("documentos-pdf").upload(newPath, file, { contentType: "application/pdf", upsert: false });
+            await supabase.storage.from("documentos-pdf").upload(newPath, file, {
+              contentType: ehPlanoHtml(plano.pdf_path) ? "text/html" : "application/pdf", upsert: false,
+            });
           }
         }
         const { error } = await supabase.from("planos_alimentares").insert({
@@ -216,11 +221,24 @@ export function PlanoAlimentarSection({ paciente }: Props) {
     setAtivando(plano);
   };
 
+  // HTML da engine: a lista de alimentos já vem no arquivo, exata.
+  const lerAlimentosDoHtml = async (planoId: string, path: string) => {
+    const { data: arquivo, error } = await supabase.storage.from("documentos-pdf").download(path);
+    if (error || !arquivo) throw error ?? new Error("Não consegui baixar o plano.");
+    const dados = extrairDadosPlanoHtml(await arquivo.text());
+    if (!dados) throw new Error("Este HTML não traz os dados do plano. Gere de novo pela engine.");
+    const alimentos = alimentosReferenciaDoPlanoHtml(dados);
+    const resultado = await salvarAlimentosReferencia(planoId, alimentos);
+    return { resultado, total: alimentos.length, comPar: alimentos.filter((a) => a.correspondente).length };
+  };
+
   const lerAlimentos = async (plano: { id: string; pdf_path?: string | null }) => {
     if (!plano.pdf_path) return;
     setLendoAlimentos(plano.id);
     try {
-      const { resultado, total, comPar } = await lerAlimentosDoPdfAnexado(plano.id, plano.pdf_path);
+      const { resultado, total, comPar } = ehPlanoHtml(plano.pdf_path)
+        ? await lerAlimentosDoHtml(plano.id, plano.pdf_path)
+        : await lerAlimentosDoPdfAnexado(plano.id, plano.pdf_path);
       if (resultado === "sem_migration") {
         toast({
           title: "Falta aplicar a atualização do banco",
@@ -340,10 +358,12 @@ export function PlanoAlimentarSection({ paciente }: Props) {
                     </Button>
                     {isAnexo ? (
                       <>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Abrir em nova aba" onClick={() => openPdfNewTab(plano)}>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Baixar PDF" onClick={() => downloadPdf(plano)}>
+                        {!ehPlanoHtml(plano.pdf_path) && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" title="Abrir em nova aba" onClick={() => openPdfNewTab(plano)}>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title={ehPlanoHtml(plano.pdf_path) ? "Baixar HTML" : "Baixar PDF"} onClick={() => downloadPdf(plano)}>
                           <Download className="h-3.5 w-3.5" />
                         </Button>
                       </>
@@ -400,17 +420,22 @@ export function PlanoAlimentarSection({ paciente }: Props) {
                         onClick={() => lerAlimentos(plano)}
                       >
                         {lendoAlimentos === plano.id
-                          ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Lendo PDF...</>
-                          : lidos === null ? "Ler alimentos do PDF" : "Ler de novo"}
+                          ? <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Lendo plano...</>
+                          : lidos === null ? "Ler alimentos do plano" : "Ler de novo"}
                       </Button>
                     </div>
                   );
                 })()}
                 <Button variant="ghost" size="sm" className="text-xs" onClick={() => toggleExpand(plano)}>
                   {expanded === plano.id ? <ChevronUp className="h-3 w-3 mr-1" /> : <ChevronDown className="h-3 w-3 mr-1" />}
-                  {expanded === plano.id ? "Recolher" : (isAnexo ? "Ver PDF" : "Ver refeições")}
+                  {expanded === plano.id ? "Recolher" : (isAnexo ? "Ver plano" : "Ver refeições")}
                 </Button>
-                {expanded === plano.id && isAnexo && (
+                {expanded === plano.id && isAnexo && plano.pdf_path && ehPlanoHtml(plano.pdf_path) && (
+                  <div className="mt-3 rounded-lg bg-muted/40 p-2">
+                    <PlanoHtmlViewer path={plano.pdf_path} titulo={plano.nome} />
+                  </div>
+                )}
+                {expanded === plano.id && isAnexo && !ehPlanoHtml(plano.pdf_path) && (
                   <div className="mt-3 h-[700px] border border-border rounded-lg overflow-hidden">
                     {pdfUrls[plano.id] ? (
                       <PdfViewer url={pdfUrls[plano.id]} />

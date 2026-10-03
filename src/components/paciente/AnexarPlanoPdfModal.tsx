@@ -15,6 +15,9 @@ import { conferirCoerenciaMacros } from "@/lib/antropometria";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
 import { catalogoSubstituicoes, salvarAlimentosReferencia } from "@/lib/planoPdfAlimentos";
+import {
+  alimentosReferenciaDoPlanoHtml, ehPlanoHtml, extrairDadosPlanoHtml, totaisDoPlanoHtml,
+} from "@/lib/planoHtml";
 
 interface Props {
   open: boolean;
@@ -111,8 +114,9 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       toast({ title: "Selecione um PDF", variant: "destructive" });
       return;
     }
-    if (file && file.type !== "application/pdf") {
-      toast({ title: "Arquivo deve ser PDF", variant: "destructive" });
+    const html = !!file && ehPlanoHtml(file.name);
+    if (file && !html && file.type !== "application/pdf") {
+      toast({ title: "Use o PDF ou o HTML do plano", variant: "destructive" });
       return;
     }
     if (file && file.size > 25 * 1024 * 1024) {
@@ -127,12 +131,26 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
       let totals: any = null;
 
       if (file) {
-        setProgress("Enviando PDF...");
+        // HTML da engine: totais e alimentos vêm do próprio arquivo, sem IA.
+        // Confere antes de enviar, para não subir um HTML que não é plano.
+        let dadosHtml: ReturnType<typeof extrairDadosPlanoHtml> = null;
+        if (html) {
+          dadosHtml = extrairDadosPlanoHtml(await file.text());
+          if (!dadosHtml) {
+            toast({
+              title: "Este HTML não traz os dados do plano",
+              description: "Gere o plano de novo pela engine (agents/plano_builder.py) e anexe o HTML novo.",
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+        setProgress(html ? "Enviando plano..." : "Enviando PDF...");
         const safeName = file.name.replace(/[^\w.\-]+/g, "_");
         const path = `planos/${pacienteId}/${Date.now()}_${safeName}`;
         const { error: upErr } = await supabase.storage
           .from("documentos-pdf")
-          .upload(path, file, { contentType: "application/pdf", upsert: false });
+          .upload(path, file, { contentType: html ? "text/html" : "application/pdf", upsert: false });
         if (upErr) throw upErr;
 
         if (isEdit && planoExistente?.pdf_path && planoExistente.pdf_path !== path) {
@@ -141,17 +159,21 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
         pdf_path = path;
         pdf_nome = file.name;
 
-        // Leitura mínima dos totais nutricionais via IA
-        try {
-          setProgress("Lendo totais e alimentos...");
-          const b64 = await fileToBase64(file);
-          const { data, error } = await supabase.functions.invoke("parse-plano-pdf-totais", {
-            body: { fileBase64: b64, mimeType: "application/pdf", catalogo: catalogoSubstituicoes() },
-          });
-          if (error) console.warn("parse-plano-pdf-totais falhou", error);
-          else totals = data;
-        } catch (e) {
-          console.warn("Falha ao ler totais do PDF", e);
+        if (dadosHtml) {
+          totals = { ...totaisDoPlanoHtml(dadosHtml), alimentos: alimentosReferenciaDoPlanoHtml(dadosHtml) };
+        } else {
+          // PDF: leitura mínima dos totais nutricionais via IA
+          try {
+            setProgress("Lendo totais e alimentos...");
+            const b64 = await fileToBase64(file);
+            const { data, error } = await supabase.functions.invoke("parse-plano-pdf-totais", {
+              body: { fileBase64: b64, mimeType: "application/pdf", catalogo: catalogoSubstituicoes() },
+            });
+            if (error) console.warn("parse-plano-pdf-totais falhou", error);
+            else totals = data;
+          } catch (e) {
+            console.warn("Falha ao ler totais do PDF", e);
+          }
         }
       }
 
@@ -205,19 +227,19 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
           const lidos = `Totais lidos: ${totals?.kcal ? Math.round(totals.kcal) + " kcal" : "—"} • P ${totals?.proteina_g ?? "—"}g • C ${totals?.carboidrato_g ?? "—"}g • G ${totals?.gordura_g ?? "—"}g`;
           toast({
             title: coerencia.coerente
-              ? (isEdit ? "Plano atualizado!" : "PDF anexado!")
+              ? (isEdit ? "Plano atualizado!" : "Plano anexado!")
               : "Confira os totais deste plano",
             description: coerencia.coerente ? lidos : `${lidos}. ${coerencia.mensagem}`,
             variant: coerencia.coerente ? undefined : "destructive",
           });
         } else {
           toast({
-            title: isEdit ? "Plano atualizado" : "PDF anexado",
+            title: isEdit ? "Plano atualizado" : "Plano anexado",
             description: "Não consegui identificar os totais no PDF — você pode editar o plano manualmente para preenchê-los.",
           });
         }
       } else {
-        toast({ title: isEdit ? "Plano atualizado!" : "PDF anexado!" });
+        toast({ title: isEdit ? "Plano atualizado!" : "Plano anexado!" });
       }
 
       // A paciente só vê plano ativo. Editar só o nome ou a observação de um
@@ -242,9 +264,10 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
     <Dialog open={open} onOpenChange={(o) => { if (!saving) onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar plano anexado" : "Anexar PDF do plano alimentar"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Editar plano anexado" : "Anexar plano alimentar"}</DialogTitle>
           <DialogDescription>
-            O PDF é exibido exatamente como foi enviado. O sistema lê os totais (kcal e macros) para o resumo e a lista de alimentos para a calculadora de substituições da paciente.
+            Prefira o HTML gerado pela engine: a paciente vê o plano interativo e animado, e os totais e alimentos
+            entram exatos, sem leitura por IA. O PDF continua aceito e é exibido como foi enviado.
           </DialogDescription>
         </DialogHeader>
 
@@ -268,10 +291,10 @@ export function AnexarPlanoPdfModal({ open, onOpenChange, pacienteId, planoExist
             <Textarea rows={2} value={observacoes} onChange={(e) => setObservacoes(e.target.value)} disabled={saving} />
           </div>
           <div className="space-y-1.5">
-            <Label>{isEdit ? "Substituir PDF (opcional)" : "Arquivo PDF (até 25 MB)"}</Label>
+            <Label>{isEdit ? "Substituir arquivo (opcional)" : "Arquivo HTML ou PDF (até 25 MB)"}</Label>
             <Input
               type="file"
-              accept="application/pdf"
+              accept=".html,.htm,text/html,application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
               disabled={saving}
             />

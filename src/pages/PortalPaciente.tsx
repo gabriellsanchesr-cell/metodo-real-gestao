@@ -38,6 +38,8 @@ const parseLocalDate = (s: string | null | undefined): Date => {
   return new Date(s);
 };
 import { PdfViewer } from "@/components/paciente/PdfViewer";
+import { PlanoHtmlViewer } from "@/components/paciente/PlanoHtmlViewer";
+import { ehPlanoHtml } from "@/lib/planoHtml";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -139,7 +141,7 @@ export default function PortalPaciente() {
     setActiveOption({});
     if (!p) return;
     try { localStorage.setItem(`planoSel:${p.paciente_id}`, p.id); } catch { /* opcional */ }
-    if (p.tipo === "anexo" && p.pdf_path) {
+    if (p.tipo === "anexo" && p.pdf_path && !ehPlanoHtml(p.pdf_path)) {
       const { data: signed } = await supabase.storage.from("documentos-pdf").createSignedUrl(p.pdf_path, 3600);
       if (signed?.signedUrl) setPlanoPdfUrl(signed.signedUrl);
     }
@@ -658,6 +660,24 @@ export default function PortalPaciente() {
         });
       });
       const hasTotais = totalDiario > 0 || p > 0 || c > 0 || g > 0;
+      // Plano HTML da engine: ele mesmo traz o resumo do dia (anel de macros,
+      // refeições, trocas). O portal só emoldura, sem repetir os números.
+      if (ehPlanoHtml(plano.pdf_path)) {
+        return (
+          <div className="space-y-4 animate-fade-in">
+            {plano.observacoes && (
+              <Card className="rounded-2xl glass-card">
+                <CardContent className="p-4">
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{plano.observacoes}</p>
+                </CardContent>
+              </Card>
+            )}
+            <div className="-mx-2 sm:mx-0">
+              <PlanoHtmlViewer path={plano.pdf_path} titulo={plano.nome} />
+            </div>
+          </div>
+        );
+      }
       return (
         <div className="space-y-4 animate-fade-in">
           <div className="flex justify-between items-center">
