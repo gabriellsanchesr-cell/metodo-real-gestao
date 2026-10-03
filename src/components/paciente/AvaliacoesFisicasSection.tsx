@@ -154,12 +154,14 @@ function calcBodyFat(form: Record<string, any>, sexo: string | null, age: number
   const protocolo = form.protocolo_dobras as Protocolo | undefined;
   if (!protocolo) return { pctGordura: null, density: null, faltando: [] as string[] };
   if (!sexoNorm) return { pctGordura: null, density: null, faltando: ["sexo do paciente"] };
-  if (age === null) return { pctGordura: null, density: null, faltando: ["data de nascimento"] };
+  // Guedes e Faulkner não usam a idade; os outros não calculam sem ela.
+  const usaIdade = protocolo !== "guedes" && protocolo !== "faulkner";
+  if (usaIdade && age === null) return { pctGordura: null, density: null, faltando: ["data de nascimento"] };
 
   const r = calcComposicao({
     protocolo,
     sexo: sexoNorm,
-    idade: age,
+    idade: age ?? 0,
     dobras: form,
     pesoKg: Number(form.peso) || null,
     alturaCm: Number(form.altura) || null,
@@ -188,7 +190,31 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   const [showExportPdf, setShowExportPdf] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  const age = calcAge(paciente.data_nascimento);
+  // Cópias locais: completar nascimento ou sexo aqui mesmo recalcula na hora,
+  // sem recarregar a ficha. Sem eles a composição não sai (Pollock usa a idade).
+  const [nascimento, setNascimento] = useState<string | null>(paciente.data_nascimento ?? null);
+  const [sexo, setSexo] = useState<string | null>(paciente.sexo ?? null);
+  const [novoNascimento, setNovoNascimento] = useState("");
+  const [novoSexo, setNovoSexo] = useState("");
+  const [salvandoDado, setSalvandoDado] = useState(false);
+  useEffect(() => {
+    setNascimento(paciente.data_nascimento ?? null);
+    setSexo(paciente.sexo ?? null);
+  }, [paciente.id, paciente.data_nascimento, paciente.sexo]);
+  const age = calcAge(nascimento);
+
+  const completarCadastro = async (campos: { data_nascimento?: string; sexo?: string }) => {
+    setSalvandoDado(true);
+    const { error } = await supabase.from("pacientes").update(campos).eq("id", paciente.id);
+    setSalvandoDado(false);
+    if (error) {
+      toast({ title: "Não consegui salvar no cadastro", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (campos.data_nascimento) setNascimento(campos.data_nascimento);
+    if (campos.sexo) setSexo(campos.sexo);
+    toast({ title: "Cadastro atualizado", description: "A composição corporal foi recalculada." });
+  };
 
   useEffect(() => { loadAvaliacoes(); }, [paciente.id]);
 
@@ -227,10 +253,14 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   // Real-time calculations
   const imcCalc = calcIMCUI(Number(form.peso) || null, Number(form.altura) || null);
   const idealW = idealWeightRange(Number(form.altura) || null);
-  const rcqCalc = calcRCQUI(Number(form.circ_cintura) || null, Number(form.circ_quadril) || null, paciente.sexo);
+  const rcqCalc = calcRCQUI(Number(form.circ_cintura) || null, Number(form.circ_quadril) || null, sexo);
   const cmb = calcCMB(Number(form.circ_braco_dir) || null, Number(form.dobra_triceps) || null);
-  const bodyFat = calcBodyFat(form, paciente.sexo, age);
-  const fatClass = fatClassification(bodyFat.pctGordura, paciente.sexo);
+  const bodyFat = calcBodyFat(form, sexo, age);
+  const fatClass = fatClassification(bodyFat.pctGordura, sexo);
+  const dobrasFaltando = bodyFat.faltando
+    .filter((f) => f.startsWith("dobra_"))
+    .map((f) => FOLD_FIELDS.find((x) => x.key === f)?.label ?? f);
+  const outrosFaltando = bodyFat.faltando.filter((f) => !f.startsWith("dobra_") && f !== "sexo do paciente" && f !== "data de nascimento");
   const whr = (Number(form.circ_cintura) && Number(form.altura))
     ? Math.round((Number(form.circ_cintura) / Number(form.altura)) * 100) / 100
     : null;
@@ -454,7 +484,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
           <div>
             <h2 className="text-lg font-bold text-foreground">Avaliação Antropométrica</h2>
             <p className="text-xs text-muted-foreground">
-              Data: {form.data_avaliacao ? format(parseLocalDate(form.data_avaliacao), "dd/MM/yyyy") : "—"} | {paciente.nome_completo}, {age} anos
+              Data: {form.data_avaliacao ? format(parseLocalDate(form.data_avaliacao), "dd/MM/yyyy") : "—"} | {paciente.nome_completo}{age !== null ? `, ${age} anos` : ""}
             </p>
           </div>
         </div>
@@ -650,6 +680,45 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
                 <ResultRow label="Somatório de dobras" value={sumFolds > 0 ? `${sumFolds} mm` : "—"} />
                 <ResultRow label="Densidade corporal" value={bodyFat.density ? String(bodyFat.density) : "—"} />
                 <ResultRow label="Protocolo" value={form.protocolo_dobras ? PROTOCOLS[form.protocolo_dobras]?.label : "—"} small />
+                {bodyFat.faltando.length > 0 && (
+                  <div className="mt-3 space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+                    <p className="font-semibold text-foreground">Por que a composição não foi calculada</p>
+                    {bodyFat.faltando.includes("sexo do paciente") && (
+                      <div className="space-y-1.5">
+                        <p className="text-muted-foreground">O cadastro não tem o sexo, e cada sexo usa uma equação diferente.</p>
+                        <div className="flex gap-2">
+                          <Select value={novoSexo} onValueChange={setNovoSexo}>
+                            <SelectTrigger className="h-8 rounded-lg text-xs"><SelectValue placeholder="Sexo" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="feminino">Feminino</SelectItem>
+                              <SelectItem value="masculino">Masculino</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button size="sm" className="h-8 rounded-lg" disabled={!novoSexo || salvandoDado}
+                            onClick={() => completarCadastro({ sexo: novoSexo })}>Salvar</Button>
+                        </div>
+                      </div>
+                    )}
+                    {bodyFat.faltando.includes("data de nascimento") && (
+                      <div className="space-y-1.5">
+                        <p className="text-muted-foreground">O cadastro não tem a data de nascimento, e a equação usa a idade.</p>
+                        <div className="flex gap-2">
+                          <Input type="date" value={novoNascimento} onChange={(e) => setNovoNascimento(e.target.value)} className="h-8 rounded-lg text-xs" />
+                          <Button size="sm" className="h-8 rounded-lg" disabled={!novoNascimento || salvandoDado}
+                            onClick={() => completarCadastro({ data_nascimento: novoNascimento })}>Salvar</Button>
+                        </div>
+                      </div>
+                    )}
+                    {dobrasFaltando.length > 0 && (
+                      <p className="text-muted-foreground">
+                        Faltam dobras deste protocolo: <span className="font-medium text-foreground">{dobrasFaltando.join(", ")}</span>.
+                      </p>
+                    )}
+                    {outrosFaltando.length > 0 && (
+                      <p className="text-muted-foreground">Falta preencher: {outrosFaltando.join(", ")}.</p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
