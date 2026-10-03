@@ -20,10 +20,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const faseLabels: Record<string, { label: string; color: string }> = {
-  rotina: { label: "Rotina", color: "bg-primary/10 text-primary border-primary/20" },
+  rotina: { label: "Rastreio", color: "bg-primary/10 text-primary border-primary/20" },
   estrategia: { label: "Estratégia", color: "bg-warning/10 text-warning border-warning/20" },
-  autonomia: { label: "Autonomia", color: "bg-success/10 text-success border-success/20" },
-  liberdade: { label: "Liberdade", color: "bg-accent text-accent-foreground border-accent" },
+  autonomia: { label: "Ajuste", color: "bg-success/10 text-success border-success/20" },
+  liberdade: { label: "Lifestyle", color: "bg-accent text-accent-foreground border-accent" },
 };
 
 // Selo do CADASTRO (arquivada ou não). O acesso ao portal tem controle

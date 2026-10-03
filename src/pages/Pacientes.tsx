@@ -299,10 +299,10 @@ export default function Pacientes() {
             <Select value={bulkFase} onValueChange={bulkSetFase} disabled={bulkBusy}>
               <SelectTrigger className="w-[170px] h-9 rounded-xl text-xs"><SelectValue placeholder="Alterar fase R.E.A.L." /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="rotina">Rotina</SelectItem>
+                <SelectItem value="rotina">Rastreio</SelectItem>
                 <SelectItem value="estrategia">Estratégia</SelectItem>
-                <SelectItem value="autonomia">Autonomia</SelectItem>
-                <SelectItem value="liberdade">Liberdade</SelectItem>
+                <SelectItem value="autonomia">Ajuste</SelectItem>
+                <SelectItem value="liberdade">Lifestyle</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" className="rounded-xl" disabled={bulkBusy} onClick={bulkDeactivate}

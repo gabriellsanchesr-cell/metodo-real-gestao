@@ -28,10 +28,10 @@ const OBJETIVO_LABELS: Record<string, string> = {
 };
 
 const FASE_LABELS: Record<string, string> = {
-  rotina: "Rotina",
+  rotina: "Rastreio",
   estrategia: "Estratégia",
-  autonomia: "Autonomia",
-  liberdade: "Liberdade",
+  autonomia: "Ajuste",
+  liberdade: "Lifestyle",
 };
 
 const COLORS = ["#004AAD", "#3B7BD6", "#93A8D8", "#F59E0B", "#22C55E", "#EF4444", "#6B7080"];
@@ -219,10 +219,10 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
               <SelectTrigger className="w-[140px] h-8 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas fases</SelectItem>
-                <SelectItem value="rotina">Rotina</SelectItem>
+                <SelectItem value="rotina">Rastreio</SelectItem>
                 <SelectItem value="estrategia">Estratégia</SelectItem>
-                <SelectItem value="autonomia">Autonomia</SelectItem>
-                <SelectItem value="liberdade">Liberdade</SelectItem>
+                <SelectItem value="autonomia">Ajuste</SelectItem>
+                <SelectItem value="liberdade">Lifestyle</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>

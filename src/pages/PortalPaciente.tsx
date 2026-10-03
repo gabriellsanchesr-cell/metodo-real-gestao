@@ -7,6 +7,7 @@ import { PortalChat } from "@/components/portal/PortalChat";
 import { PortalMetas } from "@/components/portal/PortalMetas";
 import { PortalMateriais } from "@/components/portal/PortalMateriais";
 import { PortalSubstituicoes } from "@/components/portal/PortalSubstituicoes";
+import { BibliotecaPortal } from "@/components/portal/BibliotecaPortal";
 import { PortalOrientacoes } from "@/components/portal/PortalOrientacoes";
 import { PortalPeso } from "@/components/portal/PortalPeso";
 import { pesoAtual, proximaRefeicao, rotuloFase, sequenciaDeDias } from "@/lib/portal";
@@ -1137,12 +1138,12 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
     switch (moreTab) {
       case "avaliacoes": return renderAvaliacoes();
       case "perfil": return renderPerfil();
-      case "receitas": return <PortalReceitas paciente={paciente} />;
+      case "receitas": return <div className="space-y-6"><PortalReceitas paciente={paciente} /><BibliotecaPortal aba="receitas" titulo="Receitas do método" /></div>;
       case "mensagens": return <PortalChat paciente={paciente} />;
       case "jornada": return <PortalJornada paciente={paciente} />;
-      case "suplementos": return renderPortalSuplemenos();
-      case "materiais": return <PortalMateriais paciente={paciente} />;
-      case "orientacoes": return <PortalOrientacoes paciente={paciente} />;
+      case "suplementos": return <div className="space-y-6">{renderPortalSuplemenos()}<BibliotecaPortal aba="suplementos" titulo="Guias de suplementação" descricao="Como escolher e usar, antes de comprar qualquer coisa." /></div>;
+      case "materiais": return <div className="space-y-6"><PortalMateriais paciente={paciente} /><BibliotecaPortal aba="materiais" titulo="Biblioteca do método" /></div>;
+      case "orientacoes": return <div className="space-y-6"><PortalOrientacoes paciente={paciente} /><BibliotecaPortal aba="orientacoes" titulo="Para o dia a dia" /></div>;
       case "substituicoes":
         return (
           <PortalSubstituicoes itensPlano={itensDoPlano(plano)} />

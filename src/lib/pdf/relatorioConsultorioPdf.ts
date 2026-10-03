@@ -37,7 +37,7 @@ export async function generateRelatorioConsultorioPdf(
   // Distribuição por fase
   y = sectionTitle(doc, y, "2. Distribuição por Fase R.E.A.L.");
   const fases = ["rotina", "estrategia", "autonomia", "liberdade"];
-  const faseLabels: Record<string, string> = { rotina: "Rotina", estrategia: "Estratégia", autonomia: "Autonomia", liberdade: "Liberdade" };
+  const faseLabels: Record<string, string> = { rotina: "Rastreio", estrategia: "Estratégia", autonomia: "Ajuste", liberdade: "Lifestyle" };
   const faseData = fases.map(f => [faseLabels[f], String(ativos.filter(p => p.fase_real === f).length)]);
   y = autoTable(doc, y, [["Fase", "Pacientes"]], faseData);
 

@@ -29,7 +29,7 @@ const statusBadge: Record<string, string> = {
 };
 
 const faseLabels: Record<string, string> = {
-  rotina: "Rotina", estrategia: "Estratégia", autonomia: "Autonomia", liberdade: "Liberdade",
+  rotina: "Rastreio", estrategia: "Estratégia", autonomia: "Ajuste", liberdade: "Lifestyle",
 };
 
 export function PacientesTab() {
@@ -187,10 +187,10 @@ export function PacientesTab() {
             <SelectTrigger className="w-40"><SelectValue placeholder="Fase" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todas</SelectItem>
-              <SelectItem value="rotina">Rotina</SelectItem>
+              <SelectItem value="rotina">Rastreio</SelectItem>
               <SelectItem value="estrategia">Estratégia</SelectItem>
-              <SelectItem value="autonomia">Autonomia</SelectItem>
-              <SelectItem value="liberdade">Liberdade</SelectItem>
+              <SelectItem value="autonomia">Ajuste</SelectItem>
+              <SelectItem value="liberdade">Lifestyle</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -209,10 +209,10 @@ export function PacientesTab() {
           <Select value={bulkFase} onValueChange={bulkSetFase} disabled={bulkBusy}>
             <SelectTrigger className="h-9 w-44"><SelectValue placeholder="Alterar fase R.E.A.L." /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="rotina">Rotina</SelectItem>
+              <SelectItem value="rotina">Rastreio</SelectItem>
               <SelectItem value="estrategia">Estratégia</SelectItem>
-              <SelectItem value="autonomia">Autonomia</SelectItem>
-              <SelectItem value="liberdade">Liberdade</SelectItem>
+              <SelectItem value="autonomia">Ajuste</SelectItem>
+              <SelectItem value="liberdade">Lifestyle</SelectItem>
             </SelectContent>
           </Select>
           <Button variant="outline" size="sm" disabled={bulkBusy} onClick={bulkDeactivate}>Bloquear acesso</Button>

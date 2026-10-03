@@ -199,10 +199,10 @@ export default function PacienteForm() {
               <Select value={form.fase_real} onValueChange={(v) => set("fase_real", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="rotina">Rotina</SelectItem>
+                  <SelectItem value="rotina">Rastreio</SelectItem>
                   <SelectItem value="estrategia">Estratégia</SelectItem>
-                  <SelectItem value="autonomia">Autonomia</SelectItem>
-                  <SelectItem value="liberdade">Liberdade</SelectItem>
+                  <SelectItem value="autonomia">Ajuste</SelectItem>
+                  <SelectItem value="liberdade">Lifestyle</SelectItem>
                 </SelectContent>
               </Select>
             </div>

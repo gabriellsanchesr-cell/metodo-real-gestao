@@ -62,7 +62,7 @@ export function PatientContext({ paciente, pacienteId }: Props) {
 
   const getInitials = (name: string) => name?.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase() || "?";
 
-  const faseLabels: Record<string, string> = { rotina: "Rotina", estrategia: "Estratégia", autonomia: "Autonomia", liberdade: "Liberdade" };
+  const faseLabels: Record<string, string> = { rotina: "Rastreio", estrategia: "Estratégia", autonomia: "Ajuste", liberdade: "Lifestyle" };
 
   return (
     <div className="w-[240px] border-l border-border bg-card flex flex-col shrink-0">

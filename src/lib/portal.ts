@@ -44,10 +44,10 @@ export function pesoAtual(
 }
 
 const FASES: Record<string, string> = {
-  rotina: "Rotina",
+  rotina: "Rastreio",
   estrategia: "Estratégia",
-  autonomia: "Autonomia",
-  liberdade: "Liberdade",
+  autonomia: "Ajuste",
+  liberdade: "Lifestyle",
 };
 
 export function rotuloFase(fase: string | null | undefined): string {

@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 
 const FASES = [
-  { id: "rotina", label: "ROTINA", cor: "#3B82F6", icon: Calendar },
+  { id: "rotina", label: "RASTREIO", cor: "#3B82F6", icon: Calendar },
   { id: "estrategia", label: "ESTRATÉGIA", cor: "#8B5CF6", icon: Target },
-  { id: "autonomia", label: "AUTONOMIA", cor: "#F59E0B", icon: Key },
-  { id: "liberdade", label: "LIBERDADE", cor: "#22C55E", icon: Heart },
+  { id: "autonomia", label: "AJUSTE", cor: "#F59E0B", icon: Key },
+  { id: "liberdade", label: "LIFESTYLE", cor: "#22C55E", icon: Heart },
 ];
 
 const CATEGORIAS: Record<string, string> = {

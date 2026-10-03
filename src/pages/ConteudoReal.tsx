@@ -19,14 +19,25 @@ import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
 import {
   Plus, Calendar, Target, Key, Heart, Edit, Trash2, Copy, Eye, EyeOff, Sparkles,
-  Video, FileText, Type, Headphones, ExternalLink, Users, BarChart3,
+  Video, FileText, Type, Headphones, ExternalLink, Users, BarChart3, Library, Upload, Loader2,
 } from "lucide-react";
+import { ABAS_BIBLIOTECA, BUCKET_CONTEUDOS, FASE_GERAL, abaDasTags, type AbaBiblioteca } from "@/lib/fases";
 
 const FASES = [
-  { id: "rotina", label: "Rotina", cor: "#3B82F6", icon: Calendar, desc: "Construindo hábitos e constância" },
-  { id: "estrategia", label: "Estratégia", cor: "#8B5CF6", icon: Target, desc: "Escolhas inteligentes e adaptação" },
-  { id: "autonomia", label: "Autonomia", cor: "#F59E0B", icon: Key, desc: "Independência e decisões próprias" },
-  { id: "liberdade", label: "Liberdade", cor: "#22C55E", icon: Heart, desc: "Equilíbrio e manutenção" },
+  { id: "rotina", label: "Rastreio", cor: "#3B82F6", icon: Calendar, desc: "Entender rotina, fome, gatilhos e história alimentar" },
+  { id: "estrategia", label: "Estratégia", cor: "#8B5CF6", icon: Target, desc: "Prioridades simples e um plano flexível para a vida real" },
+  { id: "autonomia", label: "Ajuste", cor: "#F59E0B", icon: Key, desc: "Ajustes pelo que funcionou e pelo que travou" },
+  { id: "liberdade", label: "Lifestyle", cor: "#22C55E", icon: Heart, desc: "Hábitos sustentáveis, autonomia e leveza" },
+];
+
+/**
+ * Fases da Jornada mais a Biblioteca: conteúdo para todos os pacientes,
+ * fora da progressão de fase, que aparece nas abas do portal pela tag
+ * "aba:<id>" (Suplementos, Materiais, Orientações, Receitas).
+ */
+const SECOES = [
+  ...FASES,
+  { id: FASE_GERAL, label: "Biblioteca", cor: "#004AAD", icon: Library, desc: "Para todos os pacientes, nas abas Suplementos, Materiais, Orientações e Receitas do portal" },
 ];
 
 const TIPOS = [
@@ -97,7 +108,31 @@ export default function ConteudoReal() {
   };
 
   const conteudosPorFase = conteudos.filter(c => c.fase === faseAtiva);
-  const faseInfo = FASES.find(f => f.id === faseAtiva)!;
+  const faseInfo = SECOES.find(f => f.id === faseAtiva)!;
+  const [enviandoArquivo, setEnviandoArquivo] = useState(false);
+
+  // Uma aba por conteúdo da Biblioteca: troca a tag "aba:" e mantém as outras.
+  const abaDoForm = abaDasTags(form.tags.split(",").map(t => t.trim()));
+  const definirAba = (aba: AbaBiblioteca) => setForm(f => ({
+    ...f,
+    tags: [`aba:${aba}`, ...f.tags.split(",").map(t => t.trim()).filter(t => t && !t.startsWith("aba:"))].join(", "),
+  }));
+
+  // PDF vai para o bucket da biblioteca, na pasta do nutri.
+  const enviarArquivo = async (arquivo: File) => {
+    if (!user) return;
+    setEnviandoArquivo(true);
+    const nome = arquivo.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.]+/g, "-").toLowerCase();
+    const path = `${user.id}/${Date.now()}-${nome}`;
+    const { error } = await supabase.storage.from(BUCKET_CONTEUDOS).upload(path, arquivo, { contentType: arquivo.type || "application/pdf" });
+    setEnviandoArquivo(false);
+    if (error) {
+      toast({ title: "Não consegui enviar o arquivo", description: error.message, variant: "destructive" });
+      return;
+    }
+    setForm(f => ({ ...f, arquivo_path: path }));
+    toast({ title: "Arquivo enviado", description: arquivo.name });
+  };
 
   const openCreate = () => {
     setEditingId(null);
@@ -215,7 +250,7 @@ export default function ConteudoReal() {
         <TabsContent value="gerenciar" className="space-y-4">
           {/* Phase tabs */}
           <div className="flex gap-2 flex-wrap">
-            {FASES.map(f => (
+            {SECOES.map(f => (
               <button
                 key={f.id}
                 onClick={() => setFaseAtiva(f.id)}
@@ -282,6 +317,12 @@ export default function ConteudoReal() {
                             {TIPOS.find(t => t.id === c.tipo)?.label}
                           </Badge>
                           <span className="text-xs text-muted-foreground">{CATEGORIAS[c.categoria]}</span>
+                          {c.fase === FASE_GERAL && (
+                            <Badge variant="outline" className="text-[10px]">
+                              {ABAS_BIBLIOTECA.find(a => a.id === abaDasTags(c.tags))?.rotulo ?? "Sem aba"}
+                            </Badge>
+                          )}
+                          {c.arquivo_path && <FileText className="h-3 w-3 text-muted-foreground" aria-label="Tem PDF" />}
                           {c.duracao_estimada && <span className="text-xs text-muted-foreground">• {c.duracao_estimada}</span>}
                         </div>
                       </div>
@@ -404,10 +445,21 @@ export default function ConteudoReal() {
                 <Select value={form.fase} onValueChange={v => setForm(f => ({ ...f, fase: v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {FASES.map(f => <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>)}
+                    {SECOES.map(f => <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
+              {form.fase === FASE_GERAL && (
+                <div className="space-y-2">
+                  <Label>Aparece na aba do portal</Label>
+                  <Select value={abaDoForm ?? undefined} onValueChange={v => definirAba(v as AbaBiblioteca)}>
+                    <SelectTrigger><SelectValue placeholder="Escolha a aba" /></SelectTrigger>
+                    <SelectContent>
+                      {ABAS_BIBLIOTECA.map(a => <SelectItem key={a.id} value={a.id}>{a.rotulo}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label>Tipo de Conteúdo</Label>
                 <Select value={form.tipo} onValueChange={v => setForm(f => ({ ...f, tipo: v }))}>
@@ -455,6 +507,25 @@ export default function ConteudoReal() {
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            {(form.tipo === "pdf" || form.tipo === "texto") && (
+              <div className="space-y-2">
+                <Label>{form.tipo === "pdf" ? "Arquivo PDF" : "PDF complementar (opcional)"}</Label>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={enviandoArquivo} asChild>
+                    <label className="cursor-pointer">
+                      {enviandoArquivo ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+                      {form.arquivo_path ? "Trocar arquivo" : "Enviar PDF"}
+                      <input type="file" accept="application/pdf" className="hidden"
+                        onChange={e => { const a = e.target.files?.[0]; if (a) enviarArquivo(a); e.target.value = ""; }} />
+                    </label>
+                  </Button>
+                  {form.arquivo_path && (
+                    <span className="truncate text-xs text-muted-foreground">{form.arquivo_path.split("/").pop()}</span>
+                  )}
+                </div>
               </div>
             )}
 

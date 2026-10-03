@@ -75,7 +75,7 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
   }
 
   const faseLabels: Record<string, string> = {
-    rotina: "Rotina", estrategia: "Estratégia", autonomia: "Autonomia", liberdade: "Liberdade",
+    rotina: "Rastreio", estrategia: "Estratégia", autonomia: "Ajuste", liberdade: "Lifestyle",
   };
 
   return (

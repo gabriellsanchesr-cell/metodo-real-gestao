@@ -18,10 +18,10 @@ interface Props {
 
 const COLORS_FASE = ["#004AAD", "#7C3AED", "#F59E0B", "#22C55E"];
 const FASE_LABELS: Record<string, string> = {
-  rotina: "Rotina",
+  rotina: "Rastreio",
   estrategia: "Estratégia",
-  autonomia: "Autonomia",
-  liberdade: "Liberdade",
+  autonomia: "Ajuste",
+  liberdade: "Lifestyle",
 };
 
 export function VisaoGeralTab({ pacientes, consultas, checklists, periodoInicio, periodoFim, periodoAnteriorInicio, periodoAnteriorFim }: Props) {

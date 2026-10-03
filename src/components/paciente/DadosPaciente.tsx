@@ -15,7 +15,7 @@ const objetivoLabels: Record<string, string> = {
   controle_ansiedade_alimentar: "Controle de Ansiedade Alimentar", performance: "Performance", outro: "Outro",
 };
 const faseLabels: Record<string, string> = {
-  rotina: "Rotina", estrategia: "Estratégia", autonomia: "Autonomia", liberdade: "Liberdade",
+  rotina: "Rastreio", estrategia: "Estratégia", autonomia: "Ajuste", liberdade: "Lifestyle",
 };
 
 function calcIMC(peso: number | null, altura: number | null): string {
