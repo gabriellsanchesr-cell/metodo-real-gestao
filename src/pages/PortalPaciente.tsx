@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PortalDiario } from "@/components/portal/PortalDiario";
 import { PortalJornada } from "@/components/portal/PortalJornada";
@@ -89,6 +89,7 @@ export default function PortalPaciente() {
   // de semana, "corrido"). Antes só o mais recente aparecia.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [planosAtivos, setPlanosAtivos] = useState<any[]>([]);
+  const maisNovoRef = useRef<string | null>(null);
   const [pesosAcomp, setPesosAcomp] = useState<{ data_registro: string; peso: number | null }[]>([]);
   const [planoPdfUrl, setPlanoPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -140,7 +141,9 @@ export default function PortalPaciente() {
     setPlanoPdfUrl(null);
     setActiveOption({});
     if (!p) return;
-    try { localStorage.setItem(`planoSel:${p.paciente_id}`, p.id); } catch { /* opcional */ }
+    // Guarda também qual era o plano mais novo na hora da escolha: chegando um
+    // plano novo, ele abre primeiro em vez de a paciente ficar presa no antigo.
+    try { localStorage.setItem(`planoSel:${p.paciente_id}`, `${p.id}|${maisNovoRef.current ?? ""}`); } catch { /* opcional */ }
     if (p.tipo === "anexo" && p.pdf_path && !ehPlanoHtml(p.pdf_path)) {
       const { data: signed } = await supabase.storage.from("documentos-pdf").createSignedUrl(p.pdf_path, 3600);
       if (signed?.signedUrl) setPlanoPdfUrl(signed.signedUrl);
@@ -179,10 +182,11 @@ export default function PortalPaciente() {
           .order("created_at", { ascending: false });
         const lista = planosData || [];
         setPlanosAtivos(lista);
+        maisNovoRef.current = lista[0]?.id ?? null;
         let escolhido = lista[0] ?? null;
         try {
-          const salvo = localStorage.getItem(`planoSel:${pac.id}`);
-          escolhido = lista.find((x) => x.id === salvo) ?? escolhido;
+          const [salvo, maisNovoNaEscolha] = (localStorage.getItem(`planoSel:${pac.id}`) || "").split("|");
+          if (maisNovoNaEscolha === maisNovoRef.current) escolhido = lista.find((x) => x.id === salvo) ?? escolhido;
         } catch { /* sem armazenamento local, fica o mais recente */ }
         await escolherPlano(escolhido);
 

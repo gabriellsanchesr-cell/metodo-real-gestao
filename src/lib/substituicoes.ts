@@ -75,6 +75,14 @@ export interface AlimentoReferenciaPdf {
   refeicao?: string | null;
   /** Nome exato de um item de LISTA_ALIMENTOS, ou null se não houver par. */
   correspondente?: string | null;
+  /**
+   * Números do próprio plano, por 100 g (planos em HTML da engine). Quando
+   * vêm, valem mais que o par da lista: são os da conta do plano.
+   */
+  kcal_100g?: number | null;
+  proteina_100g?: number | null;
+  carboidrato_100g?: number | null;
+  gordura_100g?: number | null;
 }
 
 interface AlimentoPlanoLinha {
@@ -156,6 +164,8 @@ function sinonimo(nome: string): string | null {
 /** Um alimento lido do PDF anexado usa a energia do item correspondente da lista. */
 export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] = LISTA_ALIMENTOS): ItemDoPlano | null {
   const nome = (r.nome || "").trim();
+  const proprio = itemComNumerosProprios(r, lista);
+  if (proprio || !nome) return proprio;
   const alvo = r.correspondente || sinonimo(nome);
   const par = alvo ? lista.find((a) => a.nome === alvo) : undefined;
   if (!nome || !par || !correspondenciaConfiavel(nome, par.nome)) return null;
@@ -167,6 +177,28 @@ export function itemDeReferenciaPdf(r: AlimentoReferenciaPdf, lista: Alimento[] 
     kcal100g: par.kcal100g,
     gramas: gramas > 0 ? gramas : null,
     refeicao: r.refeicao?.trim() || null,
+  };
+}
+
+/** Alimento que já traz energia e macros por 100 g (plano em HTML da engine). */
+function itemComNumerosProprios(r: AlimentoReferenciaPdf, lista: Alimento[]): ItemDoPlano | null {
+  const nome = (r.nome || "").trim();
+  const kcal100g = Number(r.kcal_100g);
+  const gramas = Number(r.quantidade_g);
+  if (!nome || !(kcal100g >= KCAL100G_MINIMO)) return null;
+  const alvo = r.correspondente || sinonimo(nome);
+  const par = alvo ? lista.find((a) => a.nome === alvo) : undefined;
+  const categoria = par?.categoria
+    ?? categoriaPorMacros(Number(r.proteina_100g) || 0, Number(r.carboidrato_100g) || 0, Number(r.gordura_100g) || 0);
+  if (!categoria) return null;
+  const refeicao = r.refeicao?.trim() || null;
+  return {
+    id: `html:${refeicao ?? ""}:${nome}:${gramas > 0 ? gramas : ""}`,
+    nome,
+    categoria,
+    kcal100g: Math.round(kcal100g * 10) / 10,
+    gramas: gramas > 0 ? gramas : null,
+    refeicao,
   };
 }
 

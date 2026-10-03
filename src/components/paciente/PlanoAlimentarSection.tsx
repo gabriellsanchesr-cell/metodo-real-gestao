@@ -21,6 +21,7 @@ import { avisarPaciente } from "@/lib/notificacoes";
 import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 import { lerAlimentosDoPdfAnexado, salvarAlimentosReferencia } from "@/lib/planoPdfAlimentos";
 import { alimentosReferenciaDoPlanoHtml, ehPlanoHtml, extrairDadosPlanoHtml } from "@/lib/planoHtml";
+import { itemDeReferenciaPdf } from "@/lib/substituicoes";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -229,7 +230,7 @@ export function PlanoAlimentarSection({ paciente }: Props) {
     if (!dados) throw new Error("Este HTML não traz os dados do plano. Gere de novo pela engine.");
     const alimentos = alimentosReferenciaDoPlanoHtml(dados);
     const resultado = await salvarAlimentosReferencia(planoId, alimentos);
-    return { resultado, total: alimentos.length, comPar: alimentos.filter((a) => a.correspondente).length };
+    return { resultado, total: alimentos.length, comPar: alimentos.filter((a) => itemDeReferenciaPdf(a)).length };
   };
 
   const lerAlimentos = async (plano: { id: string; pdf_path?: string | null }) => {

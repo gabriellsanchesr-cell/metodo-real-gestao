@@ -5,10 +5,13 @@ import { PageHeader } from "@/components/PageHeader";
 import { PortalSubstituicoes } from "@/components/portal/PortalSubstituicoes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { itensDoPlano, type ItemDoPlano } from "@/lib/substituicoes";
+import { format } from "date-fns";
 
 const SEM_PACIENTE = "nenhuma";
 
 interface PacienteOpcao { id: string; nome_completo: string }
+
+type PlanoAtivo = NonNullable<Parameters<typeof itensDoPlano>[0]> & { id: string; titulo?: string | null; created_at: string };
 
 /**
  * A mesma calculadora do portal, para o nutri. Escolhendo uma paciente,
@@ -20,6 +23,8 @@ export default function Substituicoes() {
   const [itens, setItens] = useState<ItemDoPlano[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [semPlano, setSemPlano] = useState(false);
+  const [planos, setPlanos] = useState<PlanoAtivo[]>([]);
+  const [planoId, setPlanoId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
@@ -33,6 +38,8 @@ export default function Substituicoes() {
   useEffect(() => {
     setItens([]);
     setSemPlano(false);
+    setPlanos([]);
+    setPlanoId(null);
     if (pacienteId === SEM_PACIENTE) return;
     let cancelado = false;
     setCarregando(true);
@@ -41,13 +48,16 @@ export default function Substituicoes() {
       .select("*, refeicoes(*, alimentos_plano(*))")
       .eq("paciente_id", pacienteId)
       .eq("status", "ativo")
+      // Todos os ativos: há pacientes com dois de propósito (semana e fim de
+      // semana). Abre no mais novo, que é o que acabou de ser entregue.
       .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
       .then(({ data }) => {
         if (cancelado) return;
-        setItens(itensDoPlano(data));
-        setSemPlano(!data);
+        const lista = (data || []) as unknown as PlanoAtivo[];
+        setPlanos(lista);
+        setPlanoId(lista[0]?.id ?? null);
+        setItens(itensDoPlano(lista[0]));
+        setSemPlano(lista.length === 0);
         setCarregando(false);
       });
     return () => { cancelado = true; };
@@ -75,6 +85,21 @@ export default function Substituicoes() {
               ))}
             </SelectContent>
           </Select>
+          {planos.length > 1 && (
+            <Select
+              value={planoId ?? undefined}
+              onValueChange={(id) => { setPlanoId(id); setItens(itensDoPlano(planos.find((p) => p.id === id))); }}
+            >
+              <SelectTrigger className="h-10 rounded-xl bg-card text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {planos.map((p, i) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {(p.titulo || "Plano alimentar").trim()} · {format(new Date(p.created_at), "dd/MM/yyyy")}{i === 0 ? " (mais novo)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {carregando && <p className="text-xs text-muted-foreground">Carregando o plano...</p>}
           {!carregando && semPlano && (
             <p className="text-xs text-muted-foreground">Esta paciente não tem plano ativo.</p>
@@ -87,7 +112,7 @@ export default function Substituicoes() {
         </div>
 
         {/* key: trocar de paciente recomeça a calculadora com os alimentos dela. */}
-        <PortalSubstituicoes key={`${pacienteId}:${itens.length}`} itensPlano={itens} semTitulo />
+        <PortalSubstituicoes key={`${pacienteId}:${planoId}:${itens.length}`} itensPlano={itens} semTitulo />
       </div>
     </div>
   );

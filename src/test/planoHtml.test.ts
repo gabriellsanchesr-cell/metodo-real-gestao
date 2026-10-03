@@ -82,3 +82,44 @@ describe("plano em HTML", () => {
     expect(item?.categoria).toBe("proteina");
   });
 });
+
+describe("calculadora com plano em HTML", () => {
+  const base = { ...dados, alimentos: [] as unknown[] } as Parameters<typeof alimentosReferenciaDoPlanoHtml>[0];
+
+  it("arquivo antigo (versão 1): alimento sem par na lista entra pela tabela da engine", () => {
+    const refs = alimentosReferenciaDoPlanoHtml({
+      ...base,
+      alimentos: [
+        { nome: "Maçã", quantidade_g: 80, refeicao: "Lanche", chave: "maca" },
+        { nome: "Farelo de aveia", quantidade_g: 20, refeicao: "Lanche", chave: "farelo_aveia" },
+        { nome: "Arroz integral", quantidade_g: 80, refeicao: "Almoço", chave: "arroz_int" },
+      ],
+    });
+    const itens = refs.map((r) => itemDeReferenciaPdf(r));
+    expect(itens.every(Boolean)).toBe(true);
+    expect(itens[0]).toMatchObject({ nome: "Maçã", gramas: 80, kcal100g: 56, categoria: "carboidrato" });
+  });
+
+  it("versão 2: receita entra com os números do próprio plano", () => {
+    const [r] = alimentosReferenciaDoPlanoHtml({
+      ...base,
+      alimentos: [{
+        nome: "Pão de minuto (receita)", quantidade_g: 95, refeicao: "Café da manhã", chave: null,
+        kcal_100g: 228.84, proteina_100g: 15, carboidrato_100g: 30, gordura_100g: 6,
+      }],
+    });
+    expect(itemDeReferenciaPdf(r)).toMatchObject({ nome: "Pão de minuto (receita)", gramas: 95, kcal100g: 228.8, categoria: "carboidrato" });
+  });
+
+  it("com par na lista, a categoria segue a planilha (ovo em gorduras)", () => {
+    const [r] = alimentosReferenciaDoPlanoHtml({
+      ...base,
+      alimentos: [{ nome: "Ovo cozido", quantidade_g: 50, refeicao: "Lanche", chave: "ovo" }],
+    });
+    expect(itemDeReferenciaPdf(r)?.categoria).toBe(LISTA_ALIMENTOS.find((a) => a.nome === "Ovo, inteiro, cozido")?.categoria);
+  });
+
+  it("legume de pouca caloria continua fora", () => {
+    expect(itemDeReferenciaPdf({ nome: "Alface", quantidade_g: 50, kcal_100g: 11, carboidrato_100g: 2 })).toBeNull();
+  });
+});

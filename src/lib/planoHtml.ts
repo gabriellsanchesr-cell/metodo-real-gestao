@@ -6,6 +6,7 @@
  * o portal grava é exatamente o que a engine calculou.
  */
 import { LISTA_ALIMENTOS, type AlimentoReferenciaPdf } from "@/lib/substituicoes";
+import { TACO_ENGINE } from "@/lib/tacoEngine";
 
 export interface OpcaoPlanoHtml {
   letra: string;
@@ -35,7 +36,20 @@ export interface DadosPlanoHtml {
   paciente: string;
   emissao_iso: string | null;
   planos: PlanoHtmlDia[];
-  alimentos: { nome: string; quantidade_g: number; refeicao: string; chave: string }[];
+  /**
+   * Versão 1: só alimentos simples, com a chave TACO. Versão 2: também as
+   * receitas (chave null) e os números por 100 g de cada item.
+   */
+  alimentos: {
+    nome: string;
+    quantidade_g: number;
+    refeicao: string;
+    chave: string | null;
+    kcal_100g?: number;
+    proteina_100g?: number;
+    carboidrato_100g?: number;
+    gordura_100g?: number;
+  }[];
 }
 
 /** O arquivo do plano é HTML? (o tipo do plano continua "anexo"; o formato vem da extensão). */
@@ -122,15 +136,29 @@ export const CHAVE_ENGINE_PARA_LISTA: Record<string, string> = {
 
 const NOMES_DA_LISTA = new Set(LISTA_ALIMENTOS.map((a) => a.nome));
 
-/** Alimentos do plano no formato de planos_alimentares.alimentos_referencia. */
+/**
+ * Alimentos do plano no formato de planos_alimentares.alimentos_referencia.
+ * Leva os números por 100 g do próprio plano (versão 2) ou, no arquivo
+ * antigo, da tabela da engine pela chave. Com eles o alimento entra na
+ * calculadora mesmo sem par na lista: antes maçã, pão integral, farelo de
+ * aveia, arroz integral e as receitas ficavam de fora.
+ */
 export function alimentosReferenciaDoPlanoHtml(dados: DadosPlanoHtml): AlimentoReferenciaPdf[] {
   return (dados.alimentos || []).map((a) => {
-    const par = CHAVE_ENGINE_PARA_LISTA[a.chave];
+    const par = a.chave ? CHAVE_ENGINE_PARA_LISTA[a.chave] : undefined;
+    const taco = a.chave ? TACO_ENGINE[a.chave] : undefined;
+    const kcal = a.kcal_100g ?? taco?.[0];
     return {
       nome: a.nome,
       quantidade_g: a.quantidade_g,
       refeicao: a.refeicao,
       correspondente: par && NOMES_DA_LISTA.has(par) ? par : null,
+      ...(kcal != null ? {
+        kcal_100g: kcal,
+        proteina_100g: a.proteina_100g ?? taco?.[1] ?? 0,
+        carboidrato_100g: a.carboidrato_100g ?? taco?.[2] ?? 0,
+        gordura_100g: a.gordura_100g ?? taco?.[3] ?? 0,
+      } : {}),
     };
   });
 }
