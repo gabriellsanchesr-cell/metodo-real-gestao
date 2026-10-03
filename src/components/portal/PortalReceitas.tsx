@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ArrowLeft, ChevronDown, ChevronUp, UtensilsCrossed } from "lucide-react";
+import { Clock, Users, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { usePortalModo } from "@/contexts/PortalModoContext";
 
 interface Ingrediente { nome: string; quantidade: string; unidade: string; }
@@ -115,15 +115,9 @@ export function PortalReceitas({ paciente }: { paciente: any }) {
     );
   }
 
-  if (receitas.length === 0) {
-    return (
-      <div className="text-center py-12 text-muted-foreground">
-        <UtensilsCrossed className="h-8 w-8 mx-auto mb-2 opacity-40" />
-        <p className="font-medium">Nenhuma receita recebida</p>
-        <p className="text-sm mt-1">Suas receitas aparecerão aqui quando o nutricionista enviá-las.</p>
-      </div>
-    );
-  }
+  // Sem receita enviada só para a paciente, a aba mostra as receitas do
+  // método (BibliotecaPortal) logo abaixo; um aviso de vazio aqui só atrapalha.
+  if (receitas.length === 0) return null;
 
   return (
     <div className="space-y-4">

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { FolderOpen, FileText, Link as LinkIcon, ExternalLink, Download } from "lucide-react";
+import { FileText, Link as LinkIcon, ExternalLink, Download } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { usePortalModo } from "@/contexts/PortalModoContext";
@@ -52,18 +52,8 @@ export function PortalMateriais({ paciente }: { paciente: any }) {
     return <Card className="rounded-2xl"><CardContent className="py-8 text-center text-muted-foreground">Carregando...</CardContent></Card>;
   }
 
-  if (items.length === 0) {
-    return (
-      <Card className="rounded-2xl border-dashed">
-        <CardContent className="py-12 text-center">
-          <FolderOpen className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-          <p className="font-semibold text-foreground">Sem materiais ainda</p>
-          <p className="text-sm text-muted-foreground mt-1">Materiais extras enviados pelo nutricionista aparecerão aqui.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  // Sem material só da paciente, a biblioteca do método aparece abaixo.
+  if (items.length === 0) return null;
   return (
     <div className="space-y-3 animate-fade-in">
       {items.map(m => (

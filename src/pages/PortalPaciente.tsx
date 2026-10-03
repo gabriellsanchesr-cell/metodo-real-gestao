@@ -1086,10 +1086,10 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
     if (!prescLoaded) { loadPrescricoes(); return <div className="space-y-3"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-24 rounded-2xl" /></div>; }
     if (portalPresc.length === 0) {
       return (
-        <div className="text-center py-12 text-muted-foreground animate-fade-in">
-          <Pill className="h-8 w-8 mx-auto mb-2 opacity-40" />
-          <p className="font-medium">Nenhum suplemento prescrito</p>
-          <p className="text-sm mt-1">Seu nutricionista adicionará suas prescrições aqui.</p>
+        // Compacto: abaixo vêm os guias de suplementação da biblioteca.
+        <div className="flex items-center gap-3 rounded-2xl border border-dashed px-4 py-3 text-muted-foreground animate-fade-in">
+          <Pill className="h-5 w-5 shrink-0 opacity-50" />
+          <p className="text-sm">Nenhum suplemento prescrito para você agora. Quando houver, ele aparece aqui com dose e horário.</p>
         </div>
       );
     }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -71,12 +71,8 @@ export function PortalOrientacoes({ paciente }: { paciente: { id: string } }) {
       </div>
 
       {itens.length === 0 ? (
-        <Card className="rounded-2xl border-dashed">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            <BookOpen className="mx-auto mb-2 h-8 w-8 opacity-40" />
-            Nenhuma orientação por aqui ainda.
-          </CardContent>
-        </Card>
+        // As orientações do método vêm logo abaixo (BibliotecaPortal).
+        <p className="text-sm text-muted-foreground">Nenhuma orientação só sua por enquanto.</p>
       ) : (
         <div className="space-y-3">
           {itens.map((o) => {
