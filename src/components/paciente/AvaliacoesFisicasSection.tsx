@@ -271,6 +271,19 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   const massaMagra = (massaGorda !== null && form.peso)
     ? Math.round((Number(form.peso) - massaGorda) * 10) / 10 : null;
 
+  // A avaliação com os valores calculados já aplicados. O comparativo e o PDF
+  // liam só o que estava gravado; quem foi salvo antes de o cálculo sair
+  // (ex.: cadastro sem nascimento) ficava com traço mesmo depois de corrigir.
+  const formCalculado: typeof form = {
+    ...form,
+    ...(imcCalc.imc ? { imc: imcCalc.imc, classificacao_imc: imcCalc.class } : {}),
+    ...(rcqCalc.rcq ? { relacao_cintura_quadril: rcqCalc.rcq } : {}),
+    ...(bodyFat.pctGordura !== null ? { percentual_gordura_dobras: bodyFat.pctGordura } : {}),
+    ...(massaGorda !== null ? { massa_gorda_kg: massaGorda } : {}),
+    ...(massaMagra !== null ? { massa_magra_kg: massaMagra } : {}),
+  };
+  const pacienteAtual = { ...paciente, data_nascimento: nascimento, sexo };
+
   // Sum of folds
   const sumFolds = FOLD_FIELDS.reduce((s, f) => s + (Number(form[f.key]) || 0), 0);
 
@@ -279,13 +292,8 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
     if (!user) return;
     setSaving(true);
     try {
-      const payload: Record<string, any> = { ...form };
-      // Computed fields
-      if (imcCalc.imc) { payload.imc = imcCalc.imc; payload.classificacao_imc = imcCalc.class; }
-      if (rcqCalc.rcq) payload.relacao_cintura_quadril = rcqCalc.rcq;
-      if (bodyFat.pctGordura !== null) payload.percentual_gordura_dobras = bodyFat.pctGordura;
-      if (massaGorda !== null) payload.massa_gorda_kg = massaGorda;
-      if (massaMagra !== null) payload.massa_magra_kg = massaMagra;
+      // Com os campos calculados (IMC, RCQ, %GC, massas).
+      const payload: Record<string, any> = { ...formCalculado };
 
       // Clean non-DB fields
       delete payload.id; delete payload.created_at; delete payload.updated_at;
@@ -757,7 +765,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
                       { label: "% Gordura", key: "percentual_gordura_dobras", unit: "%", invert: true },
                       { label: "Massa Magra", key: "massa_magra_kg", unit: "kg", invert: false },
                     ].map(({ label, key, unit, invert }) => {
-                      const cur = Number(form[key]) || null;
+                      const cur = Number(formCalculado[key]) || null;
                       const prev = Number(previousAv[key]) || null;
                       return (
                         <div key={key} className="flex items-center justify-between py-2 border-b border-border/30 text-xs">
@@ -783,11 +791,11 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
           open={showExportPdf}
           onOpenChange={setShowExportPdf}
           type="avaliacao"
-          paciente={paciente}
-          avaliacaoData={form}
+          paciente={pacienteAtual}
+          avaliacaoData={formCalculado}
           historicoAvaliacoes={(() => {
             const others = avaliacoes.filter(a => a.id !== editId);
-            return [...others, { ...form, id: editId }]
+            return [...others, { ...formCalculado, id: editId }]
               .filter(a => a && a.data_avaliacao)
               .sort((a, b) => String(a.data_avaliacao || "").localeCompare(String(b.data_avaliacao || "")));
           })()}
