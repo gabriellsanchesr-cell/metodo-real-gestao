@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, ChevronRight, Download, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { FASE_GERAL, tagDaAba, type AbaBiblioteca } from "@/lib/fases";
-import { TextoConteudo, abrirArquivoConteudo } from "./TextoConteudo";
+import { TextoConteudo } from "./TextoConteudo";
+import { abrirArquivoConteudo } from "@/lib/conteudos";
 
 interface ItemBiblioteca {
   id: string;

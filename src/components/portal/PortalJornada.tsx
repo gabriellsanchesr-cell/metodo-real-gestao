@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
+import { abrirArquivoConteudo } from "@/lib/conteudos";
 import {
   Calendar, Target, Key, Heart, Check, ChevronDown, ChevronUp,
   Video, FileText, Type, Headphones, ExternalLink, Search, Star,
@@ -397,6 +398,13 @@ function ContentViewer({ content, isViewed, isFavorite, onBack, onMarkViewed, on
         </div>
         {content.descricao && <p className="text-sm text-muted-foreground mt-2">{content.descricao}</p>}
       </div>
+
+      {/* PDF do conteúdo (tipo pdf ou texto com guia completo anexado). */}
+      {content.arquivo_path && (
+        <Button className="w-full rounded-xl" onClick={() => abrirArquivoConteudo(content.arquivo_path!)}>
+          <Download className="h-4 w-4 mr-2" /> {content.tipo === "pdf" ? "Abrir o PDF" : "Abrir o guia completo em PDF"}
+        </Button>
+      )}
 
       {/* Video */}
       {content.tipo === "video" && content.url_midia && (

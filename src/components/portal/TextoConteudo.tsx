@@ -1,6 +1,3 @@
-import { supabase } from "@/integrations/supabase/client";
-import { BUCKET_CONTEUDOS } from "@/lib/fases";
-
 /**
  * Texto dos conteúdos (Jornada e Biblioteca), com o markdown mínimo que o
  * editor do nutri aceita: títulos, lista, citação, linha e **negrito**.
@@ -25,21 +22,4 @@ export function TextoConteudo({ texto }: { texto: string }) {
 function negrito(linha: string) {
   const partes = linha.split(/\*\*(.+?)\*\*/g);
   return partes.map((p, i) => (i % 2 === 1 ? <strong key={i}>{p}</strong> : p));
-}
-
-/**
- * Abre o PDF da biblioteca numa aba nova, por URL assinada de 1 hora.
- * A aba é aberta antes da chamada: no iPhone, abrir depois de um await é
- * bloqueado como pop-up.
- */
-export async function abrirArquivoConteudo(path: string): Promise<boolean> {
-  const aba = window.open("", "_blank");
-  const { data, error } = await supabase.storage.from(BUCKET_CONTEUDOS).createSignedUrl(path, 3600);
-  if (error || !data?.signedUrl) {
-    aba?.close();
-    return false;
-  }
-  if (aba) aba.location.href = data.signedUrl;
-  else window.location.href = data.signedUrl;
-  return true;
 }
