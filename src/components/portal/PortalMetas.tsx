@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Target, CheckCircle2, Pause, Circle } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 
 export function PortalMetas({ paciente }: { paciente: any }) {
+  const { modoVisualizacao } = usePortalModo();
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +29,7 @@ export function PortalMetas({ paciente }: { paciente: any }) {
   };
 
   const concluir = async (id: string) => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     await (supabase as any).from("metas_paciente").update({
       status: "concluida", concluida_em: new Date().toISOString(),
     }).eq("id", id);
@@ -35,6 +38,7 @@ export function PortalMetas({ paciente }: { paciente: any }) {
   };
 
   const reabrir = async (id: string) => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     await (supabase as any).from("metas_paciente").update({
       status: "em_andamento", concluida_em: null,
     }).eq("id", id);
@@ -42,6 +46,7 @@ export function PortalMetas({ paciente }: { paciente: any }) {
   };
 
   const atualizarValor = async (id: string) => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     const val = editing[id];
     if (val === undefined || val === "") return;
     await (supabase as any).from("metas_paciente").update({ valor_atual: Number(val) }).eq("id", id);

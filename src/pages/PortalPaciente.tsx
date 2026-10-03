@@ -12,6 +12,9 @@ import { PortalPeso } from "@/components/portal/PortalPeso";
 import { pesoAtual, proximaRefeicao, rotuloFase, sequenciaDeDias } from "@/lib/portal";
 import { itensDoPlano } from "@/lib/substituicoes";
 import { useAuth } from "@/hooks/useAuth";
+import { PortalModoProvider } from "@/contexts/PortalModoContext";
+import { HeroPortal } from "@/components/portal/HeroPortal";
+import { CountUp, Reveal, Ring } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -82,7 +85,21 @@ function PortalDeltaBadge({ current, previous, unit, inverse }: { current: numbe
 }
 
 export default function PortalPaciente() {
-  const { user, signOut } = useAuth();
+  return <PortalPacienteConteudo />;
+}
+
+interface ConteudoProps {
+  /** "Ver como paciente": abre o portal desta paciente em vez da do login. */
+  pacienteId?: string;
+  /** Mostra tudo e não grava nada (ver src/contexts/PortalModoContext.tsx). */
+  modoVisualizacao?: boolean;
+  /** No modo visualização, "Sair" volta para o painel em vez de deslogar o nutri. */
+  onSair?: () => void;
+}
+
+export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, onSair }: ConteudoProps) {
+  const { user, signOut: signOutDoLogin } = useAuth();
+  const signOut = modoVisualizacao ? (onSair ?? (() => {})) : signOutDoLogin;
   const [paciente, setPaciente] = useState<any>(null);
   const [plano, setPlano] = useState<any>(null);
   // Alguns pacientes têm mais de um plano ativo de propósito (semana e fim
@@ -107,7 +124,7 @@ export default function PortalPaciente() {
   const [novidades, setNovidades] = useState<Novidades>({});
   const [menuAberto, setMenuAberto] = useState(false);
 
-  useEffect(() => { if (user) loadData(); }, [user]);
+  useEffect(() => { if (user) loadData(); }, [user, pacienteId]);
 
   // Recalcula ao voltar de uma seção: abrir as mensagens zera o contador delas.
   useEffect(() => {
@@ -143,7 +160,7 @@ export default function PortalPaciente() {
     if (!p) return;
     // Guarda também qual era o plano mais novo na hora da escolha: chegando um
     // plano novo, ele abre primeiro em vez de a paciente ficar presa no antigo.
-    try { localStorage.setItem(`planoSel:${p.paciente_id}`, `${p.id}|${maisNovoRef.current ?? ""}`); } catch { /* opcional */ }
+    if (!modoVisualizacao) try { localStorage.setItem(`planoSel:${p.paciente_id}`, `${p.id}|${maisNovoRef.current ?? ""}`); } catch { /* opcional */ }
     if (p.tipo === "anexo" && p.pdf_path && !ehPlanoHtml(p.pdf_path)) {
       const { data: signed } = await supabase.storage.from("documentos-pdf").createSignedUrl(p.pdf_path, 3600);
       if (signed?.signedUrl) setPlanoPdfUrl(signed.signedUrl);
@@ -168,11 +185,12 @@ export default function PortalPaciente() {
   const loadData = async () => {
     try {
       const { data: pac } = await supabase
-        .from("pacientes").select("*").eq("auth_user_id", user!.id).maybeSingle();
+        .from("pacientes").select("*")
+        .eq(pacienteId ? "id" : "auth_user_id", pacienteId ?? user!.id).maybeSingle();
       setPaciente(pac);
       // Bloqueio feito pelo nutri: o login já é recusado, mas quem estava com
       // o portal aberto seguia usando. Não carrega mais nada.
-      if (pac?.account_status === "desativado") return;
+      if (pac?.account_status === "desativado" && !modoVisualizacao) return;
       if (pac) {
         const { data: planosData } = await supabase
           .from("planos_alimentares")
@@ -283,7 +301,7 @@ export default function PortalPaciente() {
     );
   }
 
-  if (paciente.account_status === "desativado") {
+  if (paciente.account_status === "desativado" && !modoVisualizacao) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <Card className="max-w-sm w-full rounded-2xl glass-card">
@@ -398,67 +416,38 @@ export default function PortalPaciente() {
     type RefeicaoPortal = { id: string; tipo: string; nome_customizado?: string | null; horario_sugerido?: string | null; ordem?: number | null };
     const proxima = plano && plano.tipo !== "anexo" ? proximaRefeicao((plano.refeicoes || []) as RefeicaoPortal[]) : null;
     const consultaDate = proximaConsulta ? new Date(proximaConsulta.data_hora) : null;
+    // Macros do dia pela opção que a paciente marcou (no plano anexado, a linha-resumo).
+    const macrosDia = { p: 0, c: 0, g: 0 };
+    (plano?.refeicoes || []).forEach((r: { id: string }) => {
+      getContabilizada(r).forEach((a: { proteina_g?: number | null; carboidrato_g?: number | null; lipidio_g?: number | null }) => {
+        macrosDia.p += a.proteina_g || 0; macrosDia.c += a.carboidrato_g || 0; macrosDia.g += a.lipidio_g || 0;
+      });
+    });
+    const temMacros = macrosDia.p + macrosDia.c + macrosDia.g > 0;
     const consultaLabel = consultaDate
       ? isToday(consultaDate) ? "Hoje" : isTomorrow(consultaDate) ? "Amanhã" : format(consultaDate, "dd 'de' MMM", { locale: ptBR })
       : null;
 
     return (
       <div className="space-y-5">
-        {/* Welcome banner - glassmorphism */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-primary/70 p-5 text-primary-foreground animate-fade-in">
-          <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary-foreground/10 blur-sm" />
-          <div className="absolute right-8 bottom-0 h-20 w-20 rounded-full bg-primary-foreground/5 blur-sm" />
-          <div className="absolute -left-4 -bottom-6 h-16 w-16 rounded-full bg-primary-foreground/8" />
-          <div className="relative flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium opacity-90 flex items-center gap-1.5">
-                <greeting.icon className="h-4 w-4" /> {greeting.text}
-              </p>
-              <h2 className="text-xl font-bold mt-0.5">{firstName}</h2>
-              <p className="text-xs mt-1.5 opacity-80">Acompanhe seu progresso nutricional</p>
-            </div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="h-12 w-12 rounded-2xl bg-primary-foreground/15 backdrop-blur-sm flex items-center justify-center">
-                <Trophy className="h-6 w-6" />
-              </div>
-              {diaryStreak > 0 && (
-                <span className="text-[10px] font-bold opacity-90">{diaryStreak} {diaryStreak === 1 ? "dia" : "dias"}</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Weekly progress bar */}
-        <div className="animate-slide-up animate-stagger-1">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-              <Star className="h-3.5 w-3.5 text-warning" />
-              Progresso Semanal
-            </p>
-            <span className="text-xs text-muted-foreground">{weeklyProgress.done}/{weeklyProgress.total} dias</span>
-          </div>
-          <div className="flex gap-1.5">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-2 flex-1 rounded-full transition-all duration-300 ${
-                  i < weeklyProgress.done
-                    ? "bg-gradient-to-r from-primary to-primary/70"
-                    : "bg-muted"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
+        {/* Topo no desenho do plano v4; o anel é o diário da semana */}
+        <HeroPortal
+          saudacao={greeting.text}
+          IconeSaudacao={greeting.icon}
+          nome={firstName}
+          diasSemana={weeklyProgress.done}
+          sequencia={diaryStreak}
+        />
 
         {/* Metric cards - glassmorphism */}
-        <div className="grid grid-cols-3 gap-3 animate-slide-up animate-stagger-2">
+        <div className="grid grid-cols-3 gap-3">
           {[
-            { icon: Weight, value: pesoInfo.peso != null ? pesoInfo.peso.toLocaleString("pt-BR") : "—", label: "Peso (kg)", sub: pesoInfo.variacao != null ? `${pesoInfo.variacao > 0 ? "+" : ""}${pesoInfo.variacao.toLocaleString("pt-BR")} kg desde o início` : null, color: "from-blue-500/20 to-blue-600/5", iconColor: "text-blue-600 bg-blue-100" },
-            { icon: Flame, value: Math.round(totalDiario), label: "Kcal/dia", sub: null, color: "from-orange-500/20 to-orange-600/5", iconColor: "text-orange-600 bg-orange-100" },
+            { icon: Weight, value: <CountUp value={pesoInfo.peso} decimals={pesoInfo.peso != null && !Number.isInteger(pesoInfo.peso) ? 1 : 0} />, label: "Peso (kg)", sub: pesoInfo.variacao != null ? `${pesoInfo.variacao > 0 ? "+" : ""}${pesoInfo.variacao.toLocaleString("pt-BR")} kg desde o início` : null, color: "from-blue-500/20 to-blue-600/5", iconColor: "text-blue-600 bg-blue-100" },
+            { icon: Flame, value: <CountUp value={totalDiario > 0 ? Math.round(totalDiario) : null} />, label: "Kcal/dia", sub: null, color: "from-orange-500/20 to-orange-600/5", iconColor: "text-orange-600 bg-orange-100" },
             { icon: Sparkles, value: rotuloFase(paciente.fase_real), label: "Fase R.E.A.L.", sub: null, color: "from-violet-500/20 to-violet-600/5", iconColor: "text-violet-600 bg-violet-100" },
           ].map((metric, idx) => (
-            <Card key={idx} className="rounded-2xl border-none shadow-sm overflow-hidden group hover:shadow-md transition-all duration-300">
+            <Reveal key={idx} delay={idx * 90}>
+            <Card className="h-full rounded-2xl border-none shadow-[0_1px_2px_rgba(6,16,31,.04),0_12px_30px_-20px_rgba(6,16,31,.3)] overflow-hidden group hover:shadow-md transition-all duration-300">
               <div className={`absolute inset-0 bg-gradient-to-br ${metric.color} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
               <CardContent className="p-3 text-center relative">
                 <div className={`mx-auto h-9 w-9 rounded-xl ${metric.iconColor} flex items-center justify-center mb-1.5 transition-transform duration-300 group-hover:scale-110`}>
@@ -469,6 +458,7 @@ export default function PortalPaciente() {
                 {metric.sub && <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">{metric.sub}</p>}
               </CardContent>
             </Card>
+            </Reveal>
           ))}
         </div>
 
@@ -587,11 +577,44 @@ export default function PortalPaciente() {
               </CardHeader>
               <CardContent className="pb-4">
                 <p className="font-semibold text-foreground">{plano.nome}</p>
-                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
-                  <span>{plano.refeicoes?.length || 0} refeições</span>
-                  <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
-                  <span>{Math.round(totalDiario)} kcal/dia</span>
-                </p>
+                {temMacros ? (
+                  <div className="mt-3 flex items-center gap-4">
+                    <Ring
+                      tamanho={104}
+                      espessura={10}
+                      ariaLabel="Divisão das calorias do dia entre proteína, carboidrato e gordura"
+                      fatias={[
+                        { valor: macrosDia.p * 4, cor: "hsl(var(--macro-prot))" },
+                        { valor: macrosDia.c * 4, cor: "hsl(var(--macro-carb))" },
+                        { valor: macrosDia.g * 9, cor: "hsl(var(--macro-fat))" },
+                      ]}
+                    >
+                      <CountUp value={Math.round(totalDiario)} className="text-xl font-light leading-none text-primary" />
+                      <span className="mt-1 text-[8.5px] font-semibold uppercase tracking-[.14em] text-muted-foreground">kcal/dia</span>
+                    </Ring>
+                    <div className="grid flex-1 gap-1.5 text-xs">
+                      {[
+                        { rotulo: "Proteína", v: macrosDia.p, cor: "bg-macro-prot", txt: "text-macro-prot" },
+                        { rotulo: "Carboidrato", v: macrosDia.c, cor: "bg-macro-carb", txt: "text-macro-carb" },
+                        { rotulo: "Gordura", v: macrosDia.g, cor: "bg-macro-fat", txt: "text-macro-fat" },
+                      ].map((m) => (
+                        <div key={m.rotulo} className="flex items-center justify-between gap-2">
+                          <span className="flex items-center gap-1.5 text-muted-foreground">
+                            <span className={`h-2 w-2 rounded-[3px] ${m.cor}`} /> {m.rotulo}
+                          </span>
+                          <span className={`font-semibold ${m.txt}`}><CountUp value={Math.round(m.v)} /> g</span>
+                        </div>
+                      ))}
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">{plano.tipo === "anexo" ? "Plano completo no botão abaixo" : `${plano.refeicoes?.length || 0} refeições`}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                    <span>{plano.refeicoes?.length || 0} refeições</span>
+                    <span className="h-1 w-1 rounded-full bg-muted-foreground/40" />
+                    <span>{Math.round(totalDiario)} kcal/dia</span>
+                  </p>
+                )}
                 <Button
                   size="sm"
                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 transition-all duration-300"
@@ -819,7 +842,7 @@ export default function PortalPaciente() {
                               type="button"
                               onClick={() => setActiveOption(prev => {
                                 const next = { ...prev, [ref.id]: l };
-                                if (plano?.id) {
+                                if (plano?.id && !modoVisualizacao) {
                                   try { localStorage.setItem(`opcaoSel:${plano.id}`, JSON.stringify(next)); } catch {}
                                 }
                                 return next;
@@ -1198,7 +1221,7 @@ export default function PortalPaciente() {
 
       {/* Logout */}
       <Button variant="outline" className="w-full rounded-xl border-destructive/30 text-destructive hover:bg-destructive/5 hover:text-destructive" onClick={signOut}>
-        <LogOut className="h-4 w-4 mr-2" /> Sair da conta
+        <LogOut className="h-4 w-4 mr-2" /> {modoVisualizacao ? "Voltar ao painel" : "Sair da conta"}
       </Button>
     </div>
   );
@@ -1225,6 +1248,7 @@ export default function PortalPaciente() {
   ];
 
   return (
+    <PortalModoProvider modoVisualizacao={modoVisualizacao}>
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header premium with glassmorphism */}
       <header className="sticky top-0 z-40 bg-card/80 backdrop-blur-xl border-b border-border/40 px-4 py-3 safe-area-top">
@@ -1301,6 +1325,7 @@ export default function PortalPaciente() {
         </div>
       </nav>
     </div>
+    </PortalModoProvider>
   );
 }
 

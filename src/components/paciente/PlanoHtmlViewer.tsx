@@ -3,6 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Maximize2 } from "lucide-react";
 
+/** Primeiro ancestral com rolagem própria; null quando quem rola é a janela. */
+function caixaQueRola(el: HTMLElement): HTMLElement | null {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY;
+    if ((oy === "auto" || oy === "scroll") && p.scrollHeight > p.clientHeight) return p;
+  }
+  return null;
+}
+
 interface Props {
   /** Caminho do .html no bucket documentos-pdf. */
   path: string;
@@ -49,8 +58,11 @@ export function PlanoHtmlViewer({ path, titulo = "Plano alimentar", offsetTopo =
       if (msg?.tipo === "plano-real:altura" && typeof msg.altura === "number" && msg.altura > 0) {
         setAltura(Math.min(Math.ceil(msg.altura), 60000));
       } else if (msg?.tipo === "plano-real:rolar" && typeof msg.y === "number") {
-        const topo = frame.current.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({ top: topo + msg.y - offsetTopo, behavior: "smooth" });
+        // Rola quem de fato rola: a janela, ou a moldura de celular do "ver como paciente".
+        const caixa = caixaQueRola(frame.current);
+        const base = caixa ? caixa.getBoundingClientRect().top - caixa.scrollTop : -window.scrollY;
+        const alvo = frame.current.getBoundingClientRect().top - base + msg.y - offsetTopo;
+        (caixa ?? window).scrollTo({ top: alvo, behavior: "smooth" });
       }
     };
     window.addEventListener("message", ouvir);

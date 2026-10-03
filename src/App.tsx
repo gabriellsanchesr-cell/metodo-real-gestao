@@ -34,6 +34,7 @@ import Leads from "./pages/Leads";
 import CaptacaoHoje from "./pages/CaptacaoHoje";
 import Financeiro from "./pages/Financeiro";
 import Substituicoes from "./pages/Substituicoes";
+import VerComoPaciente from "./pages/VerComoPaciente";
 import NotFound from "./pages/NotFound";
 import { FullPageLoader } from "@/components/Loading";
 
@@ -89,6 +90,8 @@ const App = () => (
             <Route path="/trocar-senha" element={<ProtectedRoute><TrocarSenha /></ProtectedRoute>} />
             <Route path="/meu-painel" element={<PacienteRoute><MeuPainel /></PacienteRoute>} />
             <Route path="/portal" element={<PacienteRoute><PortalPaciente /></PacienteRoute>} />
+            {/* Nutri vê o portal de uma paciente, só leitura, sem trocar de login */}
+            <Route path="/ver-como-paciente/:id" element={<AdminRoute><VerComoPaciente /></AdminRoute>} />
             <Route path="/" element={<AdminRoute><AppLayout /></AdminRoute>}>
               <Route index element={<Dashboard />} />
               <Route path="pacientes" element={<Pacientes />} />

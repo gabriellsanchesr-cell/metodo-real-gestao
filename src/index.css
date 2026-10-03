@@ -55,6 +55,12 @@
     --gold: 44 52% 47%;
     --gold-foreground: 0 0% 100%;
     --primary-2: 214 100% 44%;
+    --navy: 216 68% 7%;
+    /* Macros: cores do plano v4 (preenchimento claro o bastante para anel e barra) */
+    --macro-prot: 222 86% 56%;
+    --macro-carb: 28 75% 43%;
+    --macro-fat: 163 83% 30%;
+    --macro-fib: 161 94% 24%;
   }
 
   .dark {

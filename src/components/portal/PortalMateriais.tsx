@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { FolderOpen, FileText, Link as LinkIcon, ExternalLink, Download } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { usePortalModo } from "@/contexts/PortalModoContext";
 
 const CAT_LABEL: Record<string, string> = {
   ebook: "E-book", video: "Vídeo", receita: "Receita", treino: "Treino",
@@ -12,6 +13,7 @@ const CAT_LABEL: Record<string, string> = {
 };
 
 export function PortalMateriais({ paciente }: { paciente: any }) {
+  const { modoVisualizacao } = usePortalModo();
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export function PortalMateriais({ paciente }: { paciente: any }) {
   };
 
   const markSeen = async (m: any) => {
-    if (m.visto_em) return;
+    if (m.visto_em || modoVisualizacao) return;
     await (supabase as any).from("materiais_paciente").update({ visto_em: new Date().toISOString() }).eq("id", m.id);
   };
 

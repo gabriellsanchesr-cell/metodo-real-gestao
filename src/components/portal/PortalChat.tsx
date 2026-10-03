@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
@@ -23,6 +24,10 @@ interface Mensagem {
 
 export function PortalChat({ paciente }: Props) {
   const { user } = useAuth();
+  const { modoVisualizacao } = usePortalModo();
+  // Quem é "eu" na conversa: no "ver como paciente" o login é do nutri, mas a
+  // tela tem que mostrar as mensagens do ponto de vista da paciente.
+  const meuId: string | undefined = modoVisualizacao ? paciente.auth_user_id ?? undefined : user?.id;
   const [conversa, setConversa] = useState<any>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [text, setText] = useState("");
@@ -55,8 +60,8 @@ export function PortalChat({ paciente }: Props) {
         .order("created_at", { ascending: true });
       setMensagens((msgs as Mensagem[]) || []);
 
-      // Mark as read
-      if (user) {
+      // Mark as read (nunca no modo visualização: zeraria o contador da paciente)
+      if (user && !modoVisualizacao) {
         await supabase.from("mensagens")
           .update({ lida: true, lida_em: new Date().toISOString() })
           .eq("conversa_id", conv.id)
@@ -70,7 +75,7 @@ export function PortalChat({ paciente }: Props) {
 
   // Realtime messages
   useEffect(() => {
-    if (!conversa) return;
+    if (!conversa || modoVisualizacao) return;
     const channel = supabase
       .channel(`portal-msgs-${conversa.id}`)
       .on("postgres_changes", {
@@ -105,6 +110,7 @@ export function PortalChat({ paciente }: Props) {
   }, [conversa, user]);
 
   const handleSend = async () => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     if (!text.trim() || !conversa || !user) return;
     const msg = text.trim();
     setText("");
@@ -119,6 +125,7 @@ export function PortalChat({ paciente }: Props) {
   };
 
   const handleTyping = () => {
+    if (modoVisualizacao) return;
     typingRef.current?.send({ type: "broadcast", event: "typing", payload: { user_id: user?.id } });
   };
 
@@ -140,7 +147,7 @@ export function PortalChat({ paciente }: Props) {
     return groups;
   };
 
-  const lastMyMsg = [...mensagens].reverse().find(m => m.remetente_id === user?.id);
+  const lastMyMsg = [...mensagens].reverse().find(m => m.remetente_id === meuId);
 
   if (loading) return <div className="text-center py-8 text-muted-foreground text-sm">Carregando...</div>;
 
@@ -177,7 +184,7 @@ export function PortalChat({ paciente }: Props) {
               </span>
             </div>
             {group.msgs.map(msg => {
-              const isMine = msg.remetente_id === user?.id;
+              const isMine = msg.remetente_id === meuId;
               return (
                 <div key={msg.id} className={`flex mb-1.5 ${isMine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] px-3 py-2 text-sm ${

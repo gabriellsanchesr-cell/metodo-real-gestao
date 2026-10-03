@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trash2, Pencil, MoreVertical, PauseCircle, PlayCircle } from "lucide-react";
+import { ArrowLeft, Trash2, Pencil, MoreVertical, PauseCircle, PlayCircle, Eye } from "lucide-react";
 import { AcessoPortalControle } from "./AcessoPortalControle";
 import {
   Breadcrumb,
@@ -137,6 +137,9 @@ export function PacienteHeader({
 
         {/* Desktop actions */}
         <div className="hidden md:flex gap-2 flex-wrap shrink-0">
+          <Button size="sm" variant="outline" onClick={() => navigate(`/ver-como-paciente/${paciente.id}`)} className="rounded-lg">
+            <Eye className="h-3.5 w-3.5 mr-1" /> Ver como paciente
+          </Button>
           {isAtivo && (
             <Button size="sm" variant="outline" onClick={onAlternarInativo} disabled={actionLoading} className="rounded-lg">
               <BotaoInativo className="h-3.5 w-3.5 mr-1" /> {rotuloInativo}
@@ -159,6 +162,9 @@ export function PacienteHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => navigate(`/ver-como-paciente/${paciente.id}`)}>
+                <Eye className="h-4 w-4 mr-2" /> Ver como paciente
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={onEdit}>
                 <Pencil className="h-4 w-4 mr-2" /> Editar
               </DropdownMenuItem>

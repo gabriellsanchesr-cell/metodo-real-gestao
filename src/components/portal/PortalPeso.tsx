@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { hojeLocal } from "@/lib/portal";
 import { cn } from "@/lib/utils";
+import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 
 interface Props {
   paciente: { id: string; user_id: string };
@@ -30,6 +31,7 @@ const PESO_MAX = 300;
  * aponta para cá. Grava em acompanhamentos com registrado_pela_paciente.
  */
 export function PortalPeso({ paciente, ultimo, onSalvo }: Props) {
+  const { modoVisualizacao } = usePortalModo();
   const { toast } = useToast();
   const [aberto, setAberto] = useState(false);
   const [peso, setPeso] = useState("");
@@ -43,6 +45,7 @@ export function PortalPeso({ paciente, ultimo, onSalvo }: Props) {
   const pendente = diasDesde == null || diasDesde >= 7;
 
   const salvar = async () => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     const p = lerNumero(peso);
     if (p == null || p < PESO_MIN || p > PESO_MAX) {
       toast({ title: "Confira o peso", description: "Use o número da balança, por exemplo 68,4.", variant: "destructive" });

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ type Conteudo = {
 };
 
 export function PortalJornada({ paciente }: Props) {
+  const { modoVisualizacao } = usePortalModo();
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [visualizacoes, setVisualizacoes] = useState<Record<string, boolean>>({});
   const [favoritos, setFavoritos] = useState<Set<string>>(new Set());
@@ -124,6 +126,7 @@ export function PortalJornada({ paciente }: Props) {
   );
 
   const markAsViewed = async (conteudoId: string) => {
+    if (modoVisualizacao) return;
     await supabase.from("conteudo_visualizacoes").upsert({
       conteudo_id: conteudoId,
       paciente_id: paciente.id,
@@ -134,6 +137,7 @@ export function PortalJornada({ paciente }: Props) {
   };
 
   const toggleFavorite = async (conteudoId: string) => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     if (favoritos.has(conteudoId)) {
       await supabase.from("conteudo_favoritos").delete()
         .eq("conteudo_id", conteudoId).eq("paciente_id", paciente.id);

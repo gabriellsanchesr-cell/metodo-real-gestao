@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Clock, Users, ArrowLeft, ChevronDown, ChevronUp, UtensilsCrossed } from "lucide-react";
+import { usePortalModo } from "@/contexts/PortalModoContext";
 
 interface Ingrediente { nome: string; quantidade: string; unidade: string; }
 interface Receita {
@@ -14,6 +15,7 @@ interface Receita {
 }
 
 export function PortalReceitas({ paciente }: { paciente: any }) {
+  const { modoVisualizacao } = usePortalModo();
   const [receitas, setReceitas] = useState<Receita[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Receita | null>(null);
@@ -34,7 +36,7 @@ export function PortalReceitas({ paciente }: { paciente: any }) {
 
     // Mark all as visualizada
     const unread = rp.filter((r: any) => !r.visualizada).map((r: any) => r.receita_id);
-    if (unread.length) {
+    if (unread.length && !modoVisualizacao) {
       for (const rid of unread) {
         await supabase.from("receitas_pacientes")
           .update({ visualizada: true })

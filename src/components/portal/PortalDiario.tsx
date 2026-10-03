@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,7 @@ type DiarioRegistro = {
  */
 export function PortalDiario({ paciente, refeicoesNoPlano }: { paciente: any; refeicoesNoPlano?: number }) {
   const { user } = useAuth();
+  const { modoVisualizacao } = usePortalModo();
   const { toast } = useToast();
   const [registros, setRegistros] = useState<DiarioRegistro[]>([]);
   const [loading, setLoading] = useState(true);
@@ -125,6 +127,7 @@ export function PortalDiario({ paciente, refeicoesNoPlano }: { paciente: any; re
   };
 
   const handleSave = async () => {
+    if (bloqueadoNaVisualizacao(modoVisualizacao)) return;
     if (!formDescricao.trim()) {
       toast({ title: "Descreva o que você comeu", variant: "destructive" });
       return;

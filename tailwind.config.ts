@@ -62,6 +62,15 @@ export default {
           DEFAULT: "hsl(var(--gold))",
           foreground: "hsl(var(--gold-foreground))",
         },
+        // Mesmas cores do plano HTML v4 (agents/plano_builder.py).
+        navy: "hsl(var(--navy))",
+        "primary-2": "hsl(var(--primary-2))",
+        macro: {
+          prot: "hsl(var(--macro-prot))",
+          carb: "hsl(var(--macro-carb))",
+          fat: "hsl(var(--macro-fat))",
+          fib: "hsl(var(--macro-fib))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -78,7 +87,14 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      transitionTimingFunction: {
+        "out-expo": "cubic-bezier(.2,.8,.2,1)",
+      },
       keyframes: {
+        // Brilhos do cabeçalho, os mesmos do topo do plano.
+        "drift-1": { to: { transform: "translate(16%,20%) scale(1.12)" } },
+        "drift-2": { to: { transform: "translate(-14%,-12%) scale(1.08)" } },
+        "float-mark": { to: { transform: "translateY(-10px) rotate(-4deg)" } },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -91,6 +107,9 @@ export default {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "drift-1": "drift-1 16s ease-in-out infinite alternate",
+        "drift-2": "drift-2 21s ease-in-out infinite alternate",
+        "float-mark": "float-mark 9s ease-in-out infinite alternate",
       },
     },
   },
