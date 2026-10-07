@@ -47,6 +47,7 @@ import { ehPlanoHtml } from "@/lib/planoHtml";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { dataLocal } from "@/lib/datas";
 
 type PortalTab = "inicio" | "plano" | "diario" | "metas" | "mais";
 type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
@@ -1098,8 +1099,8 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
         <h2 className="text-lg font-bold text-foreground">Meus Suplementos</h2>
         {portalPresc.map((p: any) => {
           const sup = p.suplementos_banco;
-          const remaining = p.data_fim ? differenceInDays(new Date(p.data_fim), new Date()) : null;
-          const totalDays = p.data_fim && p.data_inicio ? differenceInDays(new Date(p.data_fim), new Date(p.data_inicio)) : null;
+          const remaining = p.data_fim ? differenceInDays(dataLocal(p.data_fim), new Date()) : null;
+          const totalDays = p.data_fim && p.data_inicio ? differenceInDays(dataLocal(p.data_fim), dataLocal(p.data_inicio)) : null;
           const progress = remaining != null && totalDays ? Math.max(0, Math.min(100, ((totalDays - remaining) / totalDays) * 100)) : null;
           return (
             <Card key={p.id} className="rounded-2xl hover:shadow-md transition-all duration-200">
@@ -1208,7 +1209,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
           {paciente.data_nascimento && (
             <div className="flex justify-between border-t border-border pt-3">
               <span className="text-muted-foreground">Nascimento</span>
-              <span className="font-medium text-foreground">{format(new Date(paciente.data_nascimento), "dd/MM/yyyy")}</span>
+              <span className="font-medium text-foreground">{format(dataLocal(paciente.data_nascimento), "dd/MM/yyyy")}</span>
             </div>
           )}
           {paciente.sexo && (

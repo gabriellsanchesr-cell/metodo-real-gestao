@@ -5,6 +5,7 @@ import {
   sectionTitle, bodyText, autoTable, BRAND, MARGINS, CONTENT_WIDTH,
   checkNewPage, PdfConfig,
 } from "./pdfBrand";
+import { dataLocal } from "@/lib/datas";
 
 export interface RelatorioExportOptions {
   mes: number; // 0-11
@@ -38,7 +39,7 @@ export function generateRelatorioMensalPdf(
 
   // Filter records for the month
   const filtered = acompanhamentos.filter(r => {
-    const d = new Date(r.data_registro);
+    const d = dataLocal(r.data_registro);
     return d.getMonth() === options.mes && d.getFullYear() === options.ano;
   });
 
@@ -76,7 +77,7 @@ export function generateRelatorioMensalPdf(
 
     const body = filtered.map((r, i) => [
       `${i + 1}`,
-      new Date(r.data_registro).toLocaleDateString("pt-BR"),
+      dataLocal(r.data_registro).toLocaleDateString("pt-BR"),
       r.peso != null ? `${r.peso} kg` : "—",
       r.circunferencia_abdominal != null ? `${r.circunferencia_abdominal} cm` : "—",
       r.circunferencia_quadril != null ? `${r.circunferencia_quadril} cm` : "—",
@@ -114,7 +115,7 @@ export function generateRelatorioMensalPdf(
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(...BRAND.text);
-      doc.text(new Date(r.data_registro).toLocaleDateString("pt-BR"), MARGINS.left, y);
+      doc.text(dataLocal(r.data_registro).toLocaleDateString("pt-BR"), MARGINS.left, y);
       y += 5;
 
       const items = [

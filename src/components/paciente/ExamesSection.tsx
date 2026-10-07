@@ -1,3 +1,4 @@
+import { isoLocal } from "@/lib/datas";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -31,7 +32,7 @@ export function ExamesSection({ paciente }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ nome_exame: "", data_coleta: new Date().toISOString().split("T")[0], observacoes: "" });
+  const [form, setForm] = useState({ nome_exame: "", data_coleta: isoLocal(), observacoes: "" });
   const [file, setFile] = useState<File | null>(null);
   const [viewingExame, setViewingExame] = useState<any | null>(null);
 
@@ -72,7 +73,7 @@ export function ExamesSection({ paciente }: Props) {
 
       toast({ title: "Sucesso", description: "Exame adicionado." });
       setDialogOpen(false);
-      setForm({ nome_exame: "", data_coleta: new Date().toISOString().split("T")[0], observacoes: "" });
+      setForm({ nome_exame: "", data_coleta: isoLocal(), observacoes: "" });
       setFile(null);
       loadExames();
     } catch (err: any) {

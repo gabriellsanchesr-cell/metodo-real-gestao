@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -169,7 +170,7 @@ export default function MeuPainel() {
                   <Card key={a.id}>
                     <CardContent className="p-4 text-sm space-y-1">
                       <div className="flex justify-between items-center">
-                        <span className="font-semibold">{new Date(a.data_registro).toLocaleDateString("pt-BR")}</span>
+                        <span className="font-semibold">{dataLocal(a.data_registro).toLocaleDateString("pt-BR")}</span>
                         {a.peso && <Badge variant="outline">{a.peso} kg</Badge>}
                       </div>
                       {a.observacoes_nutricionista && <p className="text-muted-foreground">🩺 {a.observacoes_nutricionista}</p>}

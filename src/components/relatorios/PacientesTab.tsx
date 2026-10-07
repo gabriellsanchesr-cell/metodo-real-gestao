@@ -7,6 +7,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { differenceInWeeks, differenceInDays, differenceInYears } from "date-fns";
 import { Trophy, TrendingUp, AlertCircle } from "lucide-react";
 import { ROTULO_SITUACAO, usaPortal, type SituacaoPaciente } from "@/lib/painel";
+import { dataLocal } from "@/lib/datas";
 
 interface Props {
   pacientes: any[];
@@ -82,7 +83,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
       name: f.label,
       value: pacientes.filter(p => {
         if (!p.data_nascimento) return false;
-        const age = differenceInYears(new Date(), new Date(p.data_nascimento));
+        const age = differenceInYears(new Date(), dataLocal(p.data_nascimento));
         return age >= f.min && age <= f.max;
       }).length,
     }));
@@ -112,7 +113,7 @@ export function PacientesTab({ pacientes, consultas, acompanhamentos, checklists
 
     // Maior evolução (perda de peso no período)
     const evolucao = pacientes.filter(p => p.situacao === "ativo").map(p => {
-      const acomp = acompanhamentos.filter(a => a.paciente_id === p.id).sort((a: any, b: any) => new Date(a.data_registro).getTime() - new Date(b.data_registro).getTime());
+      const acomp = acompanhamentos.filter(a => a.paciente_id === p.id).sort((a: any, b: any) => dataLocal(a.data_registro).getTime() - dataLocal(b.data_registro).getTime());
       if (acomp.length < 2) return null;
       const primeiro = acomp[0].peso;
       const ultimo = acomp[acomp.length - 1].peso;

@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ function getInitials(name: string) {
 
 function calcAge(dob: string | null): number | null {
   if (!dob) return null;
-  const birth = new Date(dob);
+  const birth = dataLocal(dob);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();

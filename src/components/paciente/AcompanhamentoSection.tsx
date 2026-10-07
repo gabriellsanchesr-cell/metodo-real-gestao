@@ -10,7 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Trash2, FileDown } from "lucide-react";
+import { Plus, Trash2, FileDown, Pencil } from "lucide-react";
+import { parseISO } from "date-fns";
+import { formatarData, hojeISO } from "@/lib/vencimento";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
 
@@ -31,8 +33,13 @@ export function AcompanhamentoSection({ paciente }: Props) {
   const [consultas, setConsultas] = useState<any[]>([]);
   const [planoAtivo, setPlanoAtivo] = useState<any>(null);
 
-  const [form, setForm] = useState({
-    data_registro: new Date().toISOString().split("T")[0],
+  // Registro em edição (null = novo).
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+
+  // Datas sempre pelo calendário local: toISOString() e new Date("AAAA-MM-DD")
+  // usam UTC, e no Brasil isso volta um dia (05/10 aparecia como 04/10).
+  const formVazio = () => ({
+    data_registro: hojeISO(),
     peso: "",
     circunferencia_abdominal: "",
     circunferencia_quadril: "",
@@ -42,6 +49,8 @@ export function AcompanhamentoSection({ paciente }: Props) {
     observacoes_paciente: "",
     observacoes_nutricionista: "",
   });
+
+  const [form, setForm] = useState(formVazio);
 
   useEffect(() => { loadRecords(); loadExtras(); }, [paciente.id]);
 
@@ -71,9 +80,9 @@ export function AcompanhamentoSection({ paciente }: Props) {
     return new Date(2000, 0, 1);
   };
 
-  const filtered = records.filter(r => new Date(r.data_registro) >= filterDate());
+  const filtered = records.filter(r => parseISO(r.data_registro) >= filterDate());
   const chartData = filtered.map(r => ({
-    data: new Date(r.data_registro).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
+    data: parseISO(r.data_registro).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" }),
     Peso: r.peso,
     Abdominal: r.circunferencia_abdominal,
     Quadril: r.circunferencia_quadril,
@@ -81,9 +90,7 @@ export function AcompanhamentoSection({ paciente }: Props) {
 
   const handleSave = async () => {
     if (!session?.user?.id) return;
-    const { error } = await supabase.from("acompanhamentos").insert({
-      paciente_id: paciente.id,
-      user_id: session.user.id,
+    const campos = {
       data_registro: form.data_registro,
       peso: form.peso ? Number(form.peso) : null,
       circunferencia_abdominal: form.circunferencia_abdominal ? Number(form.circunferencia_abdominal) : null,
@@ -93,18 +100,42 @@ export function AcompanhamentoSection({ paciente }: Props) {
       aderencia_plano: form.aderencia_plano,
       observacoes_paciente: form.observacoes_paciente || null,
       observacoes_nutricionista: form.observacoes_nutricionista || null,
-    });
+    };
+    const { error } = editandoId
+      ? await supabase.from("acompanhamentos").update(campos).eq("id", editandoId)
+      : await supabase.from("acompanhamentos").insert({ ...campos, paciente_id: paciente.id, user_id: session.user.id });
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Sucesso", description: "Registro salvo." });
+      toast({ title: editandoId ? "Registro atualizado" : "Registro salvo" });
       setModalOpen(false);
-      setForm({ data_registro: new Date().toISOString().split("T")[0], peso: "", circunferencia_abdominal: "", circunferencia_quadril: "", nivel_energia: 3, qualidade_sono: 3, aderencia_plano: 70, observacoes_paciente: "", observacoes_nutricionista: "" });
+      setEditandoId(null);
+      setForm(formVazio());
       loadRecords();
     }
   };
 
+  const novo = () => { setEditandoId(null); setForm(formVazio()); setModalOpen(true); };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const editar = (r: any) => {
+    setEditandoId(r.id);
+    setForm({
+      data_registro: String(r.data_registro).slice(0, 10),
+      peso: r.peso != null ? String(r.peso) : "",
+      circunferencia_abdominal: r.circunferencia_abdominal != null ? String(r.circunferencia_abdominal) : "",
+      circunferencia_quadril: r.circunferencia_quadril != null ? String(r.circunferencia_quadril) : "",
+      nivel_energia: r.nivel_energia ?? 3,
+      qualidade_sono: r.qualidade_sono ?? 3,
+      aderencia_plano: r.aderencia_plano ?? 70,
+      observacoes_paciente: r.observacoes_paciente ?? "",
+      observacoes_nutricionista: r.observacoes_nutricionista ?? "",
+    });
+    setModalOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
+    if (!window.confirm("Excluir este registro? Não dá para desfazer.")) return;
     const { error } = await supabase.from("acompanhamentos").delete().eq("id", id);
     if (!error) { toast({ title: "Registro removido" }); loadRecords(); }
   };
@@ -128,7 +159,7 @@ export function AcompanhamentoSection({ paciente }: Props) {
           <Button size="sm" variant="outline" onClick={() => setShowRelatorio(true)}>
             <FileDown className="h-3.5 w-3.5 mr-1" /> Relatório Mensal
           </Button>
-          <Button size="sm" onClick={() => setModalOpen(true)}>
+          <Button size="sm" onClick={novo}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Registrar semana
           </Button>
         </div>
@@ -175,15 +206,18 @@ export function AcompanhamentoSection({ paciente }: Props) {
             ) : (
               [...filtered].reverse().map(r => (
                 <TableRow key={r.id}>
-                  <TableCell>{new Date(r.data_registro).toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{formatarData(r.data_registro)}{r.registrado_pela_paciente && <span className="ml-1.5 text-[10px] text-muted-foreground">(paciente)</span>}</TableCell>
                   <TableCell>{r.peso ? `${r.peso} kg` : "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.circunferencia_abdominal ? `${r.circunferencia_abdominal} cm` : "—"}</TableCell>
                   <TableCell className="hidden sm:table-cell">{r.circunferencia_quadril ? `${r.circunferencia_quadril} cm` : "—"}</TableCell>
                   <TableCell className="hidden md:table-cell">{r.nivel_energia ?? "—"}/5</TableCell>
                   <TableCell className="hidden md:table-cell">{r.qualidade_sono ?? "—"}/5</TableCell>
                   <TableCell className="hidden md:table-cell">{r.aderencia_plano != null ? `${r.aderencia_plano}%` : "—"}</TableCell>
-                  <TableCell>
-                    <Button size="icon" variant="ghost" onClick={() => handleDelete(r.id)}>
+                  <TableCell className="whitespace-nowrap text-right">
+                    <Button size="icon" variant="ghost" onClick={() => editar(r)} aria-label="Editar registro">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="icon" variant="ghost" onClick={() => handleDelete(r.id)} aria-label="Excluir registro">
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </TableCell>
@@ -194,9 +228,9 @@ export function AcompanhamentoSection({ paciente }: Props) {
         </Table>
       </Card>
 
-      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+      <Dialog open={modalOpen} onOpenChange={(o) => { setModalOpen(o); if (!o) setEditandoId(null); }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Registrar Semana</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editandoId ? "Editar registro" : "Registrar Semana"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Data</Label><Input type="date" value={form.data_registro} onChange={e => setForm(f => ({ ...f, data_registro: e.target.value }))} /></div>

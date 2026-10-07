@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
@@ -88,7 +89,7 @@ export function PatientContext({ paciente, pacienteId }: Props) {
             <InfoRow
               icon={CheckSquare}
               label="Último check-in"
-              value={lastCheckin ? format(new Date(lastCheckin.semana), "dd/MM", { locale: ptBR }) : "—"}
+              value={lastCheckin ? format(dataLocal(lastCheckin.semana), "dd/MM", { locale: ptBR }) : "—"}
             />
             <InfoRow
               icon={TrendingUp}

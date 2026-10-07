@@ -70,3 +70,12 @@ describe("proximaRefeicao", () => {
   it("depois da última, a primeira de amanhã", () => expect(nome(proximaRefeicao(refs, em(28, 22)))).toEqual(["Café da manhã", true]));
   it("sem horários no plano, nada", () => expect(proximaRefeicao([{ horario_sugerido: null }], em(28))).toBeNull());
 });
+
+describe("datas sem hora", () => {
+  it("AAAA-MM-DD é o dia local, não UTC", async () => {
+    const { dataLocal, isoLocal } = await import("@/lib/datas");
+    const d = dataLocal("2026-10-05");
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2026, 10, 5]);
+    expect(isoLocal(new Date(2026, 9, 5, 23, 30))).toBe("2026-10-05");
+  });
+});

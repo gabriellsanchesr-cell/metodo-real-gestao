@@ -4,6 +4,7 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { TrendingDown, Ruler, Target } from "lucide-react";
+import { dataLocal } from "@/lib/datas";
 
 interface Props {
   pacientes: any[];
@@ -20,7 +21,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
 
     // Variação média de peso
     const variacoesPeso = ativos.map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
       if (avals.length < 2) return null;
       return avals[avals.length - 1].peso - avals[0].peso;
     }).filter((v): v is number => v !== null);
@@ -31,7 +32,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
 
     // Variação média circ abdominal
     const variacoesAbd = ativos.map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.circ_abdomen).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.circ_abdomen).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
       if (avals.length < 2) return null;
       return avals[avals.length - 1].circ_abdomen - avals[0].circ_abdomen;
     }).filter((v): v is number => v !== null);
@@ -54,7 +55,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
       { label: "> +2kg", min: 2, max: Infinity },
     ];
     const variacoes = ativos.map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
       if (avals.length < 2) return null;
       return avals[avals.length - 1].peso - avals[0].peso;
     }).filter((v): v is number => v !== null);
@@ -73,7 +74,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
       const start = startOfMonth(d);
       const end = endOfMonth(d);
       const pesos = acompanhamentos.filter((a: any) => {
-        const dt = new Date(a.data_registro);
+        const dt = dataLocal(a.data_registro);
         return dt >= start && dt <= end && a.peso;
       }).map((a: any) => a.peso);
       months.push({
@@ -106,7 +107,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
   // Individual evolution table
   const tabelaEvolucao = useMemo(() => {
     return pacientes.filter(p => p.situacao === "ativo").map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
       if (avals.length < 2) return null;
       const primeiro = avals[0];
       const ultimo = avals[avals.length - 1];

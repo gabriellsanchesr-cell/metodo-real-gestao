@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { useState } from "react";
 import { ROTULO_SITUACAO, usaPortal, type SituacaoPaciente } from "@/lib/painel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +56,7 @@ export function ExportacoesTab({ pacientes, consultas, avaliacoes, acompanhament
       } else if (modal === "evolucao" && formato === "csv") {
         const headers = ["Paciente", "Peso Inicial", "Peso Atual", "Variação Peso", "Abd. Inicial", "Abd. Atual", "Variação Abd."];
         const rows = pacientes.filter(p => p.situacao === "ativo").map(p => {
-          const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+          const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
           if (avals.length < 2) return null;
           const first = avals[0];
           const last = avals[avals.length - 1];

@@ -1,3 +1,4 @@
+import { isoLocal } from "@/lib/datas";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -229,7 +230,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
 
   const newForm = () => {
     setForm({
-      data_avaliacao: new Date().toISOString().split("T")[0],
+      data_avaliacao: isoLocal(),
       protocolo_dobras: null,
     });
     setEditId(null);

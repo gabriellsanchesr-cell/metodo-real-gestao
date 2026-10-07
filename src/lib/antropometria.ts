@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 /**
  * Cálculos antropométricos e energéticos.
  *
@@ -30,7 +31,9 @@ export function normalizarSexo(sexo: string | null | undefined): Sexo | null {
 /** Idade em anos. Devolve null quando não há data de nascimento. */
 export function calcIdade(dataNascimento: string | null | undefined): number | null {
   if (!dataNascimento) return null;
-  const nasc = new Date(dataNascimento);
+  // parseISO: "AAAA-MM-DD" como dia local; new Date() leria em UTC e, no
+  // Brasil, erraria a idade no dia do aniversário.
+  const nasc = dataLocal(dataNascimento);
   if (Number.isNaN(nasc.getTime())) return null;
   const hoje = new Date();
   let idade = hoje.getFullYear() - nasc.getFullYear();

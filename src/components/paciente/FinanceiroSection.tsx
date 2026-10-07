@@ -1,3 +1,4 @@
+import { isoLocal } from "@/lib/datas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -50,7 +51,7 @@ const statusBadge = (status: string) => {
 const emptyForm = {
   descricao: "",
   valor: "",
-  data_pagamento: new Date().toISOString().split("T")[0],
+  data_pagamento: isoLocal(),
   forma_pagamento: "pix",
   status: "pendente",
   categoria: "consulta",

@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import {
   createDoc, addHeader, addFooter, addCoverPage, sectionTitle, bodyText,
   autoTable, MARGINS, loadPdfConfig, checkNewPage, labelText,
@@ -53,7 +54,7 @@ export async function generateRelatorioConsultorioPdf(
   y = checkNewPage(doc, y, 40);
   y = sectionTitle(doc, y, "4. Evolução Clínica");
   const evolRows = ativos.map(p => {
-    const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => new Date(a.data_avaliacao).getTime() - new Date(b.data_avaliacao).getTime());
+    const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
     if (avals.length < 2) return null;
     const v = Math.round((avals[avals.length - 1].peso - avals[0].peso) * 10) / 10;
     return [p.nome_completo, String(avals[0].peso), String(avals[avals.length - 1].peso), `${v > 0 ? "+" : ""}${v}kg`];

@@ -1,3 +1,4 @@
+import { dataLocal, isoLocal } from "@/lib/datas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +34,7 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
       supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "realizado").lte("data_hora", agora).order("data_hora", { ascending: false }).limit(1),
       supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "agendado").gt("data_hora", agora).order("data_hora", { ascending: true }).limit(1),
       supabase.from("planos_alimentares").select("id").eq("paciente_id", paciente.id).eq("status", "ativo").eq("is_template", false).limit(1),
-      supabase.from("checklist_respostas").select("*").eq("paciente_id", paciente.id).gte("semana", fourWeeksAgo.toISOString().split("T")[0]).order("semana", { ascending: false }),
+      supabase.from("checklist_respostas").select("*").eq("paciente_id", paciente.id).gte("semana", isoLocal(fourWeeksAgo)).order("semana", { ascending: false }),
     ]);
 
     const peso = ultimoPeso(avaliacoes.data || [], acomp.data || []);
@@ -45,7 +46,7 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
 
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-    const hasRecentCheckin = recentCheckins.some(c => new Date(c.semana) >= lastWeek);
+    const hasRecentCheckin = recentCheckins.some(c => dataLocal(c.semana) >= lastWeek);
 
     setStats({
       lastWeight: peso?.peso ?? null,

@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { useMemo } from "react";
 import { usaPortal } from "@/lib/painel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,7 +40,7 @@ export function EngajamentoTab({ pacientes, checklists, diarioRegistros, conteud
 
   const diarioStats = useMemo(() => {
     const now = new Date();
-    const semana = diarioRegistros.filter(r => differenceInDays(now, new Date(r.data_registro)) <= 7);
+    const semana = diarioRegistros.filter(r => differenceInDays(now, dataLocal(r.data_registro)) <= 7);
     const uniquePacientes = new Set(semana.map(r => r.paciente_id)).size;
     return {
       pacientesSemana: uniquePacientes,

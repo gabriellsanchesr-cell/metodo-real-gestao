@@ -1,3 +1,4 @@
+import { dataLocal } from "@/lib/datas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Pencil } from "lucide-react";
@@ -26,7 +27,7 @@ function calcIMC(peso: number | null, altura: number | null): string {
 
 function calcAge(dob: string | null): string {
   if (!dob) return "—";
-  const birth = new Date(dob);
+  const birth = dataLocal(dob);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
