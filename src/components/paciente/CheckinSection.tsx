@@ -3,12 +3,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { AlertTriangle, CheckCheck, ClipboardCheck, Ruler, Trophy } from "lucide-react";
+import { AlertTriangle, CheckCheck, ClipboardCheck, Ruler, Trash2, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   PERGUNTAS, checkinPendente, mediaDoCheckin, pontosDeAtencao, semanaDoCheckin, variacaoMedidas, type Checkin,
 } from "@/lib/checkin";
-import { definirMedidasNoCheckin, listarCheckins, marcarCheckinVisto } from "@/lib/checkinApi";
+import { definirMedidasNoCheckin, excluirCheckin, listarCheckins, marcarCheckinVisto } from "@/lib/checkinApi";
 import { formatarData } from "@/lib/vencimento";
 
 interface Props {
@@ -57,6 +57,16 @@ export function CheckinSection({ paciente }: Props) {
       setCheckins((lista) => lista.map((x) => (x.id === c.id ? { ...x, visto_nutri: !c.visto_nutri } : x)));
     } catch (e) {
       toast({ title: "Não consegui marcar", description: (e as Error).message, variant: "destructive" });
+    }
+  };
+
+  const excluir = async (c: Checkin) => {
+    if (!window.confirm(`Excluir o check-in da semana de ${formatarData(c.semana)}? Não dá para desfazer. O peso que ele lançou no Acompanhamento Semanal continua lá.`)) return;
+    try {
+      await excluirCheckin(c.id);
+      setCheckins((lista) => lista.filter((x) => x.id !== c.id));
+    } catch (e) {
+      toast({ title: "Não consegui excluir", description: (e as Error).message, variant: "destructive" });
     }
   };
 
@@ -127,6 +137,9 @@ export function CheckinSection({ paciente }: Props) {
                 <span className="text-xs text-muted-foreground">respondido em {new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
                 <Button variant={c.visto_nutri ? "ghost" : "outline"} size="sm" className="ml-auto h-8 rounded-lg" onClick={() => marcarVisto(c)}>
                   <CheckCheck className="mr-1.5 h-3.5 w-3.5" /> {c.visto_nutri ? "Visto" : "Marcar como visto"}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => excluir(c)} aria-label="Excluir check-in">
+                  <Trash2 className="h-3.5 w-3.5 text-destructive" />
                 </Button>
               </div>
 

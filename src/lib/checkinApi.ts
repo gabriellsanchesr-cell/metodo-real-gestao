@@ -94,6 +94,12 @@ export async function marcarCheckinVisto(id: string, visto = true): Promise<void
   if (error) throw error;
 }
 
+/** Só o nutri apaga (a paciente corrige, mas não exclui). */
+export async function excluirCheckin(id: string): Promise<void> {
+  const { error } = await db.from("checkins_semanais").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function definirMedidasNoCheckin(pacienteId: string, ligado: boolean): Promise<void> {
   const { error } = await db.from("pacientes").update({ checkin_medidas: ligado }).eq("id", pacienteId);
   if (error) throw error;
