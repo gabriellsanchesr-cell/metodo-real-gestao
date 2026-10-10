@@ -1,3 +1,4 @@
+import { MEDIDAS_CORPO } from "@/lib/checkin";
 import { isoLocal } from "@/lib/datas";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,28 +68,8 @@ const FOLD_FIELDS: { key: string; label: string }[] = [
   { key: "dobra_peitoral", label: "Peitoral" },
 ];
 
-const CIRC_FIELDS: { key: string; label: string }[] = [
- { key: "circ_pescoco", label: "Pescoço" },
- { key: "circ_torax", label: "Tórax" },
- { key: "circ_ombro", label: "Ombro" },
- { key: "circ_cintura", label: "Cintura" },
- { key: "circ_quadril", label: "Quadril" },
- { key: "circ_abdomen", label: "Abdômen" },
- { key: "circ_braco_esq", label: "Braço Esq. Relaxado" },
- { key: "circ_braco_dir", label: "Braço Dir. Relaxado" },
- { key: "circ_braco_contraido_esq", label: "Braço Esq. Contraído" },
- { key: "circ_braco_contraido_dir", label: "Braço Dir. Contraído" },
- { key: "circ_antebraco_esq", label: "Antebraço Esq." },
- { key: "circ_antebraco_dir", label: "Antebraço Dir." },
- { key: "circ_coxa_proximal_esq", label: "Coxa Proximal Esq." },
- { key: "circ_coxa_proximal_dir", label: "Coxa Proximal Dir." },
- { key: "circ_coxa_medial_esq", label: "Coxa Medial Esq." },
- { key: "circ_coxa_medial_dir", label: "Coxa Medial Dir." },
- { key: "circ_coxa_distal_esq", label: "Coxa Distal Esq." },
- { key: "circ_coxa_distal_dir", label: "Coxa Distal Dir." },
- { key: "circ_panturrilha_esq", label: "Panturrilha Esq." },
- { key: "circ_panturrilha_dir", label: "Panturrilha Dir." },
-];
+// A lista mora em src/lib/checkin.ts: o check-in da paciente usa as mesmas medidas.
+const CIRC_FIELDS = MEDIDAS_CORPO;
 
 const BIO_FIELDS: { key: string; label: string; unit: string }[] = [
   { key: "bio_percentual_gordura", label: "% Gordura", unit: "%" },

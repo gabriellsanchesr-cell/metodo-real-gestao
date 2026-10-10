@@ -12,7 +12,8 @@ import { ESTILO_SITUACAO } from "@/components/paciente/estiloVencimento";
 import { useVencimentos } from "@/hooks/useVencimentos";
 import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
 import { Users, AlertTriangle, Scale, Calendar, TrendingUp, CalendarClock, UserPlus, Undo2 } from "lucide-react";
-import { emAcompanhamento, pacientesVencidos, retornosPendentes, semPesoNaSemana } from "@/lib/painel";
+import { emAcompanhamento, pacientesVencidos, retornosPendentes, semPesoNaSemana, usaPortal } from "@/lib/painel";
+import { semCheckinNaSemana, semanaDoCheckin } from "@/lib/checkin";
 import { listarContratosAtivos } from "@/lib/contratosApi";
 import { addDays, format, subDays, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -21,6 +22,8 @@ interface DashboardData {
   totalPacientes: number;
   retornos: Array<{ id: string; nome: string; dias: number }>;
   semPesoSemana: number;
+  /** Null enquanto a tabela do check-in não existe no banco: o card volta a ser o de peso. */
+  semCheckin: number | null;
   consultasSeteDias: number;
   proximasConsultas: Array<{ id: string; paciente_id: string; paciente_nome: string; data_hora: string; tipo: string }>;
   ultimosAcompanhamentos: Array<{ id: string; paciente_id: string; paciente_nome: string; data_registro: string; peso: number | null; daPaciente: boolean }>;
@@ -49,6 +52,7 @@ export default function Dashboard() {
     totalPacientes: 0,
     retornos: [],
     semPesoSemana: 0,
+    semCheckin: null,
     consultasSeteDias: 0,
     proximasConsultas: [],
     ultimosAcompanhamentos: [],
@@ -73,7 +77,7 @@ export default function Dashboard() {
     // Critérios em src/lib/painel.ts, os mesmos dos Relatórios. "Ativa" é quem
     // está em acompanhamento (não arquivada, não vencida), com ou sem portal.
     const agora = new Date();
-    const [pacientesRes, consultasRes, acompRes, pesosSemanaRes, contratos] = await Promise.all([
+    const [pacientesRes, consultasRes, acompRes, pesosSemanaRes, contratos, checkinsRes] = await Promise.all([
       // "*" e não a lista de colunas: antes da migration de 02/10 pedir "inativo" daria erro.
       supabase.from("pacientes").select("*"),
       supabase.from("consultas").select("id, data_hora, tipo, status, paciente_id, pacientes(nome_completo)").order("data_hora"),
@@ -82,6 +86,8 @@ export default function Dashboard() {
       // format() usa a data local; toISOString() encurtaria a janela depois das 21h.
       supabase.from("acompanhamentos").select("paciente_id, data_registro, peso").gte("data_registro", format(subDays(agora, 7), "yyyy-MM-dd")),
       listarContratosAtivos().catch(() => []),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("checkins_semanais").select("paciente_id, semana").eq("semana", semanaDoCheckin(agora)),
     ]);
 
     const pacientes = pacientesRes.data || [];
@@ -102,6 +108,9 @@ export default function Dashboard() {
       totalPacientes: pacientes.filter(ativa).length,
       retornos: retornosPendentes(pacientes, consultas, agora, ativa).map((r) => ({ id: r.paciente.id, nome: nomePorId.get(r.paciente.id) || "—", dias: r.dias })),
       semPesoSemana: semPesoNaSemana(pacientes, pesosSemanaRes.data || [], agora, vencidos).length,
+      semCheckin: checkinsRes.error
+        ? null
+        : semCheckinNaSemana(pacientes.filter((p) => usaPortal(p) && ativa(p)), checkinsRes.data || [], agora).length,
       consultasSeteDias: futuras.filter((c) => new Date(c.data_hora) <= addDays(agora, 7)).length,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       proximasConsultas: futuras.slice(0, 5).map((c: any) => ({
@@ -127,7 +136,9 @@ export default function Dashboard() {
   const cards: { label: string; value: number; icon: typeof Users; tone: StatTone; hint: string; destino: string }[] = [
     { label: "Pacientes Ativos", value: data.totalPacientes, icon: Users, tone: "primary", hint: "em acompanhamento, com ou sem portal", destino: "/pacientes?filtro=ativos" },
     { label: "Retorno Pendente", value: data.retornos.length, icon: AlertTriangle, tone: "warning", hint: "30 a 45 dias da última consulta", destino: "#retornos" },
-    { label: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale, tone: "destructive", hint: "quem usa o portal, últimos 7 dias", destino: "/pacientes?filtro=portal" },
+    data.semCheckin == null
+      ? { label: "Sem Peso na Semana", value: data.semPesoSemana, icon: Scale, tone: "destructive", hint: "quem usa o portal, últimos 7 dias", destino: "/pacientes?filtro=portal" }
+      : { label: "Sem Check-in na Semana", value: data.semCheckin, icon: Scale, tone: "destructive", hint: "quem usa o portal e não respondeu desde sábado", destino: "/pacientes?filtro=portal" },
     { label: "Consultas em 7 dias", value: data.consultasSeteDias, icon: Calendar, tone: "success", hint: "agendadas", destino: "/agenda" },
   ];
 

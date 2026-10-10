@@ -3,13 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, MessageSquare, BookMarked, CalendarClock, CalendarCheck, Scale, type LucideIcon } from "lucide-react";
+import { Bell, MessageSquare, BookMarked, CalendarClock, CalendarCheck, Scale, ClipboardCheck, type LucideIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { format, subDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { useVencimentos } from "@/hooks/useVencimentos";
 import { formatarData as formatarDataVenc, rotuloPrazo } from "@/lib/vencimento";
 import { consultasParaFechar } from "@/lib/painel";
+import { pontosDeAtencao } from "@/lib/checkin";
 
 /**
  * O que pede atenção agora, montado a partir dos dados que já existem.
@@ -27,7 +28,7 @@ interface Item {
 }
 
 interface Grupo {
-  id: "mensagens" | "diario" | "agenda" | "pesos" | "vencimentos";
+  id: "mensagens" | "diario" | "checkins" | "agenda" | "pesos" | "vencimentos";
   rotulo: string;
   icone: LucideIcon;
   cor: string;
@@ -53,13 +54,17 @@ export function NotificationCenter() {
     if (!user) return;
     const agora = new Date();
     const semana = format(subDays(agora, 7), "yyyy-MM-dd");
-    const [conv, diario, consultas, pesos] = await Promise.all([
+    const [conv, diario, consultas, pesos, checkins] = await Promise.all([
       supabase.from("conversas").select("id, nao_lidas_nutri, pacientes(nome_completo)").gt("nao_lidas_nutri", 0),
       supabase.from("diario_registros").select("paciente_id, pacientes(nome_completo)").eq("visto_nutri", false).gte("data_registro", semana),
       supabase.from("consultas").select("id, data_hora, status, paciente_id, pacientes(nome_completo)").eq("status", "agendado").lt("data_hora", agora.toISOString()),
       // Coluna da migration de 30/09: antes dela a busca falha e o grupo some.
       supabase.from("acompanhamentos").select("id, paciente_id, peso, data_registro, pacientes(nome_completo)")
         .eq("registrado_pela_paciente", true).gte("data_registro", semana).order("data_registro", { ascending: false }),
+      // Tabela da migration de 10/10: antes dela a busca falha e o grupo some.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("checkins_semanais").select("*, pacientes(nome_completo)")
+        .eq("visto_nutri", false).gte("semana", format(subDays(agora, 14), "yyyy-MM-dd")).order("created_at", { ascending: false }),
     ]);
 
     const nome = (x: { pacientes?: { nome_completo?: string } | null }) => x.pacientes?.nome_completo?.trim() || "Paciente";
@@ -83,6 +88,18 @@ export function NotificationCenter() {
         itens: [...diarioPorPaciente.entries()].map(([id, v]) => ({
           chave: id, titulo: v.nome, detalhe: `${plural(v.n, "registro", "registros")} para ver`, link: "/diarios",
         })),
+      },
+      {
+        id: "checkins", rotulo: "Check-ins para ver", icone: ClipboardCheck, cor: "text-primary", pendencia: true,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        itens: checkins.error ? [] : (checkins.data || []).map((c: any) => {
+          const atencao = pontosDeAtencao(c).map((p) => p.rotulo.toLowerCase());
+          return {
+            chave: c.id, titulo: nome(c),
+            detalhe: atencao.length ? `Atenção em: ${atencao.slice(0, 3).join(", ")}` : "Semana sem pontos de atenção",
+            link: `/pacientes/${c.paciente_id}?secao=checkin`,
+          };
+        }),
       },
       {
         id: "agenda", rotulo: "Consultas para fechar", icone: CalendarCheck, cor: "text-amber-600", pendencia: true, verTodos: "/agenda",
@@ -111,6 +128,7 @@ export function NotificationCenter() {
       .channel("notificacoes-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "diario_registros" }, () => carregar())
       .on("postgres_changes", { event: "*", schema: "public", table: "conversas" }, () => carregar())
+      .on("postgres_changes", { event: "*", schema: "public", table: "checkins_semanais" }, () => carregar())
       .subscribe();
     return () => { supabase.removeChannel(canal); };
   }, [user, carregar]);

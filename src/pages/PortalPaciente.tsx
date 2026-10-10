@@ -27,8 +27,13 @@ import {
   ChevronDown, ChevronUp, Clock, User, Activity, Sparkles,
   UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical,
   Bell, Flame, Weight, Zap, CalendarDays, ChevronRight, Heart, Droplets, Moon, Sun, Sunrise, Sunset,
-  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink,
+  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink, ClipboardCheck,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PortalCheckin } from "@/components/portal/PortalCheckin";
+import { checkinPendente, type Checkin } from "@/lib/checkin";
+import { listarCheckins } from "@/lib/checkinApi";
+import { isoLocal } from "@/lib/datas";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { format, differenceInDays, isToday, isTomorrow, addDays, startOfWeek, endOfWeek } from "date-fns";
@@ -50,7 +55,7 @@ import {
 import { dataLocal } from "@/lib/datas";
 
 type PortalTab = "inicio" | "plano" | "diario" | "metas" | "mais";
-type MoreTab = "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
+type MoreTab = "checkin" | "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
 
 /** O que chegou e a paciente ainda não abriu, por item do menu "Mais". */
 type Novidades = Partial<Record<MoreTab, number>>;
@@ -114,6 +119,10 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<PortalTab>("inicio");
   const [moreTab, setMoreTab] = useState<MoreTab | null>(null);
+  // Check-in semanal: null enquanto não carregou (para o aviso não piscar).
+  const [checkins, setCheckins] = useState<Checkin[] | null>(null);
+  const [semTabelaCheckin, setSemTabelaCheckin] = useState(false);
+  const [avisoCheckin, setAvisoCheckin] = useState(false);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [activeOption, setActiveOption] = useState<Record<string, string>>({});
   const [portalPresc, setPortalPresc] = useState<any[]>([]);
@@ -184,6 +193,28 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
     setPesosAcomp(data || []);
   };
 
+  const carregarCheckins = async (pacId: string, avisar = false) => {
+    const { checkins: lista, semTabela } = await listarCheckins(pacId);
+    setCheckins(lista);
+    setSemTabelaCheckin(semTabela);
+    // Aviso de pendência: de sábado até responder, uma vez por dia ("Agora
+    // não" guarda o dia). No modo visualização aparece sempre, para o nutri ver.
+    if (!avisar || semTabela || !checkinPendente(lista)) return;
+    let adiadoHoje = false;
+    if (!modoVisualizacao) {
+      try { adiadoHoje = localStorage.getItem(`checkinAdiado:${pacId}`) === isoLocal(); } catch { /* opcional */ }
+    }
+    if (!adiadoHoje) setAvisoCheckin(true);
+  };
+
+  const abrirCheckin = () => { setAvisoCheckin(false); setMoreTab("checkin"); setActiveTab("mais"); };
+
+  const adiarCheckin = () => {
+    setAvisoCheckin(false);
+    if (modoVisualizacao || !paciente) return;
+    try { localStorage.setItem(`checkinAdiado:${paciente.id}`, isoLocal()); } catch { /* opcional */ }
+  };
+
   const loadData = async () => {
     try {
       const { data: pac } = await supabase
@@ -211,6 +242,11 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
         await escolherPlano(escolhido);
 
         carregarPesos(pac.id);
+
+        // Link do e-mail de sábado: /portal?aba=checkin abre direto na aba.
+        const veioPeloLink = new URLSearchParams(window.location.search).get("aba") === "checkin";
+        if (veioPeloLink) { setMoreTab("checkin"); setActiveTab("mais"); }
+        carregarCheckins(pac.id, !veioPeloLink);
 
         const { data: avData } = await supabase
           .from("avaliacoes_fisicas")
@@ -464,8 +500,33 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
           ))}
         </div>
 
-        {/* Peso da semana: o lembrete de sábado por e-mail aponta para cá */}
-        <PortalPeso paciente={paciente} ultimo={ultimoLancado} onSalvo={() => carregarPesos(paciente.id)} />
+        {/* Check-in da semana: o e-mail de sábado aponta para cá. Enquanto a
+            tabela não existe no banco, fica o registro de peso de antes. */}
+        {semTabelaCheckin ? (
+          <PortalPeso paciente={paciente} ultimo={ultimoLancado} onSalvo={() => carregarPesos(paciente.id)} />
+        ) : checkins && (
+          checkinPendente(checkins) ? (
+            <Card className="rounded-2xl border-primary/30 bg-primary/5">
+              <CardContent className="flex items-center gap-3 p-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <ClipboardCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold leading-snug text-foreground">Check-in da semana</p>
+                  <p className="text-xs text-muted-foreground">Conte como foi a sua semana. Leva uns 3 minutos.</p>
+                </div>
+                <Button className="shrink-0 rounded-xl" onClick={abrirCheckin}>Responder</Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <button type="button" onClick={abrirCheckin}
+              className="flex w-full items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-left">
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />
+              <span className="text-sm font-medium text-foreground">Check-in da semana enviado</span>
+              <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+            </button>
+          )
+        )}
 
         {/* Quick actions - pill style */}
         <div className="flex gap-2.5 overflow-x-auto pb-1 animate-slide-up animate-stagger-3 scrollbar-hide">
@@ -1138,6 +1199,15 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
   const renderMoreContent = () => {
     switch (moreTab) {
       case "avaliacoes": return renderAvaliacoes();
+      case "checkin":
+        return (
+          <PortalCheckin
+            paciente={paciente}
+            checkins={checkins ?? []}
+            semTabela={semTabelaCheckin}
+            onSalvo={() => { carregarCheckins(paciente.id); carregarPesos(paciente.id); }}
+          />
+        );
       case "perfil": return renderPerfil();
       case "receitas": return <div className="space-y-6"><PortalReceitas paciente={paciente} /><BibliotecaPortal aba="receitas" titulo="Receitas do método" /></div>;
       case "mensagens": return <PortalChat paciente={paciente} />;
@@ -1238,6 +1308,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
   const totalNovidades = Object.values(novidades).reduce((a, b) => a + (b || 0), 0);
 
   const moreItems: { id: MoreTab; label: string; icon: any; desc: string; color: string; gradient: string }[] = [
+    { id: "checkin", label: "Check-in semanal", icon: ClipboardCheck, desc: "Como foi a sua semana", color: "text-primary", gradient: "from-blue-100 to-blue-50" },
     { id: "avaliacoes", label: "Avaliações", icon: Activity, desc: "Medidas e composição", color: "text-blue-600", gradient: "from-blue-100 to-blue-50" },
     { id: "substituicoes", label: "Substituições", icon: ArrowRightLeft, desc: "Trocar alimentos", color: "text-amber-600", gradient: "from-amber-100 to-amber-50" },
     { id: "orientacoes", label: "Orientações", icon: BookOpen, desc: "Para o dia a dia", color: "text-teal-600", gradient: "from-teal-100 to-teal-50" },
@@ -1326,6 +1397,24 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
           </Sheet>
         </div>
       </nav>
+
+      <Dialog open={avisoCheckin} onOpenChange={(o) => { if (!o) adiarCheckin(); }}>
+        <DialogContent className="max-w-sm rounded-2xl">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10">
+              <ClipboardCheck className="h-6 w-6 text-primary" />
+            </div>
+            <DialogTitle className="text-center">Seu check-in da semana está aberto</DialogTitle>
+            <DialogDescription className="text-center">
+              São uns 3 minutos para contar como foram a fome, o sono, o treino e a alimentação. É por ele que eu ajusto o seu plano.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0">
+            <Button className="h-11 w-full rounded-xl" onClick={abrirCheckin}>Responder agora</Button>
+            <Button variant="ghost" className="w-full rounded-xl" onClick={adiarCheckin}>Agora não</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </PortalModoProvider>
   );

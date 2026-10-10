@@ -7,6 +7,7 @@ import { PacienteSidebar, sections, type SectionId } from "@/components/paciente
 import { VisaoGeral } from "@/components/paciente/VisaoGeral";
 import { DadosPaciente } from "@/components/paciente/DadosPaciente";
 import { AcompanhamentoSection } from "@/components/paciente/AcompanhamentoSection";
+import { CheckinSection } from "@/components/paciente/CheckinSection";
 import { PlanoAlimentarSection } from "@/components/paciente/PlanoAlimentarSection";
 import { ConsultasSection } from "@/components/paciente/ConsultasSection";
 import { CalculoEnergetico } from "@/components/paciente/CalculoEnergetico";
@@ -102,6 +103,7 @@ export default function PacienteDetalhe() {
       case "visao-geral": return <VisaoGeral paciente={paciente} onNavigate={setActiveSection} />;
       case "dados": return <DadosPaciente paciente={paciente} onEdit={() => navigate(`/pacientes/novo?edit=${paciente.id}`)} />;
       case "acompanhamento": return <AcompanhamentoSection paciente={paciente} />;
+      case "checkin": return <CheckinSection paciente={paciente} />;
       case "plano": return <PlanoAlimentarSection paciente={paciente} />;
       case "consultas": return <ConsultasSection paciente={paciente} />;
       case "calculo": return <CalculoEnergetico paciente={paciente} />;

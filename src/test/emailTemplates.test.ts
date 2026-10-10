@@ -114,6 +114,13 @@ describe("lembrete_peso", () => {
     expect(sem.texto).not.toContain("WhatsApp");
     expect(sem.html).not.toContain("wa.me");
   });
+
+  it("é o lembrete do check-in e abre direto na aba", () => {
+    const e = montarEmail("lembrete_peso", {}, { ...base, whatsapp: null });
+    expect(e.assunto).toBe("Seu check-in da semana");
+    expect(e.html).toContain("https://app.exemplo.com.br/portal?aba=checkin");
+    expect(e.texto).toContain("check-in");
+  });
 });
 
 

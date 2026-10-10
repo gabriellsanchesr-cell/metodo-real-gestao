@@ -491,17 +491,17 @@ export default function ConfiguracaoClinica() {
             {lembretePeso !== null && (
               <Card>
                 <CardHeader>
-                  <CardTitle>Lembrete semanal de peso</CardTitle>
+                  <CardTitle>Lembrete do check-in de sábado</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between gap-4">
                     <Label htmlFor="lembrete-peso" className="font-normal">
-                      Todo sábado às 9h, e-mail lembrando a paciente de registrar o peso no portal ou mandar pelo WhatsApp
+                      Todo sábado às 9h, e-mail lembrando a paciente de responder o check-in da semana no portal
                     </Label>
                     <Switch id="lembrete-peso" checked={lembretePeso} onCheckedChange={setLembretePeso} />
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Vai só para quem tem portal liberado e ainda não registrou o peso na semana. Ninguém recebe mais
+                    Vai só para quem tem portal liberado e ainda não respondeu o check-in da semana. Ninguém recebe mais
                     de um por semana. Paciente com avisos por e-mail desligados não recebe.
                   </p>
                 </CardContent>

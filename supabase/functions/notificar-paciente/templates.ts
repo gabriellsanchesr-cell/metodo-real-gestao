@@ -286,19 +286,21 @@ function conteudo(tipo: TipoAviso, d: DadosAviso, temWhatsapp = false): Conteudo
         caminho: "/portal",
       };
     case "lembrete_peso":
-      // Enviado aos sábados, automático. Lembrete, não cobrança.
+      // Enviado aos sábados, automático. Hoje é o lembrete do check-in da
+      // semana (o peso é uma das respostas); o nome do tipo ficou de antes.
+      // Lembrete, não cobrança.
       return {
-        assunto: "Hora de atualizar seu peso",
-        titulo: "Seu peso da semana",
+        assunto: "Seu check-in da semana",
+        titulo: "Como foi a sua semana?",
         paragrafos: [
-          "Sábado é dia de registrar o peso. Leva menos de um minuto e me ajuda a acompanhar sua evolução de perto.",
+          "Sábado é dia de check-in. São uns 3 minutos para me contar como foram a fome, o sono, o treino, o intestino e a alimentação, e para atualizar o seu peso.",
+          "É por essas respostas que eu ajusto o seu plano. Se alguma coisa ficou difícil, conte: é a informação que mais me ajuda.",
           temWhatsapp
-            ? "Registre no portal ou, se preferir, me mande pelo WhatsApp (o link está aqui embaixo)."
-            : "É só registrar no portal, pelo botão abaixo.",
-          "Uma dica para o número ser comparável: pese logo depois de acordar e ir ao banheiro, antes de comer, de preferência na mesma balança.",
+            ? "É só responder no portal, pelo botão abaixo. Se o portal não abrir, me avise pelo WhatsApp (o link está aqui embaixo)."
+            : "É só responder no portal, pelo botão abaixo.",
         ],
-        botao: "Registrar meu peso",
-        caminho: "/portal",
+        botao: "Responder o check-in",
+        caminho: "/portal?aba=checkin",
       };
   }
 }

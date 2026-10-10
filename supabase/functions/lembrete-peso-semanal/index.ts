@@ -3,11 +3,14 @@
  *
  * Todo sábado de manhã (agendado no banco com pg_cron, migration
  * 20260930120000), manda às pacientes ativas um e-mail lembrando de
- * registrar o peso no portal ou mandar pelo WhatsApp.
+ * responder o check-in da semana no portal. O nome da função e o tipo
+ * "lembrete_peso" ficaram de quando o lembrete era só do peso; o peso agora
+ * é uma das respostas do check-in.
  *
  * Quem recebe: portal liberado (account_status = 'ativo'), cadastro não
- * arquivado, e-mail válido, avisos por e-mail ligados, lembrete ligado nas
- * configurações da clínica, e que NÃO lançou peso nos últimos 6 dias.
+ * arquivado nem marcado como inativo, e-mail válido, avisos por e-mail
+ * ligados, lembrete ligado nas configurações da clínica, e que NÃO respondeu
+ * o check-in desta semana (checkins_semanais, migration 20261010120000).
  *
  * Proteção: a chamada do agendamento usa a chave pública do projeto, então
  * qualquer um poderia chamar. Por isso: (1) a rodada geral só roda no
@@ -48,6 +51,13 @@ function dataSeisDiasAtras(agora = new Date()): string {
   return new Date(agora.getTime() - 3 * 60 * 60 * 1000 - SEIS_DIAS_MS).toISOString().slice(0, 10);
 }
 
+/** Sábado de referência do check-in em Brasília, "yyyy-mm-dd" (igual a semanaDoCheckin do app). */
+function semanaDoCheckin(agora = new Date()): string {
+  const br = new Date(agora.getTime() - 3 * 60 * 60 * 1000);
+  const desdeSabado = (br.getUTCDay() + 1) % 7;
+  return new Date(br.getTime() - desdeSabado * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método não permitido" }, 405);
@@ -81,7 +91,8 @@ Deno.serve(async (req) => {
     // ── Candidatas ──────────────────────────────────────────────────────
     let q = admin
       .from("pacientes")
-      .select("id, user_id, nome_completo, email, receber_emails, ativo, account_status")
+      // "*": a coluna inativo vem de uma migration posterior e pode não existir.
+      .select("*")
       .eq("account_status", "ativo")
       .or("ativo.is.null,ativo.eq.true");
     if (pacienteUnica) q = q.eq("id", pacienteUnica);
@@ -92,6 +103,7 @@ Deno.serve(async (req) => {
     }
 
     const desdeData = dataSeisDiasAtras();
+    const semana = semanaDoCheckin();
     const desdeEnvio = new Date(Date.now() - SEIS_DIAS_MS).toISOString();
     const clinicas = new Map<string, { nome_clinica?: string; logo_url?: string; whatsapp?: string; email_resposta?: string; lembrete_peso_semanal?: boolean } | null>();
     const resultado = { enviados: 0, simulados: 0, pulados: 0, falhas: 0 };
@@ -106,14 +118,21 @@ Deno.serve(async (req) => {
       const clinica = clinicas.get(p.user_id);
       if (clinica?.lembrete_peso_semanal === false && !pacienteUnica) { resultado.pulados++; continue; }
 
+      if (p.inativo === true && !pacienteUnica) { resultado.pulados++; continue; }
+
       const destino = (p.email || "").trim();
       if (p.receber_emails === false || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) { resultado.pulados++; continue; }
 
-      // Já lançou peso nesta semana: nada a lembrar.
+      // Já respondeu o check-in desta semana: nada a lembrar. Se a tabela do
+      // check-in ainda não existe, vale a regra antiga (peso nos últimos 6 dias).
       if (!pacienteUnica) {
-        const { data: pesos } = await admin.from("acompanhamentos").select("id")
-          .eq("paciente_id", p.id).not("peso", "is", null).gte("data_registro", desdeData).limit(1);
-        if (pesos && pesos.length > 0) { resultado.pulados++; continue; }
+        const { data: feitos, error: erroCheckin } = await admin.from("checkins_semanais").select("id")
+          .eq("paciente_id", p.id).eq("semana", semana).limit(1);
+        if (erroCheckin) {
+          const { data: pesos } = await admin.from("acompanhamentos").select("id")
+            .eq("paciente_id", p.id).not("peso", "is", null).gte("data_registro", desdeData).limit(1);
+          if (pesos && pesos.length > 0) { resultado.pulados++; continue; }
+        } else if (feitos && feitos.length > 0) { resultado.pulados++; continue; }
       }
 
       // No máximo um lembrete a cada 6 dias, chame quem chamar.

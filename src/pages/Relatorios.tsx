@@ -68,7 +68,18 @@ export default function Relatorios() {
         supabase.from("consultas").select("*").eq("user_id", user.id),
         supabase.from("avaliacoes_fisicas").select("*").eq("user_id", user.id),
         supabase.from("acompanhamentos").select("*").eq("user_id", user.id),
-        supabase.from("checklist_respostas").select("*"),
+        // Check-ins do portal (migration de 10/10). Antes dela, cai na tabela antiga.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (supabase as any).from("checkins_semanais").select("*").then(async (r: any) => r.error
+          ? supabase.from("checklist_respostas").select("*")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          : { data: (r.data || []).map((c: any) => ({
+              ...c,
+              respondido: true,
+              aderencia_plano: c.seguiu_plano != null ? c.seguiu_plano * 20 : null,
+              nivel_energia: c.disposicao,
+              qualidade_sono: c.sono,
+            })) }),
         supabase.from("diario_registros").select("*"),
         supabase.from("conteudo_visualizacoes").select("*"),
         listarContratosAtivos().catch(() => []),
