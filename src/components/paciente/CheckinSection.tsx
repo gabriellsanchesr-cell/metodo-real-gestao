@@ -124,7 +124,7 @@ export function CheckinSection({ paciente }: Props) {
                     {br(Number(c.peso))} kg{difPeso != null && difPeso !== 0 ? ` (${difPeso > 0 ? "+" : ""}${br(difPeso)})` : ""}
                   </Badge>
                 )}
-                <span className="text-xs text-muted-foreground">respondido em {formatarData(c.created_at)}</span>
+                <span className="text-xs text-muted-foreground">respondido em {new Date(c.created_at).toLocaleDateString("pt-BR")}</span>
                 <Button variant={c.visto_nutri ? "ghost" : "outline"} size="sm" className="ml-auto h-8 rounded-lg" onClick={() => marcarVisto(c)}>
                   <CheckCheck className="mr-1.5 h-3.5 w-3.5" /> {c.visto_nutri ? "Visto" : "Marcar como visto"}
                 </Button>
