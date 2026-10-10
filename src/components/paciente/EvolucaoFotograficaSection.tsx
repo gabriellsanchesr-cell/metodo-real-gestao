@@ -195,6 +195,9 @@ export function EvolucaoFotograficaSection({ paciente }: Props) {
                     <Badge className="absolute top-2 left-2 text-xs" variant="secondary">
                       {ANGULOS.find(a => a.value === f.angulo)?.label}
                     </Badge>
+                    {f.enviada_pela_paciente && (
+                      <Badge className="absolute bottom-2 left-2 text-[10px]">Enviada pela paciente</Badge>
+                    )}
                     <Button
                       size="icon"
                       variant="destructive"

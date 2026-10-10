@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, ClipboardCheck, Loader2, MessageSquarePlus, Pencil, Ruler, Trophy } from "lucide-react";
+import { Camera, CheckCircle2, ChevronRight, ClipboardCheck, Loader2, MessageSquarePlus, Pencil, Ruler, Trophy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 import {
@@ -21,6 +21,8 @@ interface Props {
   /** A tabela ainda não existe no banco. */
   semTabela?: boolean;
   onSalvo: () => void;
+  /** Leva para a aba de fotos de evolução. */
+  onAbrirFotos?: () => void;
 }
 
 const lerNumero = (v: string): number | null => {
@@ -35,7 +37,7 @@ const COR_NOTA = ["", "bg-red-500", "bg-orange-500", "bg-amber-500", "bg-lime-50
  * texto livre em cada ponto. O e-mail de sábado e o aviso do portal trazem
  * para cá. Vale do sábado até a sexta e pode ser corrigido nesse período.
  */
-export function PortalCheckin({ paciente, checkins, semTabela, onSalvo }: Props) {
+export function PortalCheckin({ paciente, checkins, semTabela, onSalvo, onAbrirFotos }: Props) {
   const { modoVisualizacao } = usePortalModo();
   const { toast } = useToast();
   const semana = semanaDoCheckin();
@@ -264,6 +266,20 @@ export function PortalCheckin({ paciente, checkins, semTabela, onSalvo }: Props)
             </Button>
           </div>
         </>
+      )}
+
+      {onAbrirFotos && (
+        <button type="button" onClick={onAbrirFotos}
+          className="flex w-full items-center gap-3 rounded-2xl border bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-100">
+            <Camera className="h-5 w-5 text-pink-600" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-foreground">Fotos da semana</span>
+            <span className="block text-xs text-muted-foreground">Frente, lateral e costas. Ajudam a ver o que a balança não mostra.</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </button>
       )}
 
       {anteriores.length > 0 && (

@@ -27,10 +27,11 @@ import {
   ChevronDown, ChevronUp, Clock, User, Activity, Sparkles,
   UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical,
   Bell, Flame, Weight, Zap, CalendarDays, ChevronRight, Heart, Droplets, Moon, Sun, Sunrise, Sunset,
-  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink, ClipboardCheck,
+  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink, ClipboardCheck, Camera,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PortalCheckin } from "@/components/portal/PortalCheckin";
+import { PortalFotos } from "@/components/portal/PortalFotos";
 import { checkinPendente, type Checkin } from "@/lib/checkin";
 import { listarCheckins } from "@/lib/checkinApi";
 import { isoLocal } from "@/lib/datas";
@@ -55,7 +56,7 @@ import {
 import { dataLocal } from "@/lib/datas";
 
 type PortalTab = "inicio" | "plano" | "diario" | "metas" | "mais";
-type MoreTab = "checkin" | "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
+type MoreTab = "checkin" | "fotos" | "avaliacoes" | "receitas" | "materiais" | "mensagens" | "perfil" | "jornada" | "suplementos" | "substituicoes" | "orientacoes";
 
 /** O que chegou e a paciente ainda não abriu, por item do menu "Mais". */
 type Novidades = Partial<Record<MoreTab, number>>;
@@ -123,6 +124,13 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
   const [checkins, setCheckins] = useState<Checkin[] | null>(null);
   const [semTabelaCheckin, setSemTabelaCheckin] = useState(false);
   const [avisoCheckin, setAvisoCheckin] = useState(false);
+  // Trocar de aba começa do topo (antes a tela nova abria já rolada).
+  const conteudoRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    let el: HTMLElement | null = conteudoRef.current;
+    while (el) { el.scrollTop = 0; el = el.parentElement; }
+    window.scrollTo(0, 0);
+  }, [activeTab, moreTab]);
   const [expandedMeal, setExpandedMeal] = useState<string | null>(null);
   const [activeOption, setActiveOption] = useState<Record<string, string>>({});
   const [portalPresc, setPortalPresc] = useState<any[]>([]);
@@ -1206,8 +1214,10 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
             checkins={checkins ?? []}
             semTabela={semTabelaCheckin}
             onSalvo={() => { carregarCheckins(paciente.id); carregarPesos(paciente.id); }}
+            onAbrirFotos={() => setMoreTab("fotos")}
           />
         );
+      case "fotos": return <PortalFotos paciente={paciente} />;
       case "perfil": return renderPerfil();
       case "receitas": return <div className="space-y-6"><PortalReceitas paciente={paciente} /><BibliotecaPortal aba="receitas" titulo="Receitas do método" /></div>;
       case "mensagens": return <PortalChat paciente={paciente} />;
@@ -1309,6 +1319,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
 
   const moreItems: { id: MoreTab; label: string; icon: any; desc: string; color: string; gradient: string }[] = [
     { id: "checkin", label: "Check-in semanal", icon: ClipboardCheck, desc: "Como foi a sua semana", color: "text-primary", gradient: "from-blue-100 to-blue-50" },
+    { id: "fotos", label: "Fotos de evolução", icon: Camera, desc: "Envie e compare", color: "text-pink-600", gradient: "from-pink-100 to-pink-50" },
     { id: "avaliacoes", label: "Avaliações", icon: Activity, desc: "Medidas e composição", color: "text-blue-600", gradient: "from-blue-100 to-blue-50" },
     { id: "substituicoes", label: "Substituições", icon: ArrowRightLeft, desc: "Trocar alimentos", color: "text-amber-600", gradient: "from-amber-100 to-amber-50" },
     { id: "orientacoes", label: "Orientações", icon: BookOpen, desc: "Para o dia a dia", color: "text-teal-600", gradient: "from-teal-100 to-teal-50" },
@@ -1347,7 +1358,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-4 py-4 pb-24">
+      <main ref={conteudoRef} className="flex-1 overflow-y-auto px-4 py-4 pb-24">
         {renderContent()}
       </main>
 

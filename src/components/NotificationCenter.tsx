@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, MessageSquare, BookMarked, CalendarClock, CalendarCheck, Scale, ClipboardCheck, type LucideIcon } from "lucide-react";
+import { Bell, MessageSquare, BookMarked, CalendarClock, CalendarCheck, Scale, ClipboardCheck, Camera, type LucideIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { format, subDays } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +28,7 @@ interface Item {
 }
 
 interface Grupo {
-  id: "mensagens" | "diario" | "checkins" | "agenda" | "pesos" | "vencimentos";
+  id: "mensagens" | "diario" | "checkins" | "agenda" | "pesos" | "fotos" | "vencimentos";
   rotulo: string;
   icone: LucideIcon;
   cor: string;
@@ -54,7 +54,7 @@ export function NotificationCenter() {
     if (!user) return;
     const agora = new Date();
     const semana = format(subDays(agora, 7), "yyyy-MM-dd");
-    const [conv, diario, consultas, pesos, checkins] = await Promise.all([
+    const [conv, diario, consultas, pesos, checkins, fotos] = await Promise.all([
       supabase.from("conversas").select("id, nao_lidas_nutri, pacientes(nome_completo)").gt("nao_lidas_nutri", 0),
       supabase.from("diario_registros").select("paciente_id, pacientes(nome_completo)").eq("visto_nutri", false).gte("data_registro", semana),
       supabase.from("consultas").select("id, data_hora, status, paciente_id, pacientes(nome_completo)").eq("status", "agendado").lt("data_hora", agora.toISOString()),
@@ -65,9 +65,22 @@ export function NotificationCenter() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any).from("checkins_semanais").select("*, pacientes(nome_completo)")
         .eq("visto_nutri", false).gte("semana", format(subDays(agora, 14), "yyyy-MM-dd")).order("created_at", { ascending: false }),
+      // Coluna da migration de 10/10 (fotos enviadas pela paciente).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("evolucao_fotos").select("paciente_id, data_registro, pacientes(nome_completo)")
+        .eq("enviada_pela_paciente", true).gte("data_registro", semana).order("data_registro", { ascending: false }),
     ]);
 
     const nome = (x: { pacientes?: { nome_completo?: string } | null }) => x.pacientes?.nome_completo?.trim() || "Paciente";
+
+    const fotosPorPaciente = new Map<string, { nome: string; n: number; data: string }>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const f of (fotos.error ? [] : fotos.data || []) as any[]) {
+      const atual = fotosPorPaciente.get(f.paciente_id) ?? { nome: nome(f), n: 0, data: f.data_registro };
+      atual.n++;
+      fotosPorPaciente.set(f.paciente_id, atual);
+    }
+
 
     const diarioPorPaciente = new Map<string, { nome: string; n: number }>();
     for (const r of diario.data || []) {
@@ -106,6 +119,14 @@ export function NotificationCenter() {
         itens: consultasParaFechar(consultas.data || [], agora).map((c) => ({
           chave: c.id, titulo: nome(c),
           detalhe: `${format(new Date(c.data_hora), "dd/MM 'às' HH:mm")}: marcar realizada ou falta`, link: "/agenda",
+        })),
+      },
+      {
+        id: "fotos", rotulo: "Fotos enviadas no portal", icone: Camera, cor: "text-pink-600", pendencia: false,
+        itens: [...fotosPorPaciente.entries()].map(([id, v]) => ({
+          chave: id, titulo: v.nome,
+          detalhe: `${plural(v.n, "foto", "fotos")} em ${v.data.split("-").reverse().slice(0, 2).join("/")}`,
+          link: `/pacientes/${id}?secao=fotos`,
         })),
       },
       {
