@@ -1,3 +1,4 @@
+import { buscarUltimoPeso } from "@/lib/pesoApi";
 import { dataLocal } from "@/lib/datas";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,13 +19,13 @@ export function PatientContext({ paciente, pacienteId }: Props) {
   const [nextConsulta, setNextConsulta] = useState<any>(null);
   const [lastCheckin, setLastCheckin] = useState<any>(null);
   const [aderenciaMedia, setAderenciaMedia] = useState<number | null>(null);
+  const [pesoAtual, setPesoAtual] = useState<number | null>(null);
 
   useEffect(() => {
     loadContext();
   }, [pacienteId]);
 
-  const loadContext = async () => {
-    // Next consultation
+  const carregarConsulta = async () => {
     const { data: consulta } = await supabase
       .from("consultas")
       .select("data_hora")
@@ -35,8 +36,33 @@ export function PatientContext({ paciente, pacienteId }: Props) {
       .limit(1)
       .maybeSingle();
     setNextConsulta(consulta);
+  };
 
-    // Last checkin
+  const loadContext = async () => {
+    // Último peso de verdade (avaliação, acompanhamento ou check-in); antes
+    // aparecia o peso inicial do cadastro.
+    buscarUltimoPeso(pacienteId).then((p) => setPesoAtual(p?.peso ?? null));
+
+    // Check-in semanal do portal: se a tabela existe, vale ela.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const novos = await (supabase as any).from("checkins_semanais").select("semana, seguiu_plano")
+      .eq("paciente_id", pacienteId).order("semana", { ascending: false }).limit(4);
+    if (!novos.error) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lista = (novos.data || []) as any[];
+      setLastCheckin(lista[0] ? { semana: lista[0].semana, aderencia_plano: lista[0].seguiu_plano != null ? lista[0].seguiu_plano * 20 : null } : null);
+      const notas = lista.map((c) => c.seguiu_plano).filter((n) => n != null);
+      setAderenciaMedia(notas.length ? Math.round((notas.reduce((a: number, b: number) => a + b, 0) / notas.length) * 20) : null);
+    }
+
+
+    if (!novos.error) {
+      await carregarConsulta();
+      return;
+    }
+
+    // Last checkin (tabela antiga, só enquanto a nova não existe)
+    await carregarConsulta();
     const { data: checkin } = await supabase
       .from("checklist_respostas")
       .select("semana, aderencia_plano")
@@ -79,7 +105,7 @@ export function PatientContext({ paciente, pacienteId }: Props) {
 
           {/* Stats */}
           <div className="space-y-3">
-            <InfoRow icon={Scale} label="Último peso" value={paciente.peso_inicial ? `${paciente.peso_inicial} kg` : "—"} />
+            <InfoRow icon={Scale} label="Último peso" value={pesoAtual ?? paciente.peso_inicial ? `${String(pesoAtual ?? paciente.peso_inicial).replace(".", ",")} kg` : "—"} />
             <InfoRow icon={Activity} label="Fase R.E.A.L." value={faseLabels[paciente.fase_real] || "—"} />
             <InfoRow
               icon={Calendar}

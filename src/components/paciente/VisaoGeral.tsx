@@ -6,7 +6,8 @@ import { ContratoSection } from "@/components/paciente/ContratoSection";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, CalendarDays, Utensils, Activity, AlertTriangle, Minus } from "lucide-react";
 import type { SectionId } from "./PacienteSidebar";
-import { ultimoPeso } from "@/lib/painel";
+import { buscarUltimoPeso } from "@/lib/pesoApi";
+import { checkinPendente } from "@/lib/checkin";
 
 interface Props {
   paciente: any;
@@ -27,26 +28,36 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
     fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
 
     const agora = new Date().toISOString();
-    const [acomp, avaliacoes, ultimaRealizada, proximaAgendada, planos, checklists] = await Promise.all([
-      supabase.from("acompanhamentos").select("data_registro, peso").eq("paciente_id", paciente.id).order("data_registro", { ascending: false }).limit(10),
-      supabase.from("avaliacoes_fisicas").select("data_avaliacao, peso").eq("paciente_id", paciente.id).order("data_avaliacao", { ascending: false }).limit(10),
+    const [peso, ultimaRealizada, proximaAgendada, planos, checklists, checkins] = await Promise.all([
+      // Avaliação física, acompanhamento semanal e check-in: o mais recente dos três.
+      buscarUltimoPeso(paciente.id),
       // Só consulta que aconteceu conta como "última"; cancelada e falta não.
       supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "realizado").lte("data_hora", agora).order("data_hora", { ascending: false }).limit(1),
       supabase.from("consultas").select("data_hora").eq("paciente_id", paciente.id).eq("status", "agendado").gt("data_hora", agora).order("data_hora", { ascending: true }).limit(1),
       supabase.from("planos_alimentares").select("id").eq("paciente_id", paciente.id).eq("status", "ativo").eq("is_template", false).limit(1),
       supabase.from("checklist_respostas").select("*").eq("paciente_id", paciente.id).gte("semana", isoLocal(fourWeeksAgo)).order("semana", { ascending: false }),
+      // Check-in semanal do portal (migration de 10/10). Antes dela, vale a tabela antiga acima.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from("checkins_semanais").select("semana, seguiu_plano").eq("paciente_id", paciente.id).gte("semana", isoLocal(fourWeeksAgo)).order("semana", { ascending: false }),
     ]);
 
-    const peso = ultimoPeso(avaliacoes.data || [], acomp.data || []);
-
-    const recentCheckins = (checklists.data || []).filter(c => c.respondido);
-    const avgAderencia = recentCheckins.length > 0
-      ? Math.round(recentCheckins.reduce((a, c) => a + (c.aderencia_plano || 0), 0) / recentCheckins.length)
-      : null;
-
-    const lastWeek = new Date();
-    lastWeek.setDate(lastWeek.getDate() - 7);
-    const hasRecentCheckin = recentCheckins.some(c => dataLocal(c.semana) >= lastWeek);
+    let avgAderencia: number | null;
+    let hasRecentCheckin: boolean;
+    if (!checkins.error) {
+      // "Seguiu o plano" de 1 a 5 vira porcentagem (5 = 100%).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const notas = ((checkins.data || []) as any[]).map((c) => c.seguiu_plano).filter((n) => n != null);
+      avgAderencia = notas.length ? Math.round((notas.reduce((a: number, b: number) => a + b, 0) / notas.length) * 20) : null;
+      hasRecentCheckin = !checkinPendente(checkins.data || []);
+    } else {
+      const recentCheckins = (checklists.data || []).filter(c => c.respondido);
+      avgAderencia = recentCheckins.length > 0
+        ? Math.round(recentCheckins.reduce((a, c) => a + (c.aderencia_plano || 0), 0) / recentCheckins.length)
+        : null;
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      hasRecentCheckin = recentCheckins.some(c => dataLocal(c.semana) >= lastWeek);
+    }
 
     setStats({
       lastWeight: peso?.peso ?? null,
@@ -166,11 +177,16 @@ export function VisaoGeral({ paciente, onNavigate }: Props) {
         </Card>
       </div>
 
-      {!stats.hasRecentCheckin && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm">
+      {/* Só para quem usa o portal: sem ele não há como responder o check-in. */}
+      {!stats.hasRecentCheckin && paciente.account_status === "ativo" && (
+        <button
+          type="button"
+          onClick={() => onNavigate("checkin")}
+          className="flex w-full items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20 text-warning text-sm text-left"
+        >
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>Paciente não enviou check-in na última semana.</span>
-        </div>
+          <span>Ainda não respondeu o check-in desta semana.</span>
+        </button>
       )}
 
       <div className="flex gap-3 flex-wrap">

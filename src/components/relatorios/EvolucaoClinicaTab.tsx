@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { historicoDePeso } from "@/lib/painel";
+import { useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
@@ -16,15 +17,25 @@ interface Props {
 }
 
 export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, checklists, periodoInicio, periodoFim }: Props) {
+  /** Último peso menos o primeiro, juntando as três fontes. Null com menos de dois registros. */
+  const variacaoDePeso = useCallback((pacienteId: string): number | null => {
+    const daPaciente = (x: { paciente_id: string }) => x.paciente_id === pacienteId;
+    const historico = historicoDePeso(
+      avaliacoes.filter(daPaciente),
+      acompanhamentos.filter(daPaciente),
+      // Check-ins do portal chegam em `checklists` (Relatorios.tsx); os antigos não têm created_at útil.
+      checklists.filter(daPaciente).filter((c) => c.semana),
+    );
+    if (historico.length < 2) return null;
+    return Math.round((historico[0].peso - historico[historico.length - 1].peso) * 10) / 10;
+  }, [avaliacoes, acompanhamentos, checklists]);
+
   const stats = useMemo(() => {
     const ativos = pacientes.filter(p => p.situacao === "ativo");
 
-    // Variação média de peso
-    const variacoesPeso = ativos.map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
-      if (avals.length < 2) return null;
-      return avals[avals.length - 1].peso - avals[0].peso;
-    }).filter((v): v is number => v !== null);
+    // Variação média de peso: do primeiro ao último registro, em qualquer
+    // fonte (avaliação, acompanhamento ou check-in).
+    const variacoesPeso = ativos.map(p => variacaoDePeso(p.id)).filter((v): v is number => v !== null);
 
     const mediaPeso = variacoesPeso.length > 0
       ? Math.round((variacoesPeso.reduce((a, b) => a + b, 0) / variacoesPeso.length) * 10) / 10
@@ -42,7 +53,7 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
       : 0;
 
     return { mediaPeso, mediaAbd, totalComAval: variacoesPeso.length };
-  }, [pacientes, avaliacoes]);
+  }, [pacientes, avaliacoes, variacaoDePeso]);
 
   // Histograma de variação de peso
   const histogramData = useMemo(() => {
@@ -54,17 +65,13 @@ export function EvolucaoClinicaTab({ pacientes, avaliacoes, acompanhamentos, che
       { label: "0 a +2kg", min: 0, max: 2 },
       { label: "> +2kg", min: 2, max: Infinity },
     ];
-    const variacoes = ativos.map(p => {
-      const avals = avaliacoes.filter((a: any) => a.paciente_id === p.id && a.peso).sort((a: any, b: any) => dataLocal(a.data_avaliacao).getTime() - dataLocal(b.data_avaliacao).getTime());
-      if (avals.length < 2) return null;
-      return avals[avals.length - 1].peso - avals[0].peso;
-    }).filter((v): v is number => v !== null);
+    const variacoes = ativos.map(p => variacaoDePeso(p.id)).filter((v): v is number => v !== null);
 
     return faixas.map(f => ({
       name: f.label,
       pacientes: variacoes.filter(v => v >= f.min && v < f.max).length,
     }));
-  }, [pacientes, avaliacoes]);
+  }, [pacientes, avaliacoes, variacaoDePeso]);
 
   // Evolução média mensal
   const evolucaoMensalData = useMemo(() => {

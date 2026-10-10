@@ -1,3 +1,4 @@
+import { buscarUltimoPeso } from "@/lib/pesoApi";
 import { useState, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -175,8 +176,14 @@ export function CalculoEnergetico({ paciente }: Props) {
       .order("data_avaliacao", { ascending: false })
       .limit(1)
       .single();
+    const recente = await buscarUltimoPeso(paciente.id);
+    if (!data && recente) {
+      setPeso(String(recente.peso));
+      toast({ title: "Peso importado", description: "Do registro mais recente (acompanhamento ou check-in)." });
+    }
     if (data) {
-      if (data.peso) setPeso(String(data.peso));
+      // Peso: o mais recente entre avaliação, acompanhamento e check-in.
+      if (recente?.peso ?? data.peso) setPeso(String(recente?.peso ?? data.peso));
       if (data.altura) setAltura(String(data.altura));
       if (data.massa_magra_kg) setMlg(String(data.massa_magra_kg));
       toast({ title: "Dados importados da última avaliação" });

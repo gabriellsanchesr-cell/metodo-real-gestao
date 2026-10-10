@@ -139,24 +139,61 @@ export function consultasParaFechar<C extends ConsultaBasica>(consultas: C[], ag
     .sort((a, b) => a.data_hora.localeCompare(b.data_hora));
 }
 
+export interface RegistroDePeso {
+  data: string;
+  peso: number;
+}
+
 /**
- * Último peso e a variação em relação ao anterior, juntando as duas fontes:
- * avaliações físicas (onde o nutri pesa) e acompanhamentos (lançados pelo
- * nutri ou pela paciente no portal). Antes a ficha só olhava acompanhamentos
- * e mostrava "sem peso" para quem tinha avaliação.
+ * Todos os pesos da paciente, do mais recente para o mais antigo, juntando
+ * as três fontes: avaliações físicas (o nutri pesa), acompanhamento semanal
+ * (nutri ou paciente) e check-in semanal (paciente, no portal).
+ *
+ * O check-in também grava o peso no acompanhamento; para não contar duas
+ * vezes, registros com a mesma data e o mesmo peso viram um só. No mesmo
+ * dia, vale o que foi lançado por último.
+ */
+export function historicoDePeso(
+  avaliacoes: { data_avaliacao: string; peso?: number | null; created_at?: string | null }[],
+  acompanhamentos: { data_registro: string; peso?: number | null; created_at?: string | null }[],
+  checkins: { semana: string; peso?: number | null; created_at?: string | null }[] = [],
+): RegistroDePeso[] {
+  const registros = [
+    ...avaliacoes.map((a) => ({ data: a.data_avaliacao.slice(0, 10), peso: a.peso, criado: a.created_at ?? "" })),
+    ...acompanhamentos.map((a) => ({ data: a.data_registro.slice(0, 10), peso: a.peso, criado: a.created_at ?? "" })),
+    // O check-in vale pelo dia em que foi respondido (é a data do espelho no
+    // acompanhamento), e não pelo sábado de referência da semana.
+    ...checkins.map((c) => ({
+      data: c.created_at ? format(new Date(c.created_at), "yyyy-MM-dd") : c.semana.slice(0, 10),
+      peso: c.peso,
+      criado: c.created_at ?? "",
+    })),
+  ]
+    .filter((r): r is { data: string; peso: number; criado: string } => r.peso != null && Number(r.peso) > 0)
+    .sort((a, b) => b.data.localeCompare(a.data) || b.criado.localeCompare(a.criado));
+  const vistos = new Set<string>();
+  return registros
+    .filter((r) => {
+      const chave = `${r.data}|${Number(r.peso)}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    })
+    .map((r) => ({ data: r.data, peso: Number(r.peso) }));
+}
+
+/**
+ * Último peso e a variação em relação ao anterior, em qualquer das fontes
+ * (ver historicoDePeso). É o número do card "Último peso" da ficha, do chat
+ * e do cálculo energético.
  */
 export function ultimoPeso(
-  avaliacoes: { data_avaliacao: string; peso?: number | null }[],
-  acompanhamentos: { data_registro: string; peso?: number | null }[],
+  avaliacoes: { data_avaliacao: string; peso?: number | null; created_at?: string | null }[],
+  acompanhamentos: { data_registro: string; peso?: number | null; created_at?: string | null }[],
+  checkins: { semana: string; peso?: number | null; created_at?: string | null }[] = [],
 ): { peso: number; data: string; variacao: number | null } | null {
-  const registros = [
-    ...avaliacoes.map((a) => ({ data: a.data_avaliacao.slice(0, 10), peso: a.peso })),
-    ...acompanhamentos.map((a) => ({ data: a.data_registro.slice(0, 10), peso: a.peso })),
-  ]
-    .filter((r): r is { data: string; peso: number } => r.peso != null && Number(r.peso) > 0)
-    .sort((a, b) => b.data.localeCompare(a.data));
-  if (registros.length === 0) return null;
-  const [ultimo, anterior] = registros;
-  const variacao = anterior ? Math.round((Number(ultimo.peso) - Number(anterior.peso)) * 10) / 10 : null;
-  return { peso: Number(ultimo.peso), data: ultimo.data, variacao };
+  const [ultimo, anterior] = historicoDePeso(avaliacoes, acompanhamentos, checkins);
+  if (!ultimo) return null;
+  const variacao = anterior ? Math.round((ultimo.peso - anterior.peso) * 10) / 10 : null;
+  return { peso: ultimo.peso, data: ultimo.data, variacao };
 }

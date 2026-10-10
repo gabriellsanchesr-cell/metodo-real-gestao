@@ -123,3 +123,27 @@ describe("ultimoPeso", () => {
     expect(ultimoPeso([{ data_avaliacao: "2026-09-01", peso: 70 }], [])).toEqual({ peso: 70, data: "2026-09-01", variacao: null });
   });
 });
+
+describe("ultimoPeso com check-in", () => {
+  it("o check-in entra como fonte e não conta duas vezes com o espelho no acompanhamento", () => {
+    const r = ultimoPeso(
+      [{ data_avaliacao: "2026-10-03", peso: 82.8 }],
+      [{ data_registro: "2026-10-12", peso: 82.1, created_at: "2026-10-12T13:00:00Z" }],
+      [{ semana: "2026-10-10", peso: 82.1, created_at: "2026-10-12T13:00:00Z" }],
+    );
+    expect(r).toEqual({ peso: 82.1, data: "2026-10-12", variacao: -0.7 });
+  });
+
+  it("check-in sem espelho no acompanhamento também vale", () => {
+    const r = ultimoPeso([{ data_avaliacao: "2026-10-03", peso: 82.8 }], [], [{ semana: "2026-10-10", peso: 82, created_at: "2026-10-11T15:00:00Z" }]);
+    expect(r).toEqual({ peso: 82, data: "2026-10-11", variacao: -0.8 });
+  });
+
+  it("no mesmo dia, vale o que foi lançado por último", () => {
+    const r = ultimoPeso(
+      [{ data_avaliacao: "2026-10-05", peso: 70, created_at: "2026-10-05T12:00:00Z" }],
+      [{ data_registro: "2026-10-05", peso: 69.5, created_at: "2026-10-05T18:00:00Z" }],
+    );
+    expect(r?.peso).toBe(69.5);
+  });
+});
