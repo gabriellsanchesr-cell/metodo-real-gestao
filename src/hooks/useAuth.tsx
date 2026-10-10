@@ -121,7 +121,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // "local": sair neste aparelho não derruba o login dos outros. O padrão
+    // (global) encerrava todas as sessões, e a aba que ficou aberta em outro
+    // lugar passava a receber "Token inválido" das funções.
+    await supabase.auth.signOut({ scope: "local" });
     setRole(null);
     setEquipeMembro(null);
     setEquipePermissoes({});

@@ -7,23 +7,12 @@
  * corpo da resposta; é ele que precisa aparecer para o nutri.
  */
 import { supabase } from "@/integrations/supabase/client";
+import { chamarFuncao } from "@/lib/funcoes";
 
 export type AcaoAcesso = "deactivate" | "reactivate" | "delete";
 
 export async function gerenciarAcesso(action: AcaoAcesso, pacienteId: string): Promise<void> {
-  const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-    body: { action, paciente_id: pacienteId },
-  });
-  if (data?.error) throw new Error(data.error);
-  if (!error) return;
-
-  // FunctionsHttpError traz a Response original em `context`.
-  const resposta = (error as { context?: Response }).context;
-  if (resposta && typeof resposta.json === "function") {
-    const corpo = await resposta.json().catch(() => null);
-    if (corpo?.error) throw new Error(corpo.error);
-  }
-  throw new Error(error.message || "Não consegui falar com o servidor.");
+  await chamarFuncao("manage-patient-auth", { action, paciente_id: pacienteId });
 }
 
 /** Quem pode passar por cada ação, e por que as outras ficam de fora. */

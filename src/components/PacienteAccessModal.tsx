@@ -1,3 +1,4 @@
+import { chamarFuncao } from "@/lib/funcoes";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -41,21 +42,8 @@ export function PacienteAccessModal({
         if (password) payload.password = password;
       }
 
-      const { data, error } = await supabase.functions.invoke("manage-patient-auth", {
-        body: payload,
-      });
-
-      if (error) {
-        // tenta extrair a mensagem real da resposta da função
-        try {
-          const body = await (error as any).context?.json?.();
-          if (body?.error) throw new Error(body.error);
-        } catch (parseErr: any) {
-          if (parseErr.message && parseErr.message !== "body used already") throw parseErr;
-        }
-        throw error;
-      }
-      if (data?.error) throw new Error(data.error);
+      // Mostra o motivo real do servidor e renova a sessão se o login caiu.
+      await chamarFuncao("manage-patient-auth", payload);
 
       toast({
         title: "Sucesso",
