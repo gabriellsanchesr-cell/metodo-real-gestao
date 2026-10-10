@@ -796,6 +796,86 @@ export type Database = {
           },
         ]
       }
+      checkins_semanais: {
+        Row: {
+          agua: number | null
+          alimentacao: number | null
+          comentarios: Json
+          conquista: string | null
+          created_at: string
+          dificuldades: string | null
+          disposicao: number | null
+          fome: number | null
+          id: string
+          intestino: number | null
+          medidas: Json | null
+          paciente_id: string
+          peso: number | null
+          seguiu_plano: number | null
+          semana: string
+          sono: number | null
+          treino: number | null
+          updated_at: string
+          user_id: string
+          visto_nutri: boolean
+          vontade_doce: number | null
+        }
+        Insert: {
+          agua?: number | null
+          alimentacao?: number | null
+          comentarios?: Json
+          conquista?: string | null
+          created_at?: string
+          dificuldades?: string | null
+          disposicao?: number | null
+          fome?: number | null
+          id?: string
+          intestino?: number | null
+          medidas?: Json | null
+          paciente_id: string
+          peso?: number | null
+          seguiu_plano?: number | null
+          semana: string
+          sono?: number | null
+          treino?: number | null
+          updated_at?: string
+          user_id: string
+          visto_nutri?: boolean
+          vontade_doce?: number | null
+        }
+        Update: {
+          agua?: number | null
+          alimentacao?: number | null
+          comentarios?: Json
+          conquista?: string | null
+          created_at?: string
+          dificuldades?: string | null
+          disposicao?: number | null
+          fome?: number | null
+          id?: string
+          intestino?: number | null
+          medidas?: Json | null
+          paciente_id?: string
+          peso?: number | null
+          seguiu_plano?: number | null
+          semana?: string
+          sono?: number | null
+          treino?: number | null
+          updated_at?: string
+          user_id?: string
+          visto_nutri?: boolean
+          vontade_doce?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_semanais_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       checklist_respostas: {
         Row: {
           aderencia_plano: number | null
@@ -2103,6 +2183,7 @@ export type Database = {
           altura: number | null
           ativo: boolean | null
           auth_user_id: string | null
+          checkin_medidas: boolean
           created_at: string
           data_nascimento: string | null
           deve_trocar_senha: boolean
@@ -2134,6 +2215,7 @@ export type Database = {
           altura?: number | null
           ativo?: boolean | null
           auth_user_id?: string | null
+          checkin_medidas?: boolean
           created_at?: string
           data_nascimento?: string | null
           deve_trocar_senha?: boolean
@@ -2167,6 +2249,7 @@ export type Database = {
           altura?: number | null
           ativo?: boolean | null
           auth_user_id?: string | null
+          checkin_medidas?: boolean
           created_at?: string
           data_nascimento?: string | null
           deve_trocar_senha?: boolean
