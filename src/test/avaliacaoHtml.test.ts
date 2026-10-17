@@ -41,3 +41,22 @@ describe("montarAvaliacaoHtml", () => {
     expect(visivel).not.toMatch(/[—–]/);
   });
 });
+
+describe("comparação e composição", () => {
+  const av0 = { id: "a0", data_avaliacao: "2026-06-05", peso: 120, percentual_gordura_dobras: 27, massa_magra_kg: 87.6, circ_cintura: 112 };
+
+  it("compara com a avaliação escolhida, não com a primeira", () => {
+    const h = montarAvaliacaoHtml({ paciente, avaliacoes: [av0, av1, av2], avaliacaoId: "a2", comparacaoId: "a1" });
+    expect(h).toContain("Evolução das medidas &middot; 05/07 a 05/09");
+    const padrao = montarAvaliacaoHtml({ paciente, avaliacoes: [av0, av1, av2], avaliacaoId: "a2" });
+    expect(padrao).toContain("Evolução das medidas &middot; 05/06 a 05/09");
+  });
+
+  it("diz em palavras quanto de gordura e de massa magra mudou", () => {
+    const h = montarAvaliacaoHtml({ paciente, avaliacoes: [av1, av2], avaliacaoId: "a2" });
+    // massa gorda: 117 x 25% = 29,25 -> 112,3 x 22,7% = 25,49
+    expect(h).toContain("Desde 05/07, você <b>perdeu 3,8 kg de gordura</b> e perdeu 0,9 kg de massa magra.");
+    expect(h).toContain('id="composicao"');
+    expect(h).toContain("caiu 2,3 pontos");
+  });
+});

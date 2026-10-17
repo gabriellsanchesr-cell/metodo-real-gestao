@@ -42,11 +42,11 @@ export async function carregarFotosDaAvaliacao(pacienteId: string, ate: string, 
 /** Baixa o material da avaliação como .html (com fotos embutidas e botão "Salvar em PDF"). */
 export async function baixarAvaliacaoHtml(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  paciente: any, avaliacoes: AvaliacaoLinha[], avaliacaoId: string,
+  paciente: any, avaliacoes: AvaliacaoLinha[], avaliacaoId: string, comparacaoId?: string | null,
 ): Promise<void> {
   const atual = avaliacoes.find((a) => a.id === avaliacaoId);
   const fotos = atual ? await carregarFotosDaAvaliacao(paciente.id, atual.data_avaliacao.slice(0, 10), true) : [];
-  const html = montarAvaliacaoHtml({ paciente, avaliacoes, avaliacaoId, fotos, comBotaoPdf: true });
+  const html = montarAvaliacaoHtml({ paciente, avaliacoes, avaliacaoId, comparacaoId, fotos, comBotaoPdf: true });
   const nome = String(paciente.nome_completo || "paciente").trim().replace(/\s+/g, "-");
   const data = atual?.data_avaliacao.slice(0, 10) ?? "";
   const a = document.createElement("a");

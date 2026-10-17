@@ -27,6 +27,8 @@ export interface OpcoesAvaliacaoHtml {
   avaliacoes: AvaliacaoLinha[];
   /** A avaliação aberta. Sem ela, vale a mais recente. */
   avaliacaoId?: string | null;
+  /** Com qual avaliação anterior comparar. Sem ela, vale a primeira. */
+  comparacaoId?: string | null;
   fotos?: FotoAvaliacao[];
   /** Mostra o botão "Salvar em PDF" (arquivo exportado). */
   comBotaoPdf?: boolean;
@@ -194,13 +196,116 @@ function paragrafos(texto: string): string {
     .map((p) => `<p>${escapar(p).replace(/\n/g, "<br>")}</p>`).join("");
 }
 
+// ------------------------------------------------------------- composição corporal
+const CSS_COMPOSICAO = `
+.comp-res{font-size:15px;line-height:1.6;margin:0 0 14px}
+.comp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:640px){.comp-grid{grid-template-columns:repeat(4,1fr)}}
+.ccard{background:var(--bg);border-radius:16px;padding:14px 12px;border-top:3px solid var(--line)}
+.ccard.up{border-top-color:var(--up)}.ccard.down{border-top-color:var(--down)}
+.ccard .ck{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ccard .cv{font-size:26px;font-weight:300;color:var(--navy);line-height:1.1;margin-top:6px}
+.ccard .cv small{font-size:12px;color:var(--muted);font-weight:500;margin-left:2px}
+.ccard .ca{font-size:11.5px;color:var(--muted);margin-top:2px}
+.ccard .cd{display:inline-block;margin-top:8px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:#eef1f6;color:var(--muted)}
+.ccard.up .cd{background:rgba(4,120,87,.1);color:var(--up)}.ccard.down .cd{background:rgba(180,83,9,.1);color:var(--down)}
+.comp-bars{margin-top:16px;display:grid;gap:10px}
+.cb-r{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:center;font-size:12px;color:var(--muted);font-weight:600}
+.cb-t{display:flex;height:26px;border-radius:9px;overflow:hidden;background:#eef1f6}
+.cb-t i{display:flex;align-items:center;justify-content:center;color:#fff;font-style:normal;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden}
+.cb-t .mm{background:var(--blue)}.cb-t .mg{background:var(--gold)}
+.cb-leg{display:flex;gap:14px;font-size:11.5px;color:var(--muted);margin-top:2px}
+.cb-leg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.cb-leg .l1::before{background:var(--blue)}.cb-leg .l2::before{background:var(--gold)}
+`;
+
+interface Composicao { peso: number | null; gordPct: number | null; gordKg: number | null; magraKg: number | null }
+
+/** Peso, % de gordura, massa gorda e massa magra; o que faltar sai das outras. */
+function composicaoDe(a: AvaliacaoLinha): Composicao {
+  const peso = num(a.peso);
+  const gordPct = num(a.percentual_gordura_dobras) ?? num(a.bio_percentual_gordura);
+  let gordKg = num(a.massa_gorda_kg) ?? num(a.bio_massa_gorda);
+  if (gordKg == null && peso != null && gordPct != null) gordKg = Math.round(peso * gordPct) / 100;
+  let magraKg = num(a.massa_magra_kg);
+  if (magraKg == null && peso != null && gordKg != null) magraKg = Math.round((peso - gordKg) * 10) / 10;
+  return { peso, gordPct, gordKg, magraKg };
+}
+
+/** "perdeu 3,8 kg", "ganhou 0,5 kg", "manteve". */
+function verbo(delta: number, unidade: string): string {
+  if (Math.abs(delta) < 0.05) return "manteve";
+  const v = `${fmt(Math.abs(delta))}${unidade === "%" ? " ponto" + (Math.abs(delta) >= 2 ? "s" : "") : " " + unidade}`;
+  return `${delta < 0 ? (unidade === "%" ? "caiu" : "perdeu") : (unidade === "%" ? "subiu" : "ganhou")} ${v}`;
+}
+
+/**
+ * Bloco "Composição corporal": o que a paciente quer saber em linguagem
+ * direta. Quanto de gordura perdeu, quanto de massa magra ganhou ou perdeu,
+ * o peso e a proporção de massa magra e gorda antes e agora.
+ */
+function blocoComposicao(antes: AvaliacaoLinha, agora: AvaliacaoLinha, comparar: boolean): string {
+  const a = composicaoDe(antes), b = composicaoDe(agora);
+  if (b.gordKg == null && b.magraKg == null && b.gordPct == null) return "";
+  const cartao = (rotulo: string, unidade: string, va: number | null, vb: number | null, direcao: Direcao) => {
+    if (vb == null) return "";
+    const d = comparar && va != null ? Math.round((vb - va) * 10) / 10 : null;
+    const cls = d != null ? classe(d, direcao) : "flat";
+    return `<div class="ccard ${cls}"><div class="ck">${rotulo}</div><div class="cv">${fmt(vb)}<small>${unidade}</small></div>`
+      + (d != null ? `<div class="ca">antes ${fmt(va!)} ${unidade}</div><span class="cd">${verbo(d, unidade)}</span>` : "")
+      + `</div>`;
+  };
+  const cards = cartao("Massa gorda", "kg", a.gordKg, b.gordKg, "menor")
+    + cartao("Massa magra", "kg", a.magraKg, b.magraKg, "maior")
+    + cartao("Gordura corporal", "%", a.gordPct, b.gordPct, "menor")
+    + cartao("Peso", "kg", a.peso, b.peso, "neutro");
+
+  // Frase-resumo, só com o que dá para comparar.
+  let resumo = "";
+  if (comparar) {
+    const partes: string[] = [];
+    if (a.gordKg != null && b.gordKg != null) {
+      const d = b.gordKg - a.gordKg;
+      partes.push(Math.abs(d) < 0.05 ? "manteve a massa gorda" : `<b>${d < 0 ? "perdeu" : "ganhou"} ${fmt(Math.abs(d))} kg de gordura</b>`);
+    }
+    if (a.magraKg != null && b.magraKg != null) {
+      const d = b.magraKg - a.magraKg;
+      partes.push(Math.abs(d) < 0.05 ? "manteve a massa magra" : `${d > 0 ? "ganhou" : "perdeu"} ${fmt(Math.abs(d))} kg de massa magra`);
+    }
+    if (partes.length) {
+      const ultima = partes.pop();
+      resumo = `<p class="comp-res">Desde ${ddmm(antes.data_avaliacao)}, você ${partes.length ? `${partes.join(", ")} e ${ultima}` : ultima}.</p>`;
+    }
+  }
+
+  // Barras de proporção: massa magra (azul) e massa gorda (dourado), antes e agora.
+  const barra = (rotulo: string, c: Composicao, maior: number) => {
+    if (c.magraKg == null || c.gordKg == null) return "";
+    const w = (v: number) => ((v / maior) * 100).toFixed(1);
+    return `<div class="cb-r"><span>${rotulo}</span><div class="cb-t"><i class="mm" style="width:${w(c.magraKg)}%">${fmt(c.magraKg)} kg</i><i class="mg" style="width:${w(c.gordKg)}%">${fmt(c.gordKg)} kg</i></div></div>`;
+  };
+  const total = (c: Composicao) => (c.magraKg ?? 0) + (c.gordKg ?? 0);
+  const maior = Math.max(total(a), total(b)) || 1;
+  const barras = (comparar ? barra(ddmm(antes.data_avaliacao), a, maior) : "") + barra(comparar ? ddmm(agora.data_avaliacao) : "Hoje", b, maior);
+  const legenda = barras ? `<div class="cb-leg"><span class="l1">Massa magra</span><span class="l2">Massa gorda</span></div>` : "";
+
+  return `<section class="sec" id="composicao" data-reveal><h3>Composição corporal${comparar ? ` &middot; ${ddmm(antes.data_avaliacao)} a ${ddmm(agora.data_avaliacao)}` : ""}</h3>`
+    + resumo + `<div class="comp-grid">${cards}</div>`
+    + (barras ? `<div class="comp-bars">${barras}${legenda}</div>` : "")
+    + `<p class="note">Massa magra é tudo que não é gordura: músculo, água, ossos e órgãos. Peso fica neutro, sem cor: o que importa é a troca entre gordura e massa magra.</p></section>`;
+}
+
 /** HTML completo da avaliação, pronto para abrir sozinho ou num iframe. */
 export function montarAvaliacaoHtml(o: OpcoesAvaliacaoHtml): string {
   spkN = 0;
   const todas = [...o.avaliacoes].sort((a, b) => a.data_avaliacao.localeCompare(b.data_avaliacao));
   if (!todas.length) throw new Error("Nenhuma avaliação para montar.");
   const atual = todas.find((a) => a.id === o.avaliacaoId) ?? todas[todas.length - 1];
-  const ate = todas.filter((a) => a.data_avaliacao <= atual.data_avaliacao);
+  // Base da comparação: a escolhida (anterior à atual) ou a primeira. Gráficos
+  // e variações cobrem só o trecho entre a base e a atual.
+  const anteriores = todas.filter((a) => a.data_avaliacao < atual.data_avaliacao);
+  const base = anteriores.find((a) => a.id === o.comparacaoId) ?? anteriores[0] ?? atual;
+  const ate = todas.filter((a) => a.data_avaliacao >= base.data_avaliacao && a.data_avaliacao <= atual.data_avaliacao);
   const primeira = ate[0];
   const temHistorico = ate.length >= 2;
   const dAtual = atual.data_avaliacao.slice(0, 10), dIni = primeira.data_avaliacao.slice(0, 10);
@@ -294,7 +399,9 @@ export function montarAvaliacaoHtml(o: OpcoesAvaliacaoHtml): string {
     ? `<div class="stats"><div><b>${dias}</b><span>dias de acompanhamento</span></div><div><b>${ate.length}</b><span>avaliações</span></div>${fotos.length ? `<div><b>${new Set(fotos.map((f) => f.data)).size}</b><span>registros de foto</span></div>` : ""}</div>`
     : "";
 
+  const composicao = blocoComposicao(primeira, atual, temHistorico);
   const nav: [string, string][] = [];
+  if (composicao) nav.push(["composicao", "Composição"]);
   if (antesAgora) nav.push(["antes-agora", "Antes e agora"]);
   if (evolucao) nav.push(["evolucao", "Gráficos"]);
   if (galeria) nav.push(["fotos", "Fotos"]);
@@ -311,14 +418,14 @@ export function montarAvaliacaoHtml(o: OpcoesAvaliacaoHtml): string {
   const fecho = `<section class="closing" data-reveal><blockquote>${"Leveza também se aprende.".split(" ").map((w, i) => `<span class="qw" style="--i:${i}">${w}</span>`).join(" ")}</blockquote><div class="sign">Gabriel Sanches &middot; Nutrição Individualizada</div></section>`;
   const rodape = `${CRN} &middot; Nutrição Individualizada &middot; Documento de acompanhamento. ${fotos.length ? "As fotos são dados sensíveis e de" : "Informações de"} uso exclusivo do seu atendimento.`;
 
-  const corpo = stats + secnav + kpisHtml + destaquesHtml + ctx + antesAgora + evolucao + galeria + tabela + leitura + fecho;
+  const corpo = stats + secnav + composicao + kpisHtml + destaquesHtml + ctx + antesAgora + evolucao + galeria + tabela + leitura + fecho;
   const titulo = `Avaliação física - ${o.paciente.nome_completo}`;
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">`
     + `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">`
     + `<meta name="theme-color" content="#06101f"><title>${escapar(titulo)}</title><script>${FEEDBACK_HEAD_JS}</script>`
     + `<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`
     + `<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">`
-    + `<style>${FEEDBACK_CSS}</style></head><body><div class="progress" aria-hidden="true"></div><div class="page">`
+    + `<style>${FEEDBACK_CSS}${CSS_COMPOSICAO}</style></head><body><div class="progress" aria-hidden="true"></div><div class="page">`
     + heroi(o.paciente.nome_completo, `avaliação física de ${ddmmaaaa(dAtual)}`, ddmmaaaa(dAtual), chips)
     + corpo + `<div class="foot">${rodape}</div></div>`
     + (o.comBotaoPdf ? `<button type="button" class="fab">${FEEDBACK_SVG_PRINT}Salvar em PDF</button>` : "")
