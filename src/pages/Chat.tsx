@@ -1,3 +1,4 @@
+import { avisarNoCelular } from "@/lib/push";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -140,6 +141,11 @@ export default function Chat() {
       ultima_mensagem_em: new Date().toISOString(),
       nao_lidas_paciente: (selectedConversa.nao_lidas_paciente || 0) + 1,
     }).eq("id", selectedConversa.id);
+    // Aviso no celular da paciente, se ela ativou no app.
+    if (selectedConversa.paciente_id) {
+      avisarNoCelular(selectedConversa.paciente_id, "Nova mensagem do seu nutri",
+        tipo === "texto" ? conteudo.trim().slice(0, 140) : "Você recebeu um arquivo no chat.", "/portal?aba=mensagens");
+    }
   };
 
   const startConversation = async (pacienteId: string) => {

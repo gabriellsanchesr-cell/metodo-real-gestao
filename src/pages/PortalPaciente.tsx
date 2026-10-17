@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { PortalCheckin } from "@/components/portal/PortalCheckin";
 import { PortalFotos } from "@/components/portal/PortalFotos";
 import { InstalarApp } from "@/components/portal/InstalarApp";
+import { AtivarAvisos } from "@/components/portal/AtivarAvisos";
 import { AvaliacaoVisual } from "@/components/AvaliacaoVisual";
 import { checkinPendente, type Checkin } from "@/lib/checkin";
 import { listarCheckins } from "@/lib/checkinApi";
@@ -254,8 +255,9 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
         carregarPesos(pac.id);
 
         // Link do e-mail de sábado: /portal?aba=checkin abre direto na aba.
-        const veioPeloLink = new URLSearchParams(window.location.search).get("aba") === "checkin";
-        if (veioPeloLink) { setMoreTab("checkin"); setActiveTab("mais"); }
+        const abaDoLink = new URLSearchParams(window.location.search).get("aba");
+        const veioPeloLink = abaDoLink === "checkin" || abaDoLink === "mensagens";
+        if (veioPeloLink) { setMoreTab(abaDoLink as MoreTab); setActiveTab("mais"); }
         carregarCheckins(pac.id, !veioPeloLink);
 
         const { data: avData } = await supabase
@@ -512,6 +514,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
 
         {/* Convite para instalar o portal como app (some se já instalou). */}
         <InstalarApp />
+        <AtivarAvisos pacienteId={paciente.id} />
 
         {/* Check-in da semana: o e-mail de sábado aponta para cá. Enquanto a
             tabela não existe no banco, fica o registro de peso de antes. */}
@@ -1205,6 +1208,7 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
       </div>
 
       <InstalarApp variante="item" />
+      <AtivarAvisos pacienteId={paciente.id} variante="chave" />
 
       {/* Stats mini bar */}
       {diaryStreak > 0 && (

@@ -22,6 +22,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { isTipoAviso, montarEmail, type DadosAviso } from "./templates.ts";
+import { chavesVapidDoAmbiente, enviarPushParaPaciente } from "./webpush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,6 +145,18 @@ Deno.serve(async (req) => {
         provider_id: extra.provider_id ?? null,
       });
     };
+
+    // ── Notificação no celular (se a paciente ativou os avisos no app) ──
+    // Vai junto do e-mail e não depende dele: aviso por e-mail desligado ou
+    // e-mail inválido não impedem o aviso no celular.
+    const primeiroParagrafo = email.texto.split("
+").map((l) => l.trim()).find((l) => l && !/^ol[aá]/i.test(l)) || "";
+    await enviarPushParaPaciente(admin, paciente.id, {
+      titulo: email.assunto,
+      corpo: primeiroParagrafo.slice(0, 160),
+      url: tipo === "lembrete_peso" ? "/portal?aba=checkin" : "/portal",
+      tag: tipo,
+    }, chavesVapidDoAmbiente(Deno.env));
 
     // ── Casos em que não se envia ───────────────────────────────────────
     if (paciente.receber_emails === false) {

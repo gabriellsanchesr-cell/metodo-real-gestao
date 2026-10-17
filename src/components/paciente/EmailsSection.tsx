@@ -21,6 +21,7 @@ const STATUS: Record<EmailEnviado["status"], { rotulo: string; icone: typeof Mai
   ignorado: { rotulo: "Não enviado", icone: MinusCircle, classe: "text-muted-foreground border-border bg-muted/40" },
   falhou: { rotulo: "Falhou", icone: AlertCircle, classe: "text-destructive border-destructive/30 bg-destructive/10" },
   pendente: { rotulo: "Pendente", icone: CircleDashed, classe: "text-warning border-warning/30 bg-warning/10" },
+  push: { rotulo: "No celular", icone: CheckCircle2, classe: "text-primary border-primary/30 bg-primary/10" },
 };
 
 function quando(iso: string) {

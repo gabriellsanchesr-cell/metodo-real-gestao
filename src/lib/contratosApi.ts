@@ -75,7 +75,7 @@ export interface EmailEnviado {
   tipo: string;
   assunto: string;
   destinatario: string;
-  status: "pendente" | "enviado" | "falhou" | "simulado" | "ignorado";
+  status: "pendente" | "enviado" | "falhou" | "simulado" | "ignorado" | "push";
   erro: string | null;
   created_at: string;
 }

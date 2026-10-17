@@ -28,6 +28,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // aceita import de outra pasta de função. src/test/emailTemplates.test.ts
 // falha se as duas cópias ficarem diferentes.
 import { montarEmail } from "./templates.ts";
+import { chavesVapidDoAmbiente, enviarPushParaPaciente } from "./webpush.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -106,7 +107,8 @@ Deno.serve(async (req) => {
     const semana = semanaDoCheckin();
     const desdeEnvio = new Date(Date.now() - SEIS_DIAS_MS).toISOString();
     const clinicas = new Map<string, { nome_clinica?: string; logo_url?: string; whatsapp?: string; email_resposta?: string; lembrete_peso_semanal?: boolean } | null>();
-    const resultado = { enviados: 0, simulados: 0, pulados: 0, falhas: 0 };
+    const resultado: Record<string, number> = { enviados: 0, simulados: 0, pulados: 0, falhas: 0, push: 0 };
+    const chavesPush = chavesVapidDoAmbiente(Deno.env);
 
     for (const p of pacientes || []) {
       // Configuração da clínica, uma vez por nutri. A coluna do liga/desliga
@@ -120,9 +122,6 @@ Deno.serve(async (req) => {
 
       if (p.inativo === true && !pacienteUnica) { resultado.pulados++; continue; }
 
-      const destino = (p.email || "").trim();
-      if (p.receber_emails === false || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) { resultado.pulados++; continue; }
-
       // Já respondeu o check-in desta semana: nada a lembrar. Se a tabela do
       // check-in ainda não existe, vale a regra antiga (peso nos últimos 6 dias).
       if (!pacienteUnica) {
@@ -135,11 +134,30 @@ Deno.serve(async (req) => {
         } else if (feitos && feitos.length > 0) { resultado.pulados++; continue; }
       }
 
-      // No máximo um lembrete a cada 6 dias, chame quem chamar.
+      // No máximo um lembrete (e-mail ou celular) a cada 6 dias, chame quem chamar.
       const { data: recente } = await admin.from("notificacoes_email").select("id")
-        .eq("paciente_id", p.id).eq("tipo", TIPO).in("status", ["enviado", "simulado"])
+        .eq("paciente_id", p.id).eq("tipo", TIPO).in("status", ["enviado", "simulado", "push"])
         .gte("created_at", desdeEnvio).limit(1);
       if (recente && recente.length > 0) { resultado.pulados++; continue; }
+
+      // Aviso no celular, para quem ativou no app. Sai mesmo sem e-mail
+      // válido ou com o e-mail desligado, e fica registrado no histórico.
+      const noCelular = await enviarPushParaPaciente(admin, p.id, {
+        titulo: "Seu check-in da semana",
+        corpo: "Leva uns 3 minutos e é por ele que eu ajusto o seu plano.",
+        url: "/portal?aba=checkin",
+        tag: "checkin",
+      }, chavesPush);
+      if (noCelular > 0) {
+        await admin.from("notificacoes_email").insert({
+          user_id: p.user_id, paciente_id: p.id, enviado_por: nutriTeste ?? p.user_id, tipo: TIPO,
+          assunto: "Seu check-in da semana (no celular)", destinatario: `${noCelular} aparelho(s)`, status: "push",
+        });
+        resultado.push = (resultado.push ?? 0) + 1;
+      }
+
+      const destino = (p.email || "").trim();
+      if (p.receber_emails === false || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(destino)) { resultado.pulados++; continue; }
 
       const email = montarEmail(TIPO, {}, {
         nomePaciente: p.nome_completo,

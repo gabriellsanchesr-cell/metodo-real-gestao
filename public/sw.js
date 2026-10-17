@@ -17,3 +17,35 @@ self.addEventListener("fetch", (e) => {
   if (e.request.mode !== "navigate") return; // só páginas; o resto segue direto para a rede
   e.respondWith(fetch(e.request).catch(() => new Response(SEM_CONEXAO, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
 });
+
+/* Avisos no celular (Web Push). A mensagem vem cifrada do servidor; o
+ * navegador decifra e entrega aqui como JSON { titulo, corpo, url, tag }. */
+self.addEventListener("push", (e) => {
+  let aviso = {};
+  try { aviso = e.data ? e.data.json() : {}; } catch (_) { aviso = { corpo: e.data && e.data.text() }; }
+  const titulo = aviso.titulo || "Método R.E.A.L";
+  e.waitUntil(self.registration.showNotification(titulo, {
+    body: aviso.corpo || "",
+    icon: "/app/icon-192.png",
+    badge: "/app/icon-192.png",
+    tag: aviso.tag || undefined,
+    data: { url: aviso.url || "/portal" },
+  }));
+});
+
+/* Tocar no aviso abre o app (ou a aba já aberta) na tela certa. */
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const destino = new URL((e.notification.data && e.notification.data.url) || "/portal", self.location.origin).href;
+  e.waitUntil((async () => {
+    const abertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of abertas) {
+      if (c.url.startsWith(self.location.origin) && "focus" in c) {
+        await c.focus();
+        if ("navigate" in c) await c.navigate(destino);
+        return;
+      }
+    }
+    await self.clients.openWindow(destino);
+  })());
+});
