@@ -11,6 +11,8 @@ interface Props {
   paciente: any;
   avaliacoes: AvaliacaoLinha[];
   avaliacaoId: string;
+  /** Avaliação anterior já escolhida para comparar (ex.: a mais antiga das selecionadas). */
+  comparacaoInicial?: string | null;
   onVoltar: () => void;
 }
 
@@ -19,11 +21,11 @@ interface Props {
  * portal (paciente) e na ficha (nutri, para ver como a paciente vê).
  * No topo: qual avaliação ver e com qual anterior comparar (padrão: a primeira).
  */
-export function AvaliacaoVisual({ paciente, avaliacoes, avaliacaoId, onVoltar }: Props) {
+export function AvaliacaoVisual({ paciente, avaliacoes, avaliacaoId, comparacaoInicial = null, onVoltar }: Props) {
   const [fotos, setFotos] = useState<FotoAvaliacao[] | null>(null);
   const [baixando, setBaixando] = useState(false);
   const [atualId, setAtualId] = useState(avaliacaoId);
-  const [comparacaoId, setComparacaoId] = useState<string | null>(null);
+  const [comparacaoId, setComparacaoId] = useState<string | null>(comparacaoInicial);
 
   const ordenadas = useMemo(
     () => [...avaliacoes].filter((a) => a.id).sort((a, b) => b.data_avaliacao.localeCompare(a.data_avaliacao)),

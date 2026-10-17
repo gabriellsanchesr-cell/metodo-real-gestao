@@ -13,13 +13,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Plus, ArrowLeft, Save, Trash2, TrendingUp, TrendingDown, Minus,
   Scale, Ruler, Activity, BarChart3, ChevronRight, Calendar, Eye, FileDown,
-  Upload, Sparkles,
+  Upload, Sparkles, X, Loader2,
 } from "lucide-react";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
 import { ImportarAvaliacaoModal } from "@/components/paciente/ImportarAvaliacaoModal";
@@ -268,11 +269,24 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
   };
   const pacienteAtual = { ...paciente, data_nascimento: nascimento, sexo };
   // Material visual (feedback físico): a avaliação aberta entra com os valores da tela, calculados.
-  const avaliacoesParaVisual = editId
-    ? [...avaliacoes.filter((a) => a.id !== editId), { ...formCalculado, id: editId }]
-    : avaliacoes;
   const [verVisual, setVerVisual] = useState(false);
   const [baixandoVisual, setBaixandoVisual] = useState(false);
+  // Avaliações marcadas na lista para o comparativo. Com duas ou mais, o
+  // material mostra só elas (da mais antiga à mais recente).
+  const [selecionadas, setSelecionadas] = useState<string[]>([]);
+  const alternarSelecao = (id: string) => setSelecionadas((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const comAberta = editId ? [...avaliacoes.filter((a) => a.id !== editId), { ...formCalculado, id: editId }] : avaliacoes;
+  const usarSelecao = selecionadas.length >= 2 && (!editId || selecionadas.includes(editId));
+  const avaliacoesParaVisual = usarSelecao ? comAberta.filter((a) => selecionadas.includes(a.id)) : comAberta;
+  const ordemSel = [...avaliacoesParaVisual].sort((a, b) => String(a.data_avaliacao).localeCompare(String(b.data_avaliacao)));
+  const comparacaoDaSelecao = usarSelecao ? ordemSel[0]?.id ?? null : null;
+  // Na lista: o material abre sem entrar no formulário.
+  const [visualDaLista, setVisualDaLista] = useState<string | null>(null);
+  const abrirComparativo = () => setVisualDaLista(ordemSel[ordemSel.length - 1]?.id ?? null);
+  const baixarComparativo = async (avaliacaoId: string) => {
+    setBaixandoVisual(true);
+    try { await baixarAvaliacaoHtml(pacienteAtual, avaliacoesParaVisual, avaliacaoId, comparacaoDaSelecao); } finally { setBaixandoVisual(false); }
+  };
 
   // Sum of folds
   const sumFolds = FOLD_FIELDS.reduce((s, f) => s + (Number(form[f.key]) || 0), 0);
@@ -357,6 +371,44 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
           </div>
         </div>
 
+        {avaliacoes.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-primary/5 px-4 py-2.5 text-sm">
+            {selecionadas.length === 0 ? (
+              <span className="text-muted-foreground">Marque duas ou mais avaliações para ver e baixar o comparativo só delas.</span>
+            ) : (
+              <>
+                <span className="font-medium text-foreground">
+                  {selecionadas.length} selecionada{selecionadas.length > 1 ? "s" : ""}
+                  {selecionadas.length === 1 && <span className="font-normal text-muted-foreground">: marque mais uma para comparar</span>}
+                </span>
+                <div className="ml-auto flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" className="rounded-xl" disabled={selecionadas.length < 2} onClick={abrirComparativo}>
+                    <Eye className="h-4 w-4 mr-1" /> Ver comparativo
+                  </Button>
+                  <Button size="sm" variant="outline" className="rounded-xl" disabled={selecionadas.length < 2 || baixandoVisual}
+                    onClick={() => baixarComparativo(ordemSel[ordemSel.length - 1].id)}>
+                    {baixandoVisual ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileDown className="h-4 w-4 mr-1" />} Baixar comparativo
+                  </Button>
+                  <Button size="sm" variant="ghost" className="rounded-xl" onClick={() => setSelecionadas([])}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {visualDaLista && (
+          // "Ver" de uma avaliação fora da seleção abre com todas, comparando com a primeira.
+          <AvaliacaoVisual
+            paciente={pacienteAtual}
+            avaliacoes={usarSelecao && selecionadas.includes(visualDaLista) ? avaliacoesParaVisual : comAberta}
+            avaliacaoId={visualDaLista}
+            comparacaoInicial={usarSelecao && selecionadas.includes(visualDaLista) ? comparacaoDaSelecao : null}
+            onVoltar={() => setVisualDaLista(null)}
+          />
+        )}
+
         {avaliacoes.length === 0 ? (
           <Card className="border-border rounded-xl p-8 text-center">
             <Scale className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
@@ -371,6 +423,15 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
                 <Card key={av.id} className="border-border rounded-xl hover:shadow-md transition cursor-pointer" onClick={() => editForm(av)}>
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-4">
+                      {avaliacoes.length > 1 && (
+                        <div onClick={(e) => e.stopPropagation()} className="-ml-1 p-1">
+                          <Checkbox
+                            checked={selecionadas.includes(av.id)}
+                            onCheckedChange={() => alternarSelecao(av.id)}
+                            aria-label={`Selecionar a avaliação de ${format(parseLocalDate(av.data_avaliacao), "dd/MM/yyyy")} para o comparativo`}
+                          />
+                        </div>
+                      )}
                       <div className="bg-primary/10 rounded-lg p-2">
                         <Calendar className="h-5 w-5 text-primary" />
                       </div>
@@ -406,6 +467,12 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost" size="sm" className="h-8 rounded-lg"
+                        onClick={(e) => { e.stopPropagation(); setVisualDaLista(av.id); }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> Ver
+                      </Button>
                       {/* O card inteiro abre a avaliação: o aviso não pode propagar o clique. */}
                       <div onClick={(e) => e.stopPropagation()}>
                         <AvisarAgoraButton
@@ -494,7 +561,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
               </Button>
               <Button variant="outline" size="sm" disabled={baixandoVisual} onClick={async () => {
                 setBaixandoVisual(true);
-                try { await baixarAvaliacaoHtml(pacienteAtual, avaliacoesParaVisual, editId); } finally { setBaixandoVisual(false); }
+                try { await baixarAvaliacaoHtml(pacienteAtual, avaliacoesParaVisual, editId, comparacaoDaSelecao); } finally { setBaixandoVisual(false); }
               }}>
                 <FileDown className="h-4 w-4 mr-1" /> Material visual (HTML)
               </Button>
@@ -786,7 +853,7 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
       </div>
 
       {verVisual && editId && (
-        <AvaliacaoVisual paciente={pacienteAtual} avaliacoes={avaliacoesParaVisual} avaliacaoId={editId} onVoltar={() => setVerVisual(false)} />
+        <AvaliacaoVisual paciente={pacienteAtual} avaliacoes={avaliacoesParaVisual} avaliacaoId={editId} comparacaoInicial={comparacaoDaSelecao} onVoltar={() => setVerVisual(false)} />
       )}
 
       {showExportPdf && editId && (
