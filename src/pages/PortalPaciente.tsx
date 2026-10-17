@@ -32,6 +32,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PortalCheckin } from "@/components/portal/PortalCheckin";
 import { PortalFotos } from "@/components/portal/PortalFotos";
+import { InstalarApp } from "@/components/portal/InstalarApp";
 import { checkinPendente, type Checkin } from "@/lib/checkin";
 import { listarCheckins } from "@/lib/checkinApi";
 import { isoLocal } from "@/lib/datas";
@@ -507,6 +508,9 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
             </Reveal>
           ))}
         </div>
+
+        {/* Convite para instalar o portal como app (some se já instalou). */}
+        <InstalarApp />
 
         {/* Check-in da semana: o e-mail de sábado aponta para cá. Enquanto a
             tabela não existe no banco, fica o registro de peso de antes. */}
@@ -1248,6 +1252,8 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
         <h2 className="text-lg font-bold text-foreground">{paciente.nome_completo}</h2>
         <p className="text-sm text-muted-foreground">{paciente.email || ""}</p>
       </div>
+
+      <InstalarApp variante="item" />
 
       {/* Stats mini bar */}
       {diaryStreak > 0 && (
