@@ -1,3 +1,5 @@
+import { AvaliacaoVisual } from "@/components/AvaliacaoVisual";
+import { baixarAvaliacaoHtml } from "@/lib/avaliacaoArquivo";
 import { MEDIDAS_CORPO } from "@/lib/checkin";
 import { isoLocal } from "@/lib/datas";
 import { useEffect, useState, useMemo } from "react";
@@ -265,6 +267,12 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
     ...(massaMagra !== null ? { massa_magra_kg: massaMagra } : {}),
   };
   const pacienteAtual = { ...paciente, data_nascimento: nascimento, sexo };
+  // Material visual (feedback físico): a avaliação aberta entra com os valores da tela, calculados.
+  const avaliacoesParaVisual = editId
+    ? [...avaliacoes.filter((a) => a.id !== editId), { ...formCalculado, id: editId }]
+    : avaliacoes;
+  const [verVisual, setVerVisual] = useState(false);
+  const [baixandoVisual, setBaixandoVisual] = useState(false);
 
   // Sum of folds
   const sumFolds = FOLD_FIELDS.reduce((s, f) => s + (Number(form[f.key]) || 0), 0);
@@ -481,6 +489,15 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
         <div className="flex gap-2">
           {editId && (
             <>
+              <Button variant="outline" size="sm" onClick={() => setVerVisual(true)}>
+                <Sparkles className="h-4 w-4 mr-1" /> Ver como a paciente vê
+              </Button>
+              <Button variant="outline" size="sm" disabled={baixandoVisual} onClick={async () => {
+                setBaixandoVisual(true);
+                try { await baixarAvaliacaoHtml(pacienteAtual, avaliacoesParaVisual, editId); } finally { setBaixandoVisual(false); }
+              }}>
+                <FileDown className="h-4 w-4 mr-1" /> Material visual (HTML)
+              </Button>
               <Button variant="outline" size="sm" onClick={() => setShowExportPdf(true)}>
                 <FileDown className="h-4 w-4 mr-1" /> Exportar PDF
               </Button>
@@ -767,6 +784,10 @@ export function AvaliacoesFisicasSection({ paciente }: Props) {
           </div>
         </div>
       </div>
+
+      {verVisual && editId && (
+        <AvaliacaoVisual paciente={pacienteAtual} avaliacoes={avaliacoesParaVisual} avaliacaoId={editId} onVoltar={() => setVerVisual(false)} />
+      )}
 
       {showExportPdf && editId && (
         <ExportPdfModal

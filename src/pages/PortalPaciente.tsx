@@ -33,6 +33,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { PortalCheckin } from "@/components/portal/PortalCheckin";
 import { PortalFotos } from "@/components/portal/PortalFotos";
 import { InstalarApp } from "@/components/portal/InstalarApp";
+import { AvaliacaoVisual } from "@/components/AvaliacaoVisual";
 import { checkinPendente, type Checkin } from "@/lib/checkin";
 import { listarCheckins } from "@/lib/checkinApi";
 import { isoLocal } from "@/lib/datas";
@@ -993,65 +994,15 @@ export function PortalPacienteConteudo({ pacienteId, modoVisualizacao = false, o
   };
 
   const renderAvaliacoes = () => {
+    // A avaliação abre no visual do feedback físico (src/lib/avaliacaoHtml.ts).
     if (selectedAvaliacao) {
-      const av = selectedAvaliacao;
-      const idx = avaliacoes.findIndex(a => a.id === av.id);
-      const prev = idx < avaliacoes.length - 1 ? avaliacoes[idx + 1] : null;
-
       return (
-        <div className="space-y-4 animate-fade-in">
-          <Button variant="ghost" size="sm" onClick={() => setSelectedAvaliacao(null)}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Voltar
-          </Button>
-          <h2 className="text-lg font-bold text-foreground">
-            Avaliação de {format(parseLocalDate(av.data_avaliacao), "dd/MM/yyyy")}
-          </h2>
-
-          <Card className="rounded-2xl glass-card">
-            <CardContent className="p-4 grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground text-xs">Peso</p>
-                <p className="font-bold text-lg">{av.peso ?? "—"} kg</p>
-                <PortalDeltaBadge current={av.peso} previous={prev?.peso} unit="kg" inverse />
-              </div>
-              <div>
-                <p className="text-muted-foreground text-xs">IMC</p>
-                <p className="font-bold text-lg">{av.imc ?? "—"}</p>
-                <Badge variant="outline" className="text-xs">{av.classificacao_imc || "—"}</Badge>
-              </div>
-              {av.circ_cintura && (
-                <div><p className="text-muted-foreground text-xs">Cintura</p><p className="font-semibold">{av.circ_cintura} cm</p>
-                  <PortalDeltaBadge current={av.circ_cintura} previous={prev?.circ_cintura} unit="cm" inverse />
-                </div>
-              )}
-              {av.circ_quadril && (
-                <div><p className="text-muted-foreground text-xs">Quadril</p><p className="font-semibold">{av.circ_quadril} cm</p></div>
-              )}
-              {(av.percentual_gordura_dobras != null || av.bio_percentual_gordura != null) && (
-                <div className="col-span-2">
-                  <p className="text-muted-foreground text-xs">% Gordura Corporal</p>
-                  <p className="font-bold text-lg">{av.percentual_gordura_dobras ?? av.bio_percentual_gordura}%</p>
-                  <PortalDeltaBadge current={av.percentual_gordura_dobras ?? av.bio_percentual_gordura} previous={prev ? (prev.percentual_gordura_dobras ?? prev.bio_percentual_gordura) : null} unit="%" inverse />
-                </div>
-              )}
-              {av.massa_magra_kg && (
-                <div><p className="text-muted-foreground text-xs">Massa Magra</p><p className="font-semibold">{av.massa_magra_kg} kg</p></div>
-              )}
-              {av.massa_gorda_kg && (
-                <div><p className="text-muted-foreground text-xs">Massa Gorda</p><p className="font-semibold">{av.massa_gorda_kg} kg</p></div>
-              )}
-            </CardContent>
-          </Card>
-
-          {av.observacoes && (
-            <Card className="rounded-2xl">
-              <CardContent className="p-4 text-sm">
-                <p className="text-muted-foreground text-xs mb-1">Observações</p>
-                <p className="text-foreground">{av.observacoes}</p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <AvaliacaoVisual
+          paciente={paciente}
+          avaliacoes={avaliacoes}
+          avaliacaoId={selectedAvaliacao.id}
+          onVoltar={() => setSelectedAvaliacao(null)}
+        />
       );
     }
 
