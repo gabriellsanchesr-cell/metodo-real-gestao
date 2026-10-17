@@ -30,7 +30,7 @@ export interface AvisoPush {
 
 const enc = new TextEncoder();
 
-export function b64urlParaBytes(s: string): Uint8Array {
+export function b64urlParaBytes(s: string): Uint8Array<ArrayBuffer> {
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
   const bin = atob(b64);
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
@@ -42,20 +42,20 @@ export function bytesParaB64url(b: Uint8Array): string {
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-function juntar(...partes: Uint8Array[]): Uint8Array {
+function juntar(...partes: Uint8Array[]): Uint8Array<ArrayBuffer> {
   const out = new Uint8Array(partes.reduce((n, p) => n + p.length, 0));
   let i = 0;
   for (const p of partes) { out.set(p, i); i += p.length; }
   return out;
 }
 
-async function hmac(chave: Uint8Array, dados: Uint8Array): Promise<Uint8Array> {
-  const k = await crypto.subtle.importKey("raw", chave, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return new Uint8Array(await crypto.subtle.sign("HMAC", k, dados));
+async function hmac(chave: Uint8Array, dados: Uint8Array): Promise<Uint8Array<ArrayBuffer>> {
+  const k = await crypto.subtle.importKey("raw", new Uint8Array(chave), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return new Uint8Array(await crypto.subtle.sign("HMAC", k, new Uint8Array(dados)));
 }
 
 /** HKDF com uma rodada de expansão (até 32 bytes), como o RFC 8291 usa. */
-export async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, tamanho: number): Promise<Uint8Array> {
+export async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, tamanho: number): Promise<Uint8Array<ArrayBuffer>> {
   const prk = await hmac(salt, ikm);
   return (await hmac(prk, juntar(info, new Uint8Array([1])))).slice(0, tamanho);
 }
@@ -68,7 +68,7 @@ export async function criptografar(
   inscricao: Inscricao,
   mensagem: Uint8Array,
   teste?: { chaveLocal: CryptoKeyPair; salt: Uint8Array },
-): Promise<Uint8Array> {
+): Promise<Uint8Array<ArrayBuffer>> {
   const uaPublica = b64urlParaBytes(inscricao.p256dh);
   const segredo = b64urlParaBytes(inscricao.auth);
   const local = teste?.chaveLocal ?? await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]) as CryptoKeyPair;
