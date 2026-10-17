@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -1588,6 +1588,7 @@ export type Database = {
           angulo: string
           created_at: string
           data_registro: string
+          enviada_pela_paciente: boolean
           foto_path: string
           id: string
           observacoes: string | null
@@ -1598,6 +1599,7 @@ export type Database = {
           angulo?: string
           created_at?: string
           data_registro?: string
+          enviada_pela_paciente?: boolean
           foto_path: string
           id?: string
           observacoes?: string | null
@@ -1608,6 +1610,7 @@ export type Database = {
           angulo?: string
           created_at?: string
           data_registro?: string
+          enviada_pela_paciente?: boolean
           foto_path?: string
           id?: string
           observacoes?: string | null
@@ -2513,6 +2516,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      push_inscricoes: {
+        Row: {
+          aparelho: string | null
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          paciente_id: string
+        }
+        Insert: {
+          aparelho?: string | null
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          paciente_id: string
+        }
+        Update: {
+          aparelho?: string | null
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          paciente_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_inscricoes_paciente_id_fkey"
+            columns: ["paciente_id"]
+            isOneToOne: false
+            referencedRelation: "pacientes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       questionarios: {
         Row: {
