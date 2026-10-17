@@ -17,7 +17,7 @@ function suportado(): boolean {
   return typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
-function chaveParaBytes(b64url: string): Uint8Array {
+function chaveParaBytes(b64url: string): Uint8Array<ArrayBuffer> {
   const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64url.length + 3) % 4);
   return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
 }

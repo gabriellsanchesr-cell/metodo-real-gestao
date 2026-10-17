@@ -149,8 +149,7 @@ Deno.serve(async (req) => {
     // ── Notificação no celular (se a paciente ativou os avisos no app) ──
     // Vai junto do e-mail e não depende dele: aviso por e-mail desligado ou
     // e-mail inválido não impedem o aviso no celular.
-    const primeiroParagrafo = email.texto.split("
-").map((l) => l.trim()).find((l) => l && !/^ol[aá]/i.test(l)) || "";
+    const primeiroParagrafo = email.texto.split("\n").map((l) => l.trim()).find((l) => l && !/^ol[aá]/i.test(l)) || "";
     await enviarPushParaPaciente(admin, paciente.id, {
       titulo: email.assunto,
       corpo: primeiroParagrafo.slice(0, 160),
