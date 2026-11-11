@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Clock, Users, ArrowLeft, ChevronDown } from "lucide-react";
 import { usePortalModo } from "@/contexts/PortalModoContext";
 
 interface Ingrediente { nome: string; quantidade: string; unidade: string; }

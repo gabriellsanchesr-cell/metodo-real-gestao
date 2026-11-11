@@ -14,13 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Plus, ArrowLeft, Save, Trash2, TrendingUp, TrendingDown, Minus,
-  Scale, Ruler, Activity, BarChart3, ChevronRight, Calendar, Eye, FileDown,
-  Upload, Sparkles, X, Loader2,
+  Plus, ArrowLeft, Save, Trash2, TrendingUp, TrendingDown, Scale, Activity, BarChart3, ChevronRight, Calendar, Eye, FileDown, Upload, Sparkles, X, Loader2,
 } from "lucide-react";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";
 import { ImportarAvaliacaoModal } from "@/components/paciente/ImportarAvaliacaoModal";

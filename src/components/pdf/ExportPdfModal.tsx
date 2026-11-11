@@ -13,7 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { loadPdfConfig } from "@/lib/pdf/pdfBrand";
 import { generatePlanoAlimentarPdf, generatePlanoSimplificadoPdf, type PlanoExportOptions } from "@/lib/pdf/planoAlimentarPdf";
 import { generateAvaliacaoPdf, type AvaliacaoExportOptions } from "@/lib/pdf/avaliacaoPdf";
-import { generateRelatorioMensalPdf, type RelatorioExportOptions } from "@/lib/pdf/relatorioMensalPdf";
+import { generateRelatorioMensalPdf } from "@/lib/pdf/relatorioMensalPdf";
 
 type ExportType = "plano_alimentar" | "plano_simplificado" | "avaliacao" | "relatorio_mensal";
 

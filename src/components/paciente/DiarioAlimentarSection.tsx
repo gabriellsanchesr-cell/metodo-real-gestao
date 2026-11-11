@@ -7,16 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  BookMarked, ChevronLeft, ChevronRight, Send, Eye, EyeOff, Settings2,
-  Image as ImageIcon, MessageSquare, Calendar, Clock, Filter,
+  BookMarked, Send, Eye, Settings2, MessageSquare, Calendar, Clock,
 } from "lucide-react";
-import { format, addDays, subDays, parseISO } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";

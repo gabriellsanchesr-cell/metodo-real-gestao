@@ -1,5 +1,5 @@
 import { avisarNoCelular } from "@/lib/push";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ConversationList } from "@/components/chat/ConversationList";

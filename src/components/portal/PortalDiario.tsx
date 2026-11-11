@@ -4,14 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { bloqueadoNaVisualizacao, usePortalModo } from "@/contexts/PortalModoContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  BookMarked, Plus, ArrowLeft, Camera, ChevronLeft, ChevronRight,
-  Clock, MessageSquare, Image as ImageIcon, Send, X, AlertCircle,
+  BookMarked, Plus, ArrowLeft, Camera, ChevronLeft, ChevronRight, Clock, MessageSquare, Image as ImageIcon, X,
 } from "lucide-react";
 import { format, addDays, subDays, parseISO } from "date-fns";
 import { hojeLocal } from "@/lib/portal";

@@ -1,7 +1,6 @@
 import { dataLocal } from "@/lib/datas";
 import {
-  createDoc, addHeader, addFooter, addCoverPage, sectionTitle, bodyText,
-  autoTable, MARGINS, loadPdfConfig, checkNewPage, labelText,
+  createDoc, addHeader, addFooter, addCoverPage, sectionTitle, bodyText, autoTable, loadPdfConfig, checkNewPage, labelText,
 } from "./pdfBrand";
 
 export async function generateRelatorioConsultorioPdf(

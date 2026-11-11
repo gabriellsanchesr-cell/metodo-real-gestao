@@ -98,7 +98,7 @@ export default function ConteudoReal() {
     setLoading(true);
     const [{ data: c }, { data: p }, { data: v }] = await Promise.all([
       supabase.from("conteudos_real").select("*").order("ordem"),
-      supabase.from("pacientes").select("id, nome_completo, fase_real, ativo").eq("ativo", true),
+      supabase.from("pacientes").select("id, nome_completo, fase_real, ativo").or("ativo.is.null,ativo.eq.true"),
       supabase.from("conteudo_visualizacoes").select("*"),
     ]);
     setConteudos((c as any) || []);

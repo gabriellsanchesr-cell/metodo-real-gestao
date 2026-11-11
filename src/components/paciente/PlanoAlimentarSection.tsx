@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Utensils, ChevronDown, ChevronUp, Pencil, Copy, Power, Trash2, Send, FileDown, Paperclip, Download, ExternalLink,
-  ArrowRightLeft, Loader2,
+  Plus, Utensils, ChevronDown, ChevronUp, Pencil, Copy, Power, Trash2, FileDown, Paperclip, Download, ExternalLink, ArrowRightLeft, Loader2,
 } from "lucide-react";
 import { PlanoAlimentarEditor } from "./PlanoAlimentarEditor";
 import { ExportPdfModal } from "@/components/pdf/ExportPdfModal";

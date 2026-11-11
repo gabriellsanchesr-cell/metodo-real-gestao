@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, Archive, MessageSquarePlus, Send, Users } from "lucide-react";
+import { Search, MessageSquarePlus, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversa } from "@/pages/Chat";
 import { BulkMessageModal } from "./BulkMessageModal";
@@ -31,7 +31,7 @@ export function ConversationList({ conversas, selectedId, onSelect, onStartNew, 
 
   useEffect(() => {
     if (showNewChat) {
-      supabase.from("pacientes").select("id, nome_completo, email").eq("ativo", true).order("nome_completo").then(({ data }) => {
+      supabase.from("pacientes").select("id, nome_completo, email").or("ativo.is.null,ativo.eq.true").order("nome_completo").then(({ data }) => {
         setPacientes(data || []);
       });
     }

@@ -1,9 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import {
-  createDoc, addHeader, addFooter, addWatermark, addCoverPage,
-  sectionTitle, bodyText, autoTable, BRAND, MARGINS, CONTENT_WIDTH,
-  checkNewPage, addInfoBlock, PdfConfig, subTitle,
+  createDoc, addHeader, addFooter, addWatermark, addCoverPage, sectionTitle, bodyText, autoTable, BRAND, MARGINS, CONTENT_WIDTH, checkNewPage, addInfoBlock, PdfConfig,
 } from "./pdfBrand";
 
 export interface PlanoExportOptions {

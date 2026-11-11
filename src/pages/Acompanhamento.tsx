@@ -42,7 +42,7 @@ export default function Acompanhamento() {
   }, [selectedPaciente]);
 
   const loadPacientes = async () => {
-    const { data } = await supabase.from("pacientes").select("id, nome_completo").eq("ativo", true).order("nome_completo");
+    const { data } = await supabase.from("pacientes").select("id, nome_completo").or("ativo.is.null,ativo.eq.true").order("nome_completo");
     setPacientes(data || []);
   };
 

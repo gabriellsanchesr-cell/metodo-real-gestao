@@ -1,3 +1,4 @@
+import { avisarNoCelular } from "@/lib/push";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ export function BulkMessageModal({ open, onOpenChange, userId }: Props) {
 
   useEffect(() => {
     if (open) {
-      supabase.from("pacientes").select("id, nome_completo, auth_user_id").eq("ativo", true).order("nome_completo").then(({ data }) => {
+      supabase.from("pacientes").select("id, nome_completo, auth_user_id").or("ativo.is.null,ativo.eq.true").order("nome_completo").then(({ data }) => {
         setPacientes((data || []).filter((p: any) => p.auth_user_id));
       });
       setSelected(new Set());
@@ -74,6 +75,8 @@ export function BulkMessageModal({ open, onOpenChange, userId }: Props) {
             ultima_mensagem_em: new Date().toISOString(),
             nao_lidas_paciente: (conv.nao_lidas_paciente || 0) + 1,
           }).eq("id", conv.id);
+          // Mesmo aviso no celular do chat individual (Chat.tsx).
+          avisarNoCelular(pacienteId, "Nova mensagem do seu nutri", personalizedMsg.slice(0, 140), "/portal?aba=mensagens");
         }
       }
       toast({ title: `Mensagem enviada para ${selected.size} paciente(s)` });

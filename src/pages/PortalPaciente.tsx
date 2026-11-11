@@ -21,13 +21,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import {
-  LogOut, Home, Utensils, BookMarked, Target, MoreHorizontal,
-  ChevronDown, ChevronUp, Clock, User, Activity, Sparkles,
-  UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical,
-  Bell, Flame, Weight, Zap, CalendarDays, ChevronRight, Heart, Droplets, Moon, Sun, Sunrise, Sunset,
-  Calendar, Star, Trophy, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink, ClipboardCheck, Camera,
+  LogOut, Home, Utensils, BookMarked, Target, MoreHorizontal, ChevronDown, Clock, User, Activity, Sparkles, UtensilsCrossed, FolderOpen, MessageSquare, Scale, TrendingUp, TrendingDown, Minus, ArrowLeft, Pill, FlaskConical, Flame, Weight, ChevronRight, Moon, Sun, Sunrise, Sunset, Calendar, CheckCircle2, ArrowRightLeft, BookOpen, ExternalLink, ClipboardCheck, Camera,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PortalCheckin } from "@/components/portal/PortalCheckin";
@@ -39,8 +34,7 @@ import { checkinPendente, type Checkin } from "@/lib/checkin";
 import { listarCheckins } from "@/lib/checkinApi";
 import { isoLocal } from "@/lib/datas";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { format, differenceInDays, isToday, isTomorrow, addDays, startOfWeek, endOfWeek } from "date-fns";
+import { format, differenceInDays, isToday, isTomorrow, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // Parse YYYY-MM-DD as local to avoid timezone shifting by -1 day

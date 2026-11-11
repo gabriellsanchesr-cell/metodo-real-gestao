@@ -1,24 +1,22 @@
 import { isoLocal } from "@/lib/datas";
-import { useState, useEffect, lazy, Suspense } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Plus, Download, Trash2, FileText, Search, Upload, Eye, X } from "lucide-react";
+import { Plus, Download, Trash2, FileText, Search, Upload, Eye } from "lucide-react";
 import { PdfViewer } from "./PdfViewer";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 interface Props {
   paciente: any;

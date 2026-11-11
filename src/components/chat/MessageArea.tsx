@@ -1,11 +1,9 @@
 import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, Zap, MessageSquare } from "lucide-react";
 import { QuickRepliesPanel } from "./QuickRepliesPanel";
 import type { Conversa, Mensagem } from "@/pages/Chat";
-import { format, isToday, isYesterday, isSameDay } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 

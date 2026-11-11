@@ -2,7 +2,7 @@ import { dataLocal } from "@/lib/datas";
 import { useMemo } from "react";
 import { usaPortal } from "@/lib/painel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { differenceInDays } from "date-fns";
 import { ClipboardCheck, Smartphone, BookOpen, UtensilsCrossed, Star, AlertTriangle } from "lucide-react";
 

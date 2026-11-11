@@ -13,8 +13,7 @@ import { AvisarPacienteToggle } from "@/components/AvisarPacienteToggle";
 import { avisarPaciente } from "@/lib/notificacoes";
 import { AvisarAgoraButton } from "@/components/AvisarAgoraButton";
 import {
-  Plus, Trash2, Edit, Send, ArrowLeft, Clock, Users, Search,
-  UtensilsCrossed, X, ChevronDown, ChevronUp, Eye,
+  Plus, Trash2, Edit, Send, ArrowLeft, Clock, Users, Search, UtensilsCrossed, X, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 interface Ingrediente {

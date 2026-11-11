@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,11 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pill, FlaskConical, Pencil, Trash2, FileDown } from "lucide-react";
-import { format, differenceInDays, addDays, parseISO } from "date-fns";
+import { Plus, Pill, FlaskConical, Trash2, FileDown } from "lucide-react";
+import { format, differenceInDays, parseISO } from "date-fns";
 import {
-  createDoc, addHeader, addFooter, sectionTitle, bodyText, autoTable,
-  MARGINS, loadPdfConfig, addCoverPage, type PdfConfig,
+  createDoc, addHeader, addFooter, sectionTitle, bodyText, autoTable, MARGINS, loadPdfConfig, addCoverPage,
 } from "@/lib/pdf/pdfBrand";
 
 const categoriaLabels: Record<string, string> = {

@@ -13,7 +13,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Save, Download, Clock, FileText, Calculator, Import, Flame, Info, Trash2,
+  Save, Clock, Calculator, Import, Flame, Info, Trash2,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import {
@@ -96,7 +96,6 @@ export function CalculoEnergetico({ paciente }: Props) {
   const [adicMet, setAdicMet] = useState("0");
   const [gestante, setGestante] = useState(false);
   const [trimestre, setTrimestre] = useState(1);
-  const [objetivo, setObjetivo] = useState<"deficit" | "manutencao" | "superavit">("manutencao");
   const [pctAjuste, setPctAjuste] = useState([0]);
 
   // Macros
@@ -205,7 +204,10 @@ export function CalculoEnergetico({ paciente }: Props) {
         formula, fator_atividade: Number(fatorAtiv), fator_injuria: Number(fatorInj),
         adicional_met: Number(adicMet) || 0,
         adicional_gestante: gestante, trimestre_gestante: gestante ? trimestre : null,
-        objetivo, percentual_ajuste: pctAjuste[0],
+        // Objetivo sai do ajuste escolhido: antes ficava sempre "manutencao",
+        // mesmo com déficit ou superávit no controle.
+        objetivo: pctAjuste[0] < 0 ? "deficit" : pctAjuste[0] > 0 ? "superavit" : "manutencao",
+        percentual_ajuste: pctAjuste[0],
         tmb: results.tmb, get: results.get, meta_calorica: results.meta,
         proteina_g: results.protG, proteina_pct: results.protPct,
         carboidrato_g: results.carbG, carboidrato_pct: results.carbPct,
