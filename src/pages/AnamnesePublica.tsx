@@ -81,7 +81,7 @@ export default function AnamnesePublica() {
     <div className="min-h-screen bg-[#F4F5FA] px-4 py-8">
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="space-y-2 text-center">
-          <img src="/logo.png" alt="Gabriel Sanches Nutrição" className="mx-auto h-10" />
+          <img src="/email/icone-gabriel-sanches.png" alt="Gabriel Sanches Nutrição" className="mx-auto h-12 w-12" />
           <h1 className="text-2xl font-bold text-[#0E1E35]">Anamnese clínica e nutricional</h1>
           <p className="text-muted-foreground">Responda com calma. O que você digitar fica salvo neste celular até enviar.</p>
           <p className="text-xs text-muted-foreground">{feitos} de {total} respondidos</p>

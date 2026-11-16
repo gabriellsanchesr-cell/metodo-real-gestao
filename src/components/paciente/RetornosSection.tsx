@@ -199,7 +199,7 @@ export function RetornosSection({ paciente }: Props) {
     const comb = anterior?.respostas ?? {};
     return (
       <div className="space-y-4">
-        <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-background/95 px-1 py-2 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" onClick={() => setAberto(null)}><ArrowLeft className="h-4 w-4 mr-1" /> Retornos</Button>
             <div>
@@ -248,7 +248,7 @@ export function RetornosSection({ paciente }: Props) {
           </div>
 
           {/* O que a paciente já contou: para abrir a consulta sem perguntar de novo. */}
-          <aside className="space-y-3 lg:sticky lg:top-16 lg:self-start">
+          <aside className="space-y-3 lg:self-start">
             <Card className="rounded-xl">
               <CardHeader className="pb-2"><CardTitle className="text-sm">Combinados do retorno anterior</CardTitle></CardHeader>
               <CardContent className="space-y-2 text-sm">

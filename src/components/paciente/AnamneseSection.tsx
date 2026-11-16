@@ -123,7 +123,7 @@ export function AnamneseSection({ paciente }: Props) {
   if (editando) {
     return (
       <div className="space-y-4">
-        <div className="sticky top-0 z-10 -mx-1 flex flex-wrap items-center justify-between gap-2 bg-background/95 px-1 py-2 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Anamnese clínica e nutricional</h2>
             <p className="text-xs text-muted-foreground">{feitos} de {total} campos preenchidos</p>
