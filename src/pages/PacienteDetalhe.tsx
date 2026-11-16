@@ -13,6 +13,7 @@ import { ConsultasSection } from "@/components/paciente/ConsultasSection";
 import { CalculoEnergetico } from "@/components/paciente/CalculoEnergetico";
 import { AcessoPaciente } from "@/components/paciente/AcessoPaciente";
 import { AnamneseSection } from "@/components/paciente/AnamneseSection";
+import { RetornosSection } from "@/components/paciente/RetornosSection";
 import { EvolucaoFotograficaSection } from "@/components/paciente/EvolucaoFotograficaSection";
 import { QuestionariosSection } from "@/components/paciente/QuestionariosSection";
 import { ExamesSection } from "@/components/paciente/ExamesSection";
@@ -118,6 +119,7 @@ export default function PacienteDetalhe() {
         />
       );
       case "anamnese": return <AnamneseSection paciente={paciente} />;
+      case "retornos": return <RetornosSection paciente={paciente} />;
       case "fotos": return <EvolucaoFotograficaSection paciente={paciente} />;
       case "questionarios": return <QuestionariosSection paciente={paciente} />;
       case "exames": return <ExamesSection paciente={paciente} />;

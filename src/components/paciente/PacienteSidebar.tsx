@@ -3,7 +3,7 @@ import {
   LayoutDashboard, User, ClipboardList, TrendingUp, Camera, Utensils,
   Calculator, CalendarDays, FileQuestion, TestTube, BookOpen, FileText, KeyRound,
   ChevronDown, Ruler, BookMarked, Target, FolderOpen, UtensilsCrossed, Pill, DollarSign,
-  CalendarClock, Mail, ClipboardCheck,
+  CalendarClock, Mail, ClipboardCheck, MessagesSquare,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
@@ -15,6 +15,7 @@ export const sections = [
   { id: "dados", label: "Dados do Paciente", icon: User, group: "geral" },
   { id: "contrato", label: "Plano contratado", icon: CalendarClock, group: "geral" },
   { id: "anamnese", label: "Anamnese", icon: ClipboardList, group: "clinico" },
+  { id: "retornos", label: "Retornos", icon: MessagesSquare, group: "clinico" },
   { id: "avaliacoes", label: "Avaliações Físicas", icon: Ruler, group: "clinico" },
   { id: "acompanhamento", label: "Acompanhamento Semanal", icon: TrendingUp, group: "clinico" },
   { id: "checkin", label: "Check-in semanal", icon: ClipboardCheck, group: "clinico" },

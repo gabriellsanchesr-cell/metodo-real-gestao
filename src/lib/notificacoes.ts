@@ -67,7 +67,27 @@ const MOTIVOS: Record<string, string> = {
   duplicado: "Um aviso igual acabou de ser enviado.",
   sem_email: "A paciente não tem e-mail válido no cadastro.",
   provedor: "O serviço de e-mail recusou o envio. Veja o histórico da paciente.",
+  sem_portal: "Esta paciente está sem acesso ao portal, então não recebe avisos.",
+  inativo: "Esta paciente está marcada como inativa, então não recebe avisos.",
+  arquivado: "O cadastro desta paciente está arquivado, então ela não recebe avisos.",
 };
+
+/**
+ * Quem pode receber aviso: portal liberado, não inativa e não arquivada.
+ * Mesma regra do lembrete de sábado (lembrete-peso-semanal). Devolve o
+ * motivo quando não pode.
+ */
+export async function motivoParaNaoAvisar(pacienteId: string): Promise<string | null> {
+  // "*": a coluna inativo vem de uma migration posterior.
+  const { data } = await supabase.from("pacientes").select("*").eq("id", pacienteId).maybeSingle();
+  if (!data) return null; // sem leitura, decide o servidor
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p = data as any;
+  if (p.ativo === false) return "arquivado";
+  if (p.inativo === true) return "inativo";
+  if (p.account_status !== "ativo") return "sem_portal";
+  return null;
+}
 
 /**
  * Dispara o aviso. Nunca lança: a ação principal (salvar o plano, agendar a
@@ -83,6 +103,11 @@ export async function avisarPaciente(
   let motivo: string | undefined;
 
   try {
+    const bloqueio = await motivoParaNaoAvisar(pacienteId);
+    if (bloqueio) {
+      if (!opcoes.silencioso) toast({ title: MENSAGENS.ignorado.titulo, description: MOTIVOS[bloqueio] });
+      return "ignorado";
+    }
     const { data, error } = await supabase.functions.invoke("notificar-paciente", {
       body: { paciente_id: pacienteId, tipo, dados },
     });

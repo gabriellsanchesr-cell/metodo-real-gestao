@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     // ── Permissão: dona da paciente, ou membro ativo da equipe dela ──────
     const { data: paciente } = await admin
       .from("pacientes")
-      .select("id, user_id, nome_completo, email, receber_emails")
+      .select("*")
       .eq("id", paciente_id)
       .maybeSingle();
     if (!paciente) return json({ error: "Paciente não encontrada" }, 404);
@@ -145,6 +145,17 @@ Deno.serve(async (req) => {
         provider_id: extra.provider_id ?? null,
       });
     };
+
+    // ── Paciente fora do acompanhamento não recebe nada ─────────────────
+    // Arquivada, inativa ou sem portal liberado: nem e-mail nem celular.
+    // Mesma regra do lembrete de sábado e do app (src/lib/notificacoes.ts).
+    const motivoBloqueio = paciente.ativo === false ? "arquivado"
+      : paciente.inativo === true ? "inativo"
+      : paciente.account_status !== "ativo" ? "sem_portal" : null;
+    if (motivoBloqueio) {
+      await registrar("ignorado", { erro: `Paciente ${motivoBloqueio === "sem_portal" ? "sem acesso ao portal" : motivoBloqueio}` });
+      return json({ status: "ignorado", motivo: motivoBloqueio });
+    }
 
     // ── Notificação no celular (se a paciente ativou os avisos no app) ──
     // Vai junto do e-mail e não depende dele: aviso por e-mail desligado ou
